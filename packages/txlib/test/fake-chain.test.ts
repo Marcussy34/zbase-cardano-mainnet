@@ -12,7 +12,7 @@ import {
 } from '@meshsdk/core-cst';
 import { PV11_COST_MODELS } from '../src/cost-models.js';
 import { enterpriseAddress, keyHash, signTx } from '../src/keys.js';
-import { MAINNET_PARAMETERS, PREPROD_PARAMETERS, ScriptFailure, slotToTime, type Utxo } from '../src/types.js';
+import { MAINNET_PARAMETERS, PREPROD_PARAMETERS, ScriptFailure, minFee, slotToTime, type Utxo } from '../src/types.js';
 import { decodeTx, outputsOf } from '../src/txview.js';
 import { FakeChain, LedgerError, type LedgerRule } from '../src/testing/fake-chain.js';
 
@@ -306,18 +306,15 @@ test('TX-10 (integrity): redeemers retain their original map encoding', async ()
   await rejectsRule(chain(), edit(cbor, tx => tx.body().setScriptDataHash(oldHash)), 'script_integrity');
 });
 
-test('TX-10 (integrity): unused reference languages pass the hash check before simulator rejection', async () => {
+test('TX-10 (integrity): unused reference languages on spent and reference inputs are accepted', async () => {
   const unused = toScriptRef({ code: generic.code, version: 'V1' });
   for (const holder of [config, input]) {
     const utxos = resolved.map(u => u === holder ? {
       ...u, scriptRef: { hash: unused.hash(), cbor: unused.toCbor(), size: 18 },
     } : u);
-    // Aiken rejects extra scripts after phase one, even when they are only references.
-    await assert.rejects(chain(utxos, { ...MAINNET_PARAMETERS, refScriptCostPerByte: 0 }).submit(scripted), (error: unknown) => {
-      assert.ok(error instanceof Error && !(error instanceof LedgerError));
-      assert.match(error.message, /unexpected validator/);
-      return true;
-    });
+    const c = chain(utxos, { ...MAINNET_PARAMETERS, refScriptCostPerByte: 0 });
+    const id = await c.submit(scripted);
+    assert.deepEqual(c.mineBlock().txIds, [id]);
   }
 });
 
@@ -484,6 +481,38 @@ test('TX-09 (chaining): concurrent double spends reserve an input only once', as
 const generic = { code: normalizePlutusScript('5101010023259800a518a4d136564004ae69', 'DoubleCBOR'), version: 'V3' as const };
 const genericPolicy = toScriptRef(generic).hash();
 
+test('TX-05 (evaluate): needed mint, reward, and certificate references survive unused-reference filtering', async t => {
+  const used = utxo('60', 3_000_000n, { scriptRef: {
+    hash: genericPolicy, cbor: toScriptRef(generic).toCbor(), size: normalizePlutusScript(generic.code, 'SingleCBOR').length / 2,
+  } });
+  const reward = RewardAccount.fromCredential({ type: 1, hash: Hash28ByteBase16(genericPolicy) }, 1);
+  const units = { mem: 1000000, steps: 200000000 };
+  for (const tag of ['mint', 'reward', 'cert'] as const) {
+    await t.test(tag, async () => {
+      const tx = builder().txIn(input.ref.txId, 0, amount(input), address, 0)
+        .txInCollateral(collateral.ref.txId, 0, amount(collateral), address)
+        .readOnlyTxInReference(reference.ref.txId, 0, scriptSize).changeAddress(address);
+      if (tag === 'mint') {
+        tx.mintPlutusScriptV3().mint('1', genericPolicy, '01')
+          .mintTxInReference(used.ref.txId, 0, String(used.scriptRef!.size), genericPolicy).mintRedeemerValue(0, 'Mesh', units);
+      } else if (tag === 'reward') {
+        tx.withdrawalPlutusScriptV3().withdrawal(reward, '0')
+          .withdrawalTxInReference(used.ref.txId, 0, String(used.scriptRef!.size), genericPolicy).withdrawalRedeemerValue(0, 'Mesh', units);
+      } else {
+        tx.deregisterStakeCertificate(reward)
+          .certificateTxInReference(used.ref.txId, 0, String(used.scriptRef!.size), genericPolicy, 'V3').certificateRedeemerValue(0, 'Mesh', units);
+      }
+      const cbor = await tx.complete();
+      const c = chain([input, collateral, reference, used]);
+      const before = c.allUtxos();
+      const result = await c.evaluate(cbor);
+      assert.deepEqual(result.map(({ tag, index }) => ({ tag, index })), [{ tag, index: 0 }]);
+      assert.ok(result[0]!.mem > 0n && result[0]!.steps > 0n);
+      assert.deepEqual(c.allUtxos(), before, 'Filtering must not mutate the resolved ledger outputs');
+    });
+  }
+});
+
 async function mint(): Promise<string> {
   return signTx(await builder().txIn(input.ref.txId, 0, amount(input), address, 0)
     .mintPlutusScriptV3().mint('2', genericPolicy, '01').mintingScript(generic.code)
@@ -550,6 +579,28 @@ test('TX-05 (fees): reference bytes on spent inputs and reference inputs contrib
     Transaction.fromCbor(TxCBOR(scripted)).body().referenceInputs()!,
   ));
   await rejectsRule(chain(resolved, expensive), withReference, 'fee_too_small');
+});
+
+test('TX-05 (fees): a key-held reference script can be spent when its byte fee is covered', async () => {
+  const source = { ...input, scriptRef: reference.scriptRef };
+  // Fix the size coefficient at zero to isolate the reference-script byte charge.
+  const parameters = { ...MAINNET_PARAMETERS, minFeeA: 0n, refScriptCostPerByte: 1000 };
+  const fee = minFee(parameters, { size: 0, exUnits: [], refScriptBytes: scriptSize });
+  assert.ok(fee > minFee(parameters, { size: 0, exUnits: [], refScriptBytes: 0 }));
+  const paymentWithFee = (fee: bigint) => edit(plain, tx => {
+    tx.body().setFee(fee);
+    const output = tx.body().outputs()[0]!.toCore();
+    output.value.coins = source.value.lovelace - fee;
+    tx.body().setOutputs([TransactionOutput.fromCore(output)]);
+  });
+  const cbor = paymentWithFee(fee);
+  assert.equal(decodeTx(cbor).redeemers.length, 0);
+  await rejectsRule(chain([source], parameters), paymentWithFee(fee - 1n), 'fee_too_small');
+  const c = chain([source], parameters);
+  const id = await c.submit(cbor);
+  assert.deepEqual(c.mineBlock().txIds, [id]);
+  assert.deepEqual(await c.getUtxos([source.ref]), []);
+  assert.equal((await c.getUtxos([{ txId: id, index: 0 }]))[0]!.value.lovelace, source.value.lovelace - fee);
 });
 
 test('TX-09 (rules): accept the exact minimum output amount and reject one lovelace less', async () => {

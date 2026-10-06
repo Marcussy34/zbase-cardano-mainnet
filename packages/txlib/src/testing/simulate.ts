@@ -2,7 +2,7 @@ import { execFile } from 'node:child_process';
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { promisify, stripVTControlCharacters } from 'node:util';
-import { CborWriter, toTxUnspentOutput, Transaction, TxCBOR } from '@meshsdk/core-cst';
+import { Address, AssetId, CborWriter, CredentialType, toTxUnspentOutput, Transaction, TxCBOR, type CredentialCore } from '@meshsdk/core-cst';
 import { NETWORKS, type Network } from '@zbase-cardano/crypto';
 import { ScriptFailure, type Utxo, type RedeemerUnits, type RedeemerTag } from '../types.js';
 
@@ -41,6 +41,23 @@ export async function simulate(txCbor: string, resolved: Utxo[], network: Networ
     if (!utxo) throw new Error(`Missing resolved input ${ref}`);
     required.set(ref, utxo);
   }
+  const neededScripts = new Set<string>();
+  const addCredential = (credential: CredentialCore | undefined): void => {
+    if (credential?.type === CredentialType.ScriptHash) neededScripts.add(credential.hash);
+  };
+  for (const input of body.inputs().values()) {
+    const utxo = required.get(`${input.transactionId()}#${input.index()}`)!;
+    addCredential(Address.fromBech32(utxo.address).getProps().paymentPart);
+  }
+  for (const asset of body.mint()?.keys() ?? []) neededScripts.add(AssetId.getPolicyId(asset));
+  for (const account of body.withdrawals()?.keys() ?? []) addCredential(Address.fromBech32(account).getProps().paymentPart);
+  for (const certificate of body.certs()?.values() ?? []) {
+    const core = certificate.toCore();
+    if ('stakeCredential' in core) addCredential(core.stakeCredential);
+    if ('dRepCredential' in core) addCredential(core.dRepCredential);
+    // A committee's cold credential authorizes its certificate, not the new hot credential.
+    if ('coldCredential' in core) addCredential(core.coldCredential);
+  }
   const redeemers = [...(tx.witnessSet().redeemers()?.values() ?? [])]
     .sort((a, b) => a.tag() - b.tag() || Number(a.index() - b.index()));
   const utxos = [...required.values()].map(u => toTxUnspentOutput({
@@ -53,7 +70,8 @@ export async function simulate(txCbor: string, resolved: Utxo[], network: Networ
       ],
       ...(u.inlineDatum === null ? {} : { plutusData: u.inlineDatum }),
       ...(u.datumHash === null ? {} : { dataHash: u.datumHash }),
-      ...(u.scriptRef === null ? {} : { scriptRef: u.scriptRef.cbor }),
+      // Aiken rejects unused references. Filter only its input copy, preserving ledger fees and witnesses.
+      ...(u.scriptRef === null || !neededScripts.has(u.scriptRef.hash) ? {} : { scriptRef: u.scriptRef.cbor }),
     },
   }));
 
