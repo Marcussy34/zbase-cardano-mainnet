@@ -113,14 +113,23 @@ test('TX-01: devnet also deploys with mainnet address encoding', async () => {
 
 test('TX-01: script publication chains change and also uses remaining payer inputs', async () => {
   const { ctx, keys } = await startDevnet();
-  const chain = new FakeChain({ network: ctx.deployment.network });
   const address = enterpriseAddress(keys.operator, ctx.deployment.network);
-  for (let i = 0; i < 2; i += 1) chain.addUtxo({ address, value: { lovelace: 30_000_000n, assets: {} },
-    inlineDatum: null, datumHash: null, scriptRef: null });
-  const { txs } = await buildPublishScripts({ provider: chain, network: ctx.deployment.network }, {
+  const fund = (lovelace: bigint): FakeChain => {
+    const chain = new FakeChain({ network: ctx.deployment.network });
+    for (let i = 0; i < 2; i += 1) chain.addUtxo({ address, value: { lovelace, assets: {} },
+      inlineDatum: null, datumHash: null, scriptRef: null });
+    return chain;
+  };
+  const publish = (chain: FakeChain) => buildPublishScripts({ provider: chain, network: ctx.deployment.network }, {
     payer: { address }, scripts: ctx.deployment.scripts, holder: address,
   });
+  // The pool script grows with the rules, so size the funding from what its output really locks.
+  // One input then covers the first publication with little change, and the second needs both.
+  const poolLock = decodeTx((await publish(fund(1_000_000_000n))).txs[0]!.cbor).outputs[0]!.value.lovelace;
+  const chain = fund(poolLock + 5_000_000n);
+  const { txs } = await publish(chain);
   assert.ok(decodeTx(txs[1]!.cbor).inputs.some(input => input.txId === txs[0]!.txId && input.index === 1));
+  assert.ok(decodeTx(txs[1]!.cbor).inputs.length >= 2);
   for (const tx of txs) await chain.submit(signTx(tx.cbor, [keys.operator]));
   chain.mineBlock();
   assert.equal(chain.blocks()[0]!.txIds.length, 2);
