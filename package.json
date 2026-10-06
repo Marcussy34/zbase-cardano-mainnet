@@ -13,6 +13,8 @@
     "build:contracts": "cd contracts && aiken build",
     "build:circuits": "bash circuits/scripts/build.sh",
     "setup:dev": "node circuits/scripts/setup-dev.mjs",
+    "ops:setup": "npm run setup -w ops --",
+    "ops:deploy": "npm run deploy -w ops --",
     "check:budgets": "node contracts/scripts/check-budgets.mjs",
     "fixtures": "node --import tsx contracts/fixtures/gen.ts",
     "check:fixtures": "node --import tsx contracts/fixtures/gen.ts --check",
