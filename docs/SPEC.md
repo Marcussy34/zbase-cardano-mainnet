@@ -40,7 +40,7 @@ Each decision lists the main alternative and why it lost.
 | D6 | Spent tags live in one Merkle Patricia Forestry root | One UTXO or token per nullifier | No ADA locked per payment. No minting, which stock x402 facilitators reject. |
 | D7 | One pool UTXO holds funds and state | Per-deposit UTXOs | Spending your own deposit UTXO reveals the link. Funds must be fungible. |
 | D8 | Root history of 16 roots | Current root only | User proofs stay valid while inserts land. |
-| D9 | Poseidon255 parameters from `poseidon-bls12381-circom` | Foundation or ZeroJ set, circomlib constants | Used by live Cardano projects. Listed in the draft Poseidon builtin CIP, so a future builtin can match it. |
+| D9 | Poseidon255 parameters from `poseidon-bls12381-circom` | Foundation or ZeroJ set, circomlib constants | Used by live Cardano projects. Its width-3 instance, which hashes tree nodes, is in the draft Poseidon builtin CIP registry. |
 | D10 | Spend validators only. No mint, no reward withdrawal in any pool transaction | The withdraw-zero trick, nullifier tokens | Stock x402 facilitators reject such transactions. |
 | D11 | Stealth mode is the default x402 path | Hand the pool transaction to the seller | Facilitators differ on script-funded inputs. A plain payment from a one-time key works everywhere. |
 | D12 | The agent proves locally by default | Server-side proving as on Base | The relayer never sees note secrets. The spend circuit is small enough. |
@@ -955,7 +955,7 @@ x402 on Cardano defaults to USDM. Masumi names USDCx on mainnet.
 
 ## 18. Future work
 
-- **Poseidon builtin.** A draft CIP proposes a Poseidon permutation builtin at about 24M CPU per call. Its registry includes our parameter set. If it ships, a later pool version can hash on-chain and drop the Insert proof.
+- **Poseidon builtin.** A draft CIP proposes a Poseidon permutation builtin at about 24M CPU per call. Its registry includes the width-3 instance we use for tree nodes. The width-4 instance we use for commitments is only a candidate there. If the builtin ships, a later pool version can hash tree nodes on-chain and shrink or drop the Insert proof.
 - **Nullifier sharding.** Several nullifier UTXOs keyed by the first byte let settles run in parallel.
 - **Bigger insert batches.** Compress public inputs with a witness-bound random combination.
 - **Multi-input notes.** Port the 2-in 2-out design from zBase's `note_spend` circuit.
@@ -989,7 +989,7 @@ That measurement is the reason for decision D3.
 | TrustLevel proves its Merkle append in-circuit | `TrustLevel/ZK-Defi-Protocol`, `circuits/append_proof.circom` |
 | Protocol version 11 live on mainnet since 2026-07-18 | Koios, `cardano.org/glossary/van-rossem` |
 | Multi-scalar multiplication builtins need Aiken 1.1.24 | Aiken release notes, issue 1378 |
-| Draft Poseidon builtin CIP, about 24M CPU per call, registry includes the circom port | `cardano-foundation/CIPs` pull request 1263 |
+| Draft Poseidon builtin CIP, about 24M CPU per call. Its registry holds the width-3 circom port. The width-4 instance is a candidate | `cardano-foundation/CIPs` pull request 1263 |
 | Poseidon255: 8 full rounds, 56 partial rounds up to 4 inputs, MIT | `jmagan/poseidon-bls12381-circom`, `circuits/poseidon255.circom` |
 | Trie costs at one million entries: insert 126.3M CPU, proof about 760 bytes | `aiken-lang/merkle-patricia-forestry` README |
 | Community verifiers reduce inputs modulo `r` without a range check | Code reading of ak-381, snarkjs-circom-aiken, Foundation verifier |
