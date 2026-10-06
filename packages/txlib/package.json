@@ -14,6 +14,7 @@
   },
   "dependencies": {
     "@zbase-cardano/crypto": "*",
+    "@evolution-sdk/evolution": "0.5.17",
     "@meshsdk/core": "1.9.1",
     "@meshsdk/core-cst": "1.9.1",
     "@noble/curves": "2.4.0",
