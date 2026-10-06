@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { execFile } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { Server, type IncomingMessage } from 'node:http';
@@ -6,16 +7,18 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { after, test } from 'node:test';
 import { fileURLToPath } from 'node:url';
+import { promisify } from 'node:util';
 import type { FacilitatorCardanoSigner } from '@x402/cardano';
 import { IndexerClient, RelayerClient } from '@zbase-cardano/api';
 import { fileStore } from '@zbase-cardano/core';
-import { addressFromBech32, deriveNoteSecrets, vkToCardano } from '@zbase-cardano/crypto';
+import { addressFromBech32, deriveNoteSecrets, precommitment, vkToCardano } from '@zbase-cardano/crypto';
 import { devKeysPresent, loadDevArtifacts, loadDevVkey, shutdown } from '@zbase-cardano/prover';
 import {
-  decodePoolRedeemer, decodeTx, enterpriseAddress, readPool, timeToSlot, vkToHex,
+  buildDeposit, decodePoolRedeemer, decodeTx, encodeDepositDatum, enterpriseAddress, keyHash, readPool, signTx, timeToSlot, vkToHex,
   type TxView, type Utxo,
 } from '@zbase-cardano/txlib';
 import { FakeChain } from '@zbase-cardano/txlib/testing/fake-chain';
+import { startDevnet } from '@zbase-cardano/txlib/testing/devnet';
 import { startSeller } from '@zbase-cardano/example-x402-seller/src/seller.js';
 import { deploy } from '../src/deploy.js';
 import { roleSeed } from '../src/roles.js';
@@ -26,8 +29,116 @@ const price = 2_000_000n;
 const total = (utxos: Utxo[]) => utxos.reduce((sum, u) => sum + u.value.lovelace, 0n);
 after(shutdown);
 
+test('E2E-04: CLI rejects malformed polling and port settings before startup', async t => {
+  for (const name of ['ZBASE_INTERVAL_MS', 'ZBASE_INDEXER_PORT', 'ZBASE_RELAYER_PORT']) {
+    await t.test(name, async () => {
+      for (const value of ['-1', '1.5', 'abc', '', 'Infinity', '9007199254740992']) {
+        await assert.rejects(promisify(execFile)(process.execPath,
+          ['--import', 'tsx', 'ops/src/node.ts'], { cwd: root, env: { PATH: process.env.PATH, [name]: value } }),
+        (error: unknown) => {
+          const failure = error as { code: number; stderr: string };
+          assert.equal(failure.code, 1);
+          assert.match(failure.stderr, new RegExp(`${name}.*nonnegative.*integer`));
+          return true;
+        });
+      }
+    });
+  }
+});
+
+test('E2E-04, CRK-01, ASP-01: idle steps wait for changed snapshots or their retry deadline', {
+  timeout: 900_000,
+  skip: devKeysPresent(root) ? false : 'Development proving keys are absent: circuits/build/dev/manifest.json is required',
+}, async t => {
+  const { startNode } = await import('../src/node.js');
+  const { chain, ctx, keys, run } = await startDevnet();
+  chain.advanceSlots(timeToSlot(Date.now(), ctx.deployment.network));
+  let now = 1_000;
+  const idleRetryMs = 1_000;
+  const node = await startNode({ ctx, history: chain, seeds: keys,
+    insertArtifacts: await loadDevArtifacts('insert', root), spendVkey: await loadDevVkey('spend', root),
+    intervalMs: 0, ports: { indexer: 0, relayer: 0 }, idleRetryMs, now: () => now });
+  t.after(() => node.close());
+  // Ordinary outputs can bypass the deposit builder's minimum-amount check.
+  const small = chain.addUtxo({ address: ctx.deployment.scripts.deposit.address,
+    value: { lovelace: 2_000_000n, assets: {} }, inlineDatum: encodeDepositDatum({ precommitment: 11n,
+      refund: Buffer.from(keyHash(keys.users[0]!)).toString('hex') }), datumHash: null, scriptRef: null });
+  chain.mineBlock();
+  await node.indexer.sync();
+  assert.ok((await node.indexer.getDeposits()).some(d => d.txId === small.txId && d.status === 'pending'));
+  const methods = ['getTip', 'getUtxosAt', 'getUtxos', 'getProtocolParameters', 'getTransactionsAt',
+    'getTransactionCbor', 'evaluate', 'submit'] as const;
+  const calls = methods.map(name => t.mock.method(chain, name));
+  const crank = t.mock.method(node.crank, 'tick');
+  const approval = t.mock.method(node.asp, 'tick');
+  const round = async () => {
+    calls.forEach(call => call.mock.resetCalls());
+    await node.tick();
+    return calls.reduce((sum, call) => sum + call.mock.callCount(), 0);
+  };
+  assert.equal(await round(), 4, 'The first round must try the below-minimum deposit');
+  for (const elapsed of [0, 500, 999]) {
+    now = 1_000 + elapsed;
+    assert.equal(await round(), 1, 'An unchanged rejected deposit needs only the indexer tip read');
+  }
+  assert.equal(crank.mock.callCount(), 1);
+  now = 1_000 + idleRetryMs;
+  assert.equal(await round(), 4, 'The retry deadline must permit one more crank attempt');
+  assert.equal(await round(), 1);
+  const attempts = crank.mock.callCount();
+  chain.mineBlock();
+  await node.tick();
+  assert.equal(crank.mock.callCount(), attempts, 'A new tip alone must not bypass the retry delay');
+
+  const read = chain.getUtxosAt.bind(chain);
+  now += idleRetryMs;
+  const crankFailure = t.mock.method(chain, 'getUtxosAt', async (address: string) => {
+    if (address === ctx.deployment.scripts.pool.address) throw new Error('crank retry read failed');
+    return read(address);
+  });
+  try { await node.tick(); } finally { crankFailure.mock.restore(); }
+  assert.equal(await round(), 4, 'A thrown crank step must run again in the next round');
+  assert.equal(await round(), 1);
+
+  const secrets = deriveNoteSecrets(keys.users[0]!, 0);
+  const depositTx = await run(await buildDeposit(ctx, { payer: { address: enterpriseAddress(keys.users[0]!, ctx.deployment.network) },
+    amount: 10_000_000n, precommitment: precommitment(secrets.nullifier, secrets.secret),
+    refundKeyHash: Buffer.from(keyHash(keys.users[0]!)).toString('hex') }), [keys.users[0]!]);
+  await node.tick();
+  const insertion = await crank.mock.calls.at(-1)!.result;
+  assert.ok(insertion?.txId, 'A new valid deposit must bypass the retry delay immediately');
+  assert.equal(insertion.deposits, 1);
+  chain.mineBlock();
+  await node.tick();
+  const deposits = await node.indexer.getDeposits();
+  assert.equal(deposits.find(d => d.txId === small.txId)?.status, 'pending');
+  assert.equal(deposits.find(d => d.txId === depositTx)?.status, 'absorbed');
+  assert.ok((await approval.mock.calls.at(-1)!.result)?.txId);
+
+  assert.equal(await round(), 2, 'The association service checks its pending update once');
+  for (let i = 0; i < 3; i += 1) assert.equal(await round(), 1);
+  now += idleRetryMs;
+  assert.equal(await round(), 5, 'Both idle steps must retry when their deadlines expire');
+  assert.equal(await round(), 1);
+  now += idleRetryMs;
+  const aspFailure = t.mock.method(chain, 'getUtxosAt', async (address: string) => {
+    if (address === ctx.deployment.scripts.asp.address) throw new Error('association retry read failed');
+    return read(address);
+  });
+  try { await node.tick(); } finally { aspFailure.mock.restore(); }
+  assert.equal(await round(), 2, 'A thrown association step must run again in the next round');
+  assert.equal(await round(), 1);
+  node.asp.remove(deposits.find(d => d.txId === depositTx)!.label!);
+  assert.equal(await round(), 2, 'Changing approved leaves must bypass the association retry delay');
+  assert.equal(await round(), 1);
+  const approvals = approval.mock.callCount();
+  chain.mineBlock();
+  await node.tick();
+  assert.equal(approval.mock.callCount(), approvals + 1, 'A changed confirmed ASP root must bypass the retry delay');
+});
+
 // Only the chain adapter differs from the stock seller and facilitator.
-function facilitator(chain: FakeChain): FacilitatorCardanoSigner {
+function facilitator(chain: FakeChain, mine: () => Promise<unknown>): FacilitatorCardanoSigner {
   return {
     getAddresses: () => [],
     async getUtxo(ref, network) {
@@ -49,8 +160,8 @@ function facilitator(chain: FakeChain): FacilitatorCardanoSigner {
     },
     async submitTransaction(transaction) {
       const txHash = await chain.submit(Buffer.from(transaction, 'base64').toString('hex'));
-      chain.mineBlock();
-      chain.mineBlock();
+      await mine();
+      await mine();
       return { txHash, status: 'mempool' };
     },
     async getTransactionEvidence(hash) {
@@ -88,6 +199,9 @@ test('E2E-01 through E2E-04: deployed pool rehearsal through real HTTP and stock
   const seller = enterpriseAddress(roleSeed(operator, 'seller'), network);
   // Match wall time because the live relayer quotes POSIX validity deadlines.
   const chain = new FakeChain({ network, startSlot: timeToSlot(Date.now(), network) });
+  // A block takes the slots that really passed. A fixed step per block outruns the clock within a few polls,
+  // and then every later settlement expires before it is mined.
+  const mine = async () => chain.mineBlock(Math.max(0, timeToSlot(Date.now(), network) - (await chain.getTip()).slot));
   chain.addUtxo({ address: enterpriseAddress(operator, network), value: { lovelace: 400_000_000n, assets: {} },
     inlineDatum: null, datumHash: null, scriptRef: null });
   const transactions: { view: TxView; inputs: Utxo[] }[] = [];
@@ -105,7 +219,7 @@ test('E2E-01 through E2E-04: deployed pool rehearsal through real HTTP and stock
     vkeys: { spend: await loadDevVkey('spend', root), insert: await loadDevVkey('insert', root),
       ragequit: await loadDevVkey('ragequit', root) },
     config: { depositFeeBps: 50, settleFeeBps: 100 },
-    confirm: async () => { chain.mineBlock(); }, log: line => logs.push(line),
+    confirm: async () => { await mine(); }, log: line => logs.push(line),
   });
   t.diagnostic(`Deployment seconds: ${((performance.now() - started) / 1000).toFixed(3)}`);
   const ctx = { provider: chain, deployment };
@@ -118,7 +232,7 @@ test('E2E-01 through E2E-04: deployed pool rehearsal through real HTTP and stock
   const node = await startNode(nodeOptions);
   t.after(() => node.close());
   const server = await startSeller({ port: 0, network: 'cardano:preprod', payTo: seller,
-    priceLovelace: price, blockfrostProjectId: '', facilitatorSigner: facilitator(chain) });
+    priceLovelace: price, blockfrostProjectId: '', facilitatorSigner: facilitator(chain, mine) });
   t.after(() => server.close());
   const served: { url: string; body: string }[] = [];
   const ports = new Set(Object.values(node.urls).map(url => Number(new URL(url).port)));
@@ -135,38 +249,10 @@ test('E2E-01 through E2E-04: deployed pool rehearsal through real HTTP and stock
     return Reflect.apply(emit, this, [event, ...args]) as boolean;
   });
 
-  await t.test('E2E-04: a failed crank read does not stop the round or the next round', async () => {
-    await node.tick();
-    const sync = t.mock.method(node.indexer, 'sync');
-    const approval = t.mock.method(node.asp, 'tick');
-    const getUtxosAt = chain.getUtxosAt.bind(chain);
-    let failOnce = true;
-    const failing = t.mock.method(chain, 'getUtxosAt', async (address: string) => {
-      if (failOnce && address === deployment.scripts.pool.address) {
-        failOnce = false;
-        throw new Error('transient crank provider failure');
-      }
-      return getUtxosAt(address);
-    });
-    try {
-      await node.tick();
-      assert.equal(failOnce, false);
-      assert.equal(sync.mock.callCount(), 3);
-      assert.equal(approval.mock.callCount(), 1);
-      assert.ok(logs.some(line => /crank.*transient crank provider failure/i.test(line)));
-      await node.tick();
-      assert.equal((await new IndexerClient(node.urls.indexer).getPool()).poolId, deployment.poolId);
-    } finally {
-      failing.mock.restore();
-      sync.mock.restore();
-      approval.mock.restore();
-    }
-  });
-
   const options = { ctx, indexerUrl: node.urls.indexer, relayerUrl: node.urls.relayer, sellerUrl: server.url,
     walletSeed, agentSeed, storePath,
     artifacts: { spend: await loadDevArtifacts('spend', root), ragequit: await loadDevArtifacts('ragequit', root) },
-    poll: { intervalMs: 0, timeoutMs: 900_000, onPoll: async () => { chain.mineBlock(); await node.tick(); } },
+    poll: { intervalMs: 0, timeoutMs: 900_000, onPoll: async () => { await mine(); await node.tick(); } },
     log: (line: string) => { logs.push(line); t.diagnostic(line); },
   };
   let first: DemoResult;
@@ -211,6 +297,8 @@ test('E2E-01 through E2E-04: deployed pool rehearsal through real HTTP and stock
   await t.test('E2E-01, E2E-02: weather payment, private settlement, confirmed exit, and exact solvency', async () => {
     first = await runDemo(options);
     await checkStory(first, runStart, 1);
+    // Quotes carry real deadlines. A chain that outruns the clock expires every later settlement.
+    assert.ok((await chain.getTip()).time <= Date.now(), 'Chain time must not run ahead of the real clock');
   });
   await t.test('E2E-03: a second demo resumes the store with new note and one-time indexes', async () => {
     const start = transactions.length;
@@ -235,6 +323,74 @@ test('E2E-01 through E2E-04: deployed pool rehearsal through real HTTP and stock
       }
     }
     for (const seed of [operator, walletSeed, agentSeed]) assert.ok(!observed.includes(Buffer.from(seed).toString('hex')));
+  });
+  await t.test('E2E-04, CRK-01: idle rounds make one provider call and pending deposits wake the crank', async () => {
+    const reads = ['getTip', 'getUtxosAt', 'getUtxos', 'getProtocolParameters', 'getTransactionsAt',
+      'getTransactionCbor', 'evaluate', 'submit'] as const;
+    const calls = reads.map(name => t.mock.method(chain, name));
+    try {
+      for (let round = 0; round < 3; round += 1) {
+        calls.forEach(call => call.mock.resetCalls());
+        await node.tick();
+        const count = calls.reduce((sum, call) => sum + call.mock.callCount(), 0);
+        t.diagnostic(`Idle round ${round + 1}: ${count} provider calls`);
+        assert.equal(count, 1);
+      }
+    } finally { calls.forEach(call => call.mock.restore()); }
+    const secrets = deriveNoteSecrets(agentSeed, 2);
+    const deposit = await buildDeposit(ctx, { payer: { address: wallet }, amount: 10_000_000n,
+      precommitment: precommitment(secrets.nullifier, secrets.secret),
+      refundKeyHash: Buffer.from(keyHash(walletSeed)).toString('hex') });
+    const depositTx = await chain.submit(signTx(deposit.cbor, [walletSeed]));
+    await mine();
+    const before = transactions.length;
+    await node.tick();
+    assert.equal(transactions.length, before + 1, 'A new pending deposit must trigger Insert in the next round');
+    const insertion = transactions.at(-1)!;
+    assert.ok(insertion.inputs.some(input => input.ref.txId === depositTx));
+    await mine();
+    await node.tick();
+    await mine();
+    await node.tick();
+    assert.equal((await node.indexer.getDeposits()).find(d => d.txId === depositTx)?.status, 'absorbed');
+  });
+  await t.test('E2E-04: failed reads preserve the snapshot and pending crank work', async () => {
+    const secrets = deriveNoteSecrets(agentSeed, 3);
+    const deposit = await buildDeposit(ctx, { payer: { address: wallet }, amount: 10_000_000n,
+      precommitment: precommitment(secrets.nullifier, secrets.secret),
+      refundKeyHash: Buffer.from(keyHash(walletSeed)).toString('hex') });
+    const depositTx = await chain.submit(signTx(deposit.cbor, [walletSeed]));
+    await mine();
+    await node.indexer.sync();
+    const sync = t.mock.method(node.indexer, 'sync');
+    const getUtxosAt = chain.getUtxosAt.bind(chain);
+    let failOnce = true;
+    const failing = t.mock.method(chain, 'getUtxosAt', async (address: string) => {
+      if (failOnce && address === deployment.scripts.pool.address) {
+        failOnce = false;
+        throw new Error('transient crank provider failure');
+      }
+      return getUtxosAt(address);
+    });
+    try {
+      await node.tick();
+      assert.equal(failOnce, false);
+      assert.equal(sync.mock.callCount(), 1, 'A failed crank step needs no extra sync');
+      assert.ok(logs.some(line => /crank.*transient crank provider failure/i.test(line)));
+      assert.equal((await new IndexerClient(node.urls.indexer).getPool()).poolId, deployment.poolId);
+    } finally { failing.mock.restore(); sync.mock.restore(); }
+    const stale = t.mock.method(chain, 'getTip', async () => { throw new Error('transient indexer provider failure'); }, { times: 1 });
+    try {
+      const before = transactions.length;
+      await node.tick();
+      assert.equal(transactions.length, before + 1, 'The crank must use the last snapshot after a failed sync');
+      assert.ok(transactions.at(-1)!.inputs.some(input => input.ref.txId === depositTx));
+      assert.ok(logs.some(line => /indexer.*transient indexer provider failure/i.test(line)));
+    } finally { stale.mock.restore(); }
+    await mine();
+    await node.tick();
+    await mine();
+    await node.tick();
   });
   await t.test('E2E-04: close waits for an in-flight relayer request', async () => {
     const quote = node.relayer.quote.bind(node.relayer);
@@ -277,7 +433,7 @@ test('E2E-01 through E2E-04: deployed pool rehearsal through real HTTP and stock
     assert.equal(calls, 1);
     release();
     await Promise.all([one, two]);
-    assert.equal(calls, 3);
+    assert.equal(calls, 1);
     pending.mock.restore();
     await live.close();
     await live.close();

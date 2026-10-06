@@ -31,6 +31,8 @@ export class AspService {
   private approvedRoot = MerkleTree.empty().root;
   private published: bigint[] = [];
   private publishedRoot = this.approvedRoot;
+  private previous: bigint[] = [];
+  private previousRoot = this.approvedRoot;
   private removed = new Set<bigint>();
   private ticking?: Promise<TickResult>;
   private pending?: { txId: string; input: string; submittedAt: number };
@@ -42,8 +44,10 @@ export class AspService {
       if (stored.version !== 1 || stored.poolId !== a.ctx.deployment.poolId) throw new Error('ASP store belongs to another pool or version');
       this.approved = readLabels(stored.leaves);
       this.published = readLabels(stored.published ?? []);
+      this.previous = readLabels(stored.previous ?? []);
       this.approvedRoot = MerkleTree.fromLeaves(this.approved).root;
       this.publishedRoot = MerkleTree.fromLeaves(this.published).root;
+      this.previousRoot = MerkleTree.fromLeaves(this.previous).root;
       this.removed = new Set(readLabels(stored.removed));
       const active = this.approved.filter(label => label !== 0n);
       if (new Set(active).size !== active.length || active.some(label => this.removed.has(label))) throw new Error('Inconsistent ASP store labels');
@@ -52,7 +56,8 @@ export class AspService {
 
   leaves(root?: bigint): bigint[] {
     if (root === undefined || root === this.approvedRoot) return [...this.approved];
-    return root === this.publishedRoot ? [...this.published] : [];
+    if (root === this.publishedRoot) return [...this.published];
+    return root === this.previousRoot ? [...this.previous] : [];
   }
 
   remove(label: bigint): void {
@@ -73,13 +78,14 @@ export class AspService {
     return this.ticking;
   }
 
-  private persist(leaves: bigint[], removed: Set<bigint>, published = this.published): void {
+  private persist(leaves: bigint[], removed: Set<bigint>, published = this.published, previous = this.previous): void {
     const { storePath, ctx } = this.options;
     if (!storePath) return;
     const temporary = `${storePath}.tmp`;
     try {
       writeFileSync(temporary, JSON.stringify({ version: 1, poolId: ctx.deployment.poolId,
-        leaves: leaves.map(String), removed: [...removed].map(String), published: published.map(String) }) + '\n', { mode: 0o600 });
+        leaves: leaves.map(String), removed: [...removed].map(String), published: published.map(String),
+        previous: previous.map(String) }) + '\n', { mode: 0o600 });
       // Rename publishes the whole list, so a restart cannot observe half a JSON document.
       renameSync(temporary, storePath);
     } catch (error) {
@@ -94,7 +100,10 @@ export class AspService {
     // Preserve confirmed approvals before adding newly absorbed deposits.
     if (this.approvedRoot === current.datum.root && (this.published.length !== this.approved.length
       || this.published.some((leaf, index) => leaf !== this.approved[index]))) {
-      this.persist(this.approved, this.removed, this.approved);
+      this.persist(this.approved, this.removed, this.approved, this.published);
+      // A lagging indexer can still request the root that just stopped being current.
+      this.previous = this.published;
+      this.previousRoot = this.publishedRoot;
       this.published = [...this.approved];
       this.publishedRoot = this.approvedRoot;
     }
