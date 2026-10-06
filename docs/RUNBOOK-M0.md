@@ -7,6 +7,11 @@
 | Companions | [SPEC.md](./SPEC.md), [CEREMONY.md](./CEREMONY.md), [TEST-PLAN.md](./TEST-PLAN.md), [measurements.md](./measurements.md) |
 
 Each step has a test ID from the test plan (`E2E-01` to `E2E-17`) and a pass check.
+
+[RUNBOOK-PREPROD.md](./RUNBOOK-PREPROD.md) holds the exact commands. They are the same on mainnet with `NETWORK=mainnet`.
+Steps 4 to 10 and step 13 of this runbook ran on Preprod on 2026-10-06. [measurements.md](./measurements.md) lists the transactions.
+A Ragequit (step 12) and a pause with its unpause (step 14) also confirmed there. Their pass checks, an unapproved label and an Insert during a pause, ran only on the local test chain.
+Not run on a live network yet: a second payment from a change note (step 11), the negative suite (step 15) and the 7 day canary (step 17). The local test chain covers steps 11 and 15 with the real validators.
 Do the steps in order. Stop at the first step that fails its check.
 
 CAUTION: mainnet funds are real, and deployed scripts cannot be changed. Keep the M0 caps: 50 ADA per deposit and 500 ADA in the pool.
