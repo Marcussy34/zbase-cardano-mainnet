@@ -51,7 +51,7 @@ const message = (error: unknown): string => error instanceof Error ? error.messa
 
 export async function startNode(o: NodeOptions): Promise<ZbaseNode> {
   const intervalMs = o.intervalMs ?? 10_000;
-  const idleRetryMs = o.idleRetryMs ?? 60_000;
+  const idleRetryMs = o.idleRetryMs ?? 20_000;
   const now = o.now ?? Date.now;
   if (!Number.isSafeInteger(intervalMs) || intervalMs < 0 || intervalMs > 2_147_483_647) {
     throw new RangeError('intervalMs must be a nonnegative timer interval');
@@ -73,7 +73,13 @@ export async function startNode(o: NodeOptions): Promise<ZbaseNode> {
     relayerServer = await serveJson(relayerRoutes(relayer).map(route => ({ ...route, handle: request => {
       if (closed) throw new ApiError('internal', 'Node is stopping', 503);
       // An accepted settlement must finish before the CLI terminates the prover workers.
-      const pending = Promise.resolve().then(() => route.handle(request)).finally(() => { requests.delete(pending); });
+      const pending = Promise.resolve().then(() => route.handle(request)).then(result => {
+        const status = (result as { status?: string }).status;
+        if (route.method === 'POST' && route.path === '/v1/settle' && (status === 'submitted' || status === 'confirmed')) {
+          indexer.expectChange();
+        }
+        return result;
+      }).finally(() => { requests.delete(pending); });
       requests.add(pending);
       return pending;
     } })), o.ports?.relayer ?? 4011);
@@ -114,6 +120,7 @@ export async function startNode(o: NodeOptions): Promise<ZbaseNode> {
           await step('crank', [pool.roots, pool.queue, pool.config, pending], async () => {
             const result = await crank.tick();
             if (result) {
+              indexer.expectChange();
               events.push(`insert ${result.txId} (${result.deposits} deposits, ${result.notes} notes)`);
               await sync();
             }
@@ -129,7 +136,10 @@ export async function startNode(o: NodeOptions): Promise<ZbaseNode> {
           || !isDeepStrictEqual(asp.leaves(pool.aspRoot), approved)) {
           await step('asp', [pool.aspRoot, deposits.filter(d => d.status === 'absorbed').map(d => d.label), approved], async () => {
             const result = await asp.tick();
-            if (result.txId) events.push(`asp ${result.txId} (${result.approved} approvals)`);
+            if (result.txId) {
+              indexer.expectChange();
+              events.push(`asp ${result.txId} (${result.approved} approvals)`);
+            }
             if (result.txId || result.approved > 0) await sync();
             return result.txId !== null || result.approved > 0;
           });
@@ -196,6 +206,7 @@ async function main(): Promise<void> {
     return Number(value);
   };
   const intervalMs = integer('ZBASE_INTERVAL_MS', 10_000);
+  const idleRetryMs = integer('ZBASE_IDLE_RETRY_MS', 20_000);
   const ports = { indexer: integer('ZBASE_INDEXER_PORT', 4010), relayer: integer('ZBASE_RELAYER_PORT', 4011) };
   const settings = readSettings();
   const root = fileURLToPath(new URL('../../', import.meta.url));
@@ -208,7 +219,7 @@ async function main(): Promise<void> {
   const log = redactedLog(console.log, [settings.blockfrostProjectId, Buffer.from(settings.operatorSeed).toString('hex'),
     ...Object.values(seeds).map(seed => Buffer.from(seed).toString('hex'))]);
   if (settings.network === 'mainnet') log('CAUTION: the node spends real ADA. Submitted transactions cannot be undone.');
-  const node = await startNode({ ctx: { provider, deployment }, history: provider, seeds, intervalMs, ports,
+  const node = await startNode({ ctx: { provider, deployment }, history: provider, seeds, intervalMs, idleRetryMs, ports,
     insertArtifacts: await keys.load('insert'), spendVkey: keys.spendVkey,
     aspStorePath: join(root, `deployments/${settings.network}/asp-store.json`), log });
   log(`Indexer ${node.urls.indexer}; relayer ${node.urls.relayer}`);

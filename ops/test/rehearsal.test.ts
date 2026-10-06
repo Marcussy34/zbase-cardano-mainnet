@@ -30,7 +30,7 @@ const total = (utxos: Utxo[]) => utxos.reduce((sum, u) => sum + u.value.lovelace
 after(shutdown);
 
 test('E2E-04: CLI rejects malformed polling and port settings before startup', async t => {
-  for (const name of ['ZBASE_INTERVAL_MS', 'ZBASE_INDEXER_PORT', 'ZBASE_RELAYER_PORT']) {
+  for (const name of ['ZBASE_INTERVAL_MS', 'ZBASE_IDLE_RETRY_MS', 'ZBASE_INDEXER_PORT', 'ZBASE_RELAYER_PORT']) {
     await t.test(name, async () => {
       for (const value of ['-1', '1.5', 'abc', '', 'Infinity', '9007199254740992']) {
         await assert.rejects(promisify(execFile)(process.execPath,
@@ -54,10 +54,10 @@ test('E2E-04, CRK-01, ASP-01: idle steps wait for changed snapshots or their ret
   const { chain, ctx, keys, run } = await startDevnet();
   chain.advanceSlots(timeToSlot(Date.now(), ctx.deployment.network));
   let now = 1_000;
-  const idleRetryMs = 1_000;
+  const idleRetryMs = 20_000;
   const node = await startNode({ ctx, history: chain, seeds: keys,
     insertArtifacts: await loadDevArtifacts('insert', root), spendVkey: await loadDevVkey('spend', root),
-    intervalMs: 0, ports: { indexer: 0, relayer: 0 }, idleRetryMs, now: () => now });
+    intervalMs: 0, ports: { indexer: 0, relayer: 0 }, now: () => now });
   t.after(() => node.close());
   // Ordinary outputs can bypass the deposit builder's minimum-amount check.
   const small = chain.addUtxo({ address: ctx.deployment.scripts.deposit.address,
@@ -77,7 +77,7 @@ test('E2E-04, CRK-01, ASP-01: idle steps wait for changed snapshots or their ret
     return calls.reduce((sum, call) => sum + call.mock.callCount(), 0);
   };
   assert.equal(await round(), 4, 'The first round must try the below-minimum deposit');
-  for (const elapsed of [0, 500, 999]) {
+  for (const elapsed of [0, 10_000, 19_999]) {
     now = 1_000 + elapsed;
     assert.equal(await round(), 1, 'An unchanged rejected deposit needs only the indexer tip read');
   }
@@ -104,19 +104,27 @@ test('E2E-04, CRK-01, ASP-01: idle steps wait for changed snapshots or their ret
   const depositTx = await run(await buildDeposit(ctx, { payer: { address: enterpriseAddress(keys.users[0]!, ctx.deployment.network) },
     amount: 10_000_000n, precommitment: precommitment(secrets.nullifier, secrets.secret),
     refundKeyHash: Buffer.from(keyHash(keys.users[0]!)).toString('hex') }), [keys.users[0]!]);
+  await node.indexer.sync();
+  const expectation = t.mock.method(node.indexer, 'expectChange');
   await node.tick();
   const insertion = await crank.mock.calls.at(-1)!.result;
   assert.ok(insertion?.txId, 'A new valid deposit must bypass the retry delay immediately');
   assert.equal(insertion.deposits, 1);
+  assert.equal(expectation.mock.callCount(), 1, 'An Insert submission must request a second look');
   chain.mineBlock();
+  await node.indexer.sync();
+  expectation.mock.resetCalls();
   await node.tick();
   const deposits = await node.indexer.getDeposits();
   assert.equal(deposits.find(d => d.txId === small.txId)?.status, 'pending');
   assert.equal(deposits.find(d => d.txId === depositTx)?.status, 'absorbed');
   assert.ok((await approval.mock.calls.at(-1)!.result)?.txId);
+  assert.equal(expectation.mock.callCount(), 1, 'An association submission must request a second look');
+  expectation.mock.resetCalls();
 
   assert.equal(await round(), 2, 'The association service checks its pending update once');
   for (let i = 0; i < 3; i += 1) assert.equal(await round(), 1);
+  assert.equal(expectation.mock.callCount(), 0, 'Idle steps must not extend indexer activity');
   now += idleRetryMs;
   assert.equal(await round(), 5, 'Both idle steps must retry when their deadlines expire');
   assert.equal(await round(), 1);
@@ -323,6 +331,25 @@ test('E2E-01 through E2E-04: deployed pool rehearsal through real HTTP and stock
       }
     }
     for (const seed of [operator, walletSeed, agentSeed]) assert.ok(!observed.includes(Buffer.from(seed).toString('hex')));
+  });
+  await t.test('E2E-04, REL-02: an accepted settlement requests a second look through the HTTP route', async () => {
+    const expectation = t.mock.method(node.indexer, 'expectChange');
+    try {
+      await new RelayerClient(node.urls.relayer).quote([{ address: seller, amount: price, datumHash: null }]);
+      const rejected = await fetch(`${node.urls.relayer}/v1/settle`, {
+        method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}',
+      });
+      assert.equal(rejected.status, 400);
+      assert.equal(expectation.mock.callCount(), 0);
+      // Replaying an accepted request exercises the route without spending a note twice.
+      const accepted = served.findLast(request => request.url === '/v1/settle' && request.body.includes('publicInputs'))!;
+      const response = await fetch(`${node.urls.relayer}/v1/settle`, {
+        method: 'POST', headers: { 'content-type': 'application/json' }, body: accepted.body,
+      });
+      assert.equal(response.status, 202);
+      assert.equal((await response.json() as { status: string }).status, 'confirmed');
+      assert.equal(expectation.mock.callCount(), 1);
+    } finally { expectation.mock.restore(); }
   });
   await t.test('E2E-04, CRK-01: idle rounds make one provider call and pending deposits wake the crank', async () => {
     const reads = ['getTip', 'getUtxosAt', 'getUtxos', 'getProtocolParameters', 'getTransactionsAt',
