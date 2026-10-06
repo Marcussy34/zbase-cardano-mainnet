@@ -19,15 +19,8 @@ describe("Landing page", () => {
     expect(network.getByText("Public payment details")).toBeTruthy();
     expect(network.queryByText("Note secrets")).toBeNull();
     expect(
-      screen
-        .getByRole("link", { name: /Explore local proving/ })
-        .getAttribute("href"),
-    ).toBe("/docs/?topic=spec");
-    expect(
-      screen
-        .getByRole("link", { name: /Understand the privacy model/ })
-        .getAttribute("href"),
-    ).toBe("/docs/?topic=overview");
+      screen.getByRole("link", { name: "Privacy model" }).getAttribute("href"),
+    ).toBe("/docs/?topic=spec#13-privacy");
   });
   it("FE-13 groups footer destinations and retains the project status", () => {
     render(<App />);
@@ -43,28 +36,21 @@ describe("Landing page", () => {
         .getByRole("link", { name: "The payment path" })
         .getAttribute("href"),
     ).toBe("#payment-path");
-    const documentation = within(
-      footer.getByRole("navigation", { name: "Footer documentation" }),
+    const resources = within(
+      footer.getByRole("navigation", { name: "Footer resources" }),
     );
     expect(
-      documentation
-        .getByRole("link", { name: "Specification" })
-        .getAttribute("href"),
-    ).toBe("/docs/?topic=spec");
+      resources.getByRole("link", { name: "Read docs" }).getAttribute("href"),
+    ).toBe("/docs/");
     expect(
-      documentation
-        .getByRole("link", { name: "Build plan" })
-        .getAttribute("href"),
+      resources.getByRole("link", { name: "Build plan" }).getAttribute("href"),
     ).toBe("/docs/?topic=plan");
-    const project = within(
-      footer.getByRole("navigation", { name: "Footer project" }),
-    );
     expect(
-      project.getByRole("link", { name: "GitHub" }).getAttribute("href"),
+      resources.getByRole("link", { name: "GitHub" }).getAttribute("href"),
     ).toBe("https://github.com/Marcussy34/zbase-cardano-mainnet");
     expect(footer.getByText(/in development/i)).toBeTruthy();
     expect(
-      footer.getByRole("link", { name: "Read docs" }).getAttribute("href"),
+      footer.getAllByRole("link", { name: "Read docs" })[0].getAttribute("href"),
     ).toBe("/docs/");
   });
   it("FE-01 states the release status and the limits of payment privacy", () => {
@@ -75,16 +61,15 @@ describe("Landing page", () => {
     expect(screen.getAllByText(/in development/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/ADA first/i).length).toBeGreaterThan(0);
     const roadmap = within(
-      screen.getByRole("region", { name: /Small steps/ }),
+      screen.getByRole("region", { name: "Mainnet is next." }),
     );
     expect(roadmap.getByText("Tested on Preprod")).toBeTruthy();
-    expect(roadmap.getByText(/Mainnet is not live/)).toBeTruthy();
-    expect(
-      screen.getByText(/The relayer gets a proof and an intent/),
-    ).toBeTruthy();
-    expect(
-      screen.getByText(/Your note secrets never make the trip/),
-    ).toBeTruthy();
+    const local = within(screen.getByRole("group", { name: "Kept on your device" }));
+    expect(local.getByText("Note secrets")).toBeTruthy();
+    expect(local.getByText("Proof generated locally")).toBeTruthy();
+    const network = within(screen.getByRole("group", { name: "Shared with the network" }));
+    expect(network.getByText("Proof + intent")).toBeTruthy();
+    expect(network.queryByText("Note secrets")).toBeNull();
     const disclosures = screen.getAllByText(
       /amounts, recipients, and timing remain public/i,
     );
@@ -133,7 +118,7 @@ describe("Landing page", () => {
     ).toBe("true");
     expect(
       screen.getByRole("region", { name: "Payment walkthrough" }).textContent,
-    ).toContain("Your machine");
+    ).toContain("Generated locally");
     await user.click(screen.getByRole("button", { name: /03.*pay/i }));
     expect(
       screen.getByRole("region", { name: "Payment walkthrough" }).textContent,
@@ -146,7 +131,7 @@ describe("Landing page", () => {
     ).toBe("true");
     expect(
       screen.getByRole("region", { name: "Payment walkthrough" }).textContent,
-    ).toContain("Ordinary ADA deposit");
+    ).toContain("ADA deposit");
   });
 
   it("FE-05 opens and closes a FAQ answer from the keyboard", async () => {

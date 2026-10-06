@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import ScrollWalkthrough from "./ScrollWalkthrough";
@@ -84,12 +84,14 @@ it("FE-14 tells the planned exchange through separate agent and network terminal
   render(<ScrollWalkthrough />);
   expect(screen.getByRole("region", { name: "Your agent" })).toBeTruthy();
   expect(screen.getByRole("region", { name: "The network" })).toBeTruthy();
-  expect(screen.getByText(/Illustrative session/).textContent).toContain(
-    "In development",
-  );
+  expect(screen.getByText("Design preview")).toBeTruthy();
   await user.click(screen.getByRole("button", { name: names[1] }));
   expect(screen.getByText("Proof + intent")).toBeTruthy();
-  expect(screen.getByText("Note secrets stay here.")).toBeTruthy();
+  expect(
+    within(screen.getByRole("region", { name: "Your agent" })).getByText(
+      "Note secrets",
+    ),
+  ).toBeTruthy();
   expect(screen.getByText("Never received")).toBeTruthy();
 });
 
@@ -124,11 +126,11 @@ it("FE-14 scrubs the transfer, proof and payment scenes forward and backward", (
   expect(progress()).toBe(0);
   advance(300);
   expect(progress()).toBeCloseTo(0.5);
-  expect(screen.getByText("A private note")).toBeTruthy();
+  expect(screen.getByText("Private note")).toBeTruthy();
   advance(900);
   selected(1);
   expect(progress()).toBeCloseTo(0.5);
-  expect(screen.getByText("Your machine")).toBeTruthy();
+  expect(screen.getByText("Generated locally")).toBeTruthy();
   advance(1500);
   selected(2);
   expect(progress()).toBeCloseTo(0.5);
@@ -219,7 +221,11 @@ it.each([
   expect(frames.size).toBe(0);
   await user.click(screen.getByRole("button", { name: names[1] }));
   selected(1);
-  expect(screen.getByText("Note secrets stay here.")).toBeTruthy();
+  expect(
+    within(screen.getByRole("region", { name: "Your agent" })).getByText(
+      "Note secrets",
+    ),
+  ).toBeTruthy();
 });
 it("FE-14 coalesces scroll frames and clears listeners and scheduled work on unmount", () => {
   const remove = vi.spyOn(window, "removeEventListener");

@@ -66,6 +66,7 @@ Nobody outside this project has reviewed the design or the code.
 The public frontend is in `apps/web`. It explains the design, distinguishes Preprod from mainnet, and marks the project as `In development`.
 Its main action, `Read docs`, opens `/docs/`, which renders the current PRD, SPEC, and M0 plan.
 It has scroll-driven character motion, a dual-terminal walkthrough, a visual privacy boundary, a six-node payment path, a subtle automatic headline light sweep, and a scenic footer.
+The landing page uses short copy, a compact release-status row, three collapsed FAQ answers, and two footer link groups. Detailed explanations stay in the docs.
 The terminal and orbit scenes stay pinned through their scroll sequences when their content fits the viewport. Compact screens retain readable manual controls.
 The pause control and reduced motion setting keep every section readable.
 It has no wallet connection or transaction functions. See SPEC 8.10 and tests FE-01 to FE-16.

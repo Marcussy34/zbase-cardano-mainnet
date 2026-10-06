@@ -13,67 +13,55 @@ import "./scroll-walkthrough.css";
 type SessionRow = { label: string; value: string; secret?: boolean };
 const steps: {
   name: string;
-  exchange: string;
   text: string;
-  localStatus: string;
-  networkStatus: string;
   agent: SessionRow[];
   network: SessionRow[];
 }[] = [
   {
     name: "Deposit",
-    exchange: "ADA deposit",
-    text: "An ordinary deposit funds the shared pool. Your agent keeps a private note of its balance.",
-    localStatus: "Your note stays on your device.",
-    networkStatus: "Many deposits. One shared pool.",
+    text: "ADA joins the pool; your note stays local.",
     agent: [
-      { label: "Your wallet", value: "Ordinary ADA deposit" },
-      { label: "A private note", value: "Created on your device" },
+      { label: "Wallet", value: "ADA deposit" },
+      { label: "Private note", value: "Local only" },
       { label: "Note secrets", value: "•••• •••• ••••", secret: true },
-      { label: "Balance", value: "Recorded locally" },
+      { label: "Balance", value: "Local" },
     ],
     network: [
       { label: "Deposit", value: "ADA received" },
-      { label: "Insert", value: "Commitment added to pool" },
+      { label: "Insert", value: "Commitment added" },
       { label: "Funding", value: "Shared pool" },
-      { label: "Public", value: "Deposit wallet + amount" },
+      { label: "Public", value: "Wallet + amount" },
     ],
   },
   {
     name: "Prove locally",
-    exchange: "Proof + intent",
-    text: "Your agent proves it can spend. The relayer receives a proof and an intent, without your note secrets.",
-    localStatus: "Note secrets stay here.",
-    networkStatus: "Only the permission to pay travels.",
+    text: "The relayer gets proof and intent, never your note secrets.",
     agent: [
-      { label: "Private note", value: "Loaded on your machine" },
+      { label: "Private note", value: "Local only" },
       { label: "Note secrets", value: "•••• •••• ••••", secret: true },
       { label: "Proof", value: "Generated locally" },
-      { label: "Intent", value: "Authorized by your agent" },
+      { label: "Intent", value: "Authorized" },
     ],
     network: [
-      { label: "Relayer", value: "Receives proof and intent" },
+      { label: "Relayer", value: "Proof + intent" },
       { label: "Proof", value: "Permission to spend" },
-      { label: "Intent", value: "Fixed payout details" },
+      { label: "Intent", value: "Fixed payout" },
       { label: "Note secrets", value: "Never received" },
     ],
   },
   {
     name: "Pay",
-    exchange: "x402 payment",
-    text: "The pool funds a one-time key with the price and fee. That key pays the seller through the standard x402 flow.",
-    localStatus: "Payment complete. Back to work.",
-    networkStatus: "A standard payment reaches the seller.",
+    text: "The pool funds a one-time key, which pays the seller.",
     agent: [
-      { label: "One-time key", value: "Ready for this payment" },
-      { label: "Funding", value: "Received from the pool" },
-      { label: "Seller payment", value: "Signed with the fresh key" },
-      { label: "Resource", value: "Returned to your agent" },
+      { label: "One-time key", value: "Created locally" },
+      { label: "Funding", value: "Shared pool" },
+      { label: "Payment", value: "Fresh key signature" },
+      { label: "Resource", value: "Received" },
     ],
     network: [
-      { label: "Shared pool", value: "Funds a fresh address" },
-      { label: "Funding amount", value: "Price + payment fee" },
-      { label: "x402 seller", value: "Ordinary key payment" },
+      { label: "Shared pool", value: "Fresh address funded" },
+      { label: "Amount", value: "Price + fee" },
+      { label: "x402 seller", value: "Standard payment" },
       { label: "Payment", value: "Confirmed on-chain" },
     ],
   },
@@ -110,14 +98,10 @@ function SessionTerminal({
         )}
         <div>
           <h3>{title}</h3>
-          <span>{local ? "Your machine" : "Relayer · pool · seller"}</span>
         </div>
         <span className="scw-terminal-badge">
           {local ? "PRIVATE" : "SHARED"}
         </span>
-      </div>
-      <div className="scw-session-path" aria-hidden="true">
-        <span>~</span> / {scene.name.toLowerCase()} <i />
       </div>
       <ol className="scw-session-rows" key={step}>
         {scene[side].map((row, index) => (
@@ -144,10 +128,6 @@ function SessionTerminal({
           </li>
         ))}
       </ol>
-      <div className="scw-terminal-status">
-        <span aria-hidden="true" />
-        <span>{local ? scene.localStatus : scene.networkStatus}</span>
-      </div>
     </section>
   );
 }
@@ -312,18 +292,11 @@ export default function ScrollWalkthrough({
       <div ref={sticky} className="scw-sticky">
         <div className="section-heading">
           <div>
-            <span className="eyebrow">The planned flow</span>
+            <span className="eyebrow">How it works</span>
             <h2 id="how-title">
-              Two sides.
-              <br />
-              <span>One private payment.</span>
+              What stays. <span>What travels.</span>
             </h2>
           </div>
-          <p>
-            Follow what stays with your agent.
-            <br />
-            And what goes out into the world.
-          </p>
         </div>
         <div
           className="scw-panel"
@@ -334,7 +307,7 @@ export default function ScrollWalkthrough({
           <div className="scw-scene-meta">
             <span className="scw-preview-label">
               <span />
-              Illustrative session <i>·</i> In development
+              Design preview
             </span>
             <span className="scw-scroll-hint" aria-hidden="true">
               Scroll to play <ArrowDown size={11} />
@@ -354,12 +327,6 @@ export default function ScrollWalkthrough({
               </span>
             </div>
             <SessionTerminal side="network" step={step} />
-          </div>
-          <div className="scw-exchange-caption">
-            <span aria-hidden="true">
-              <ArrowRight size={12} />
-            </span>
-            <span>{steps[step].exchange}</span>
           </div>
           <p className="scw-caption">{steps[step].text}</p>
         </div>

@@ -63,6 +63,9 @@
   letter-spacing: -0.045em;
   color: #e2d7ed;
 }
+.footer-invitation-copy .button {
+  margin-top: 32px;
+}
 .footer-invitation-copy p {
   color: #bbb7c1;
   margin: 26px 0 32px;
@@ -70,7 +73,7 @@
 }
 .footer-redesign .footer-top {
   display: grid;
-  grid-template-columns: 1.65fr 1fr 1fr 0.75fr;
+  grid-template-columns: 2fr 1fr 1fr;
   align-items: start;
   gap: 48px;
   padding: 72px 0 40px;

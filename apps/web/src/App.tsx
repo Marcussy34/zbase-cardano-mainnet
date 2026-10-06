@@ -39,9 +39,8 @@ const scatterPositions = [
   [-0.28, -360],
 ];
 const introLines = [
-  "Your agent has work to do.",
-  "Its entire treasury doesn’t",
-  "need to come with it.",
+  "Your agent works.",
+  "Your wallet stays yours.",
 ];
 const introWords = introLines.join(" ").split(" ");
 
@@ -87,27 +86,17 @@ const questions = [
   {
     question: "Is zBase Cardano live?",
     answer:
-      "The protocol runs on the Preprod test network. Mainnet is not live. The next step is a capped ADA canary using team funds. An external audit is required before caps are lifted.",
+      "The protocol runs on the Preprod test network. Mainnet is not live. A capped ADA canary using team funds is next.",
   },
   {
     question: "What does “private” mean here?",
     answer:
-      "The design aims to break the on-chain link between your funding wallet and your payments. Amounts, recipients, and timing remain public. Privacy also depends on the size of the approved deposit set and your payment patterns.",
-  },
-  {
-    question: "Do my secrets leave my machine?",
-    answer:
-      "In the default design, your agent generates proofs locally. The relayer receives a proof and a payment intent. It does not receive your note secrets.",
-  },
-  {
-    question: "What can my agent pay for?",
-    answer:
-      "The first release targets ADA payments through x402. Private funding for Masumi escrows, payment channels, and tabs is planned for later releases. It is designed for meaningful funding flows, not tiny payments settled one by one on-chain.",
+      "zBase separates your funding wallet from payments. Amounts, recipients, and timing remain public. Privacy depends on the approved deposit set and your payment patterns.",
   },
   {
     question: "Can I take my funds out?",
     answer:
-      "The design includes a public exit for the original depositor, even when their deposit is not approved for private payments. A public exit reveals the link to that depositor. Before the pool absorbs a deposit, its owner can refund it.",
+      "Yes. The original depositor can use a public exit, even without approval for private payments. This reveals the link to their deposit.",
   },
 ];
 
@@ -232,15 +221,12 @@ export default function App() {
               </div>
               <HeroHeadline />
               <p>
-                A private funding rail for AI agents.
-                <br />
-                Built on Cardano. Designed to keep you private.
+                Private funding for AI agents on Cardano.
               </p>
               <ReadDocs />
             </div>
             <div className="hero-foot">
               <div className="foundation">
-                <span>Built around</span>
                 <b>
                   <span className="cardano-glyph" aria-hidden="true">
                     ⠿
@@ -264,7 +250,6 @@ export default function App() {
             </div>
           </section>
           <section className="intro section-wrap" id="idea">
-            <span className="eyebrow">A little less public.</span>
             <h2 className="word-reveal" data-motion-words>
               {introLines.map((line, lineIndex) => (
                 <Fragment key={line}>
@@ -299,11 +284,6 @@ export default function App() {
                 </Fragment>
               ))}
             </h2>
-            <p>
-              zBase Cardano is being built to separate the wallet that funds
-              your agent from the payments it makes. A shared pool. A local
-              proof. A little more privacy.
-            </p>
             <div className="intro-rule">
               <span />
               <Fingerprint size={25} aria-hidden="true" />
@@ -319,66 +299,14 @@ export default function App() {
           id="roadmap"
           aria-labelledby="roadmap-title"
         >
-          <div className="section-heading" data-reveal>
+          <div className="roadmap-brief" data-reveal>
             <div>
-              <span className="eyebrow">Built carefully. In the open.</span>
-              <h2 id="roadmap-title">
-                Small steps.
-                <br />
-                <span>Long-term thinking.</span>
-              </h2>
+              <span className="roadmap-tag">Tested on Preprod</span>
+              <h2 id="roadmap-title">Mainnet is next.</h2>
             </div>
             <a className="text-link" href="/docs/?topic=plan">
-              Explore the build plan <ArrowUpRight size={16} />
+              Build plan <ArrowUpRight size={16} aria-hidden="true" />
             </a>
-          </div>
-          <div className="roadmap-grid">
-            <article className="roadmap-item" data-reveal>
-              <div className="roadmap-top">
-                <span className="mono">01 / M0</span>
-                <span className="roadmap-tag">Tested on Preprod</span>
-              </div>
-              <div className="roadmap-track">
-                <span />
-              </div>
-              <h3>ADA first.</h3>
-              <p>
-                Deposits, local proofs, private x402 payments, and public exits
-                run on Preprod. Mainnet is not live. A capped canary with team
-                funds is next.
-              </p>
-              <span className="roadmap-bottom">Prove the foundations.</span>
-            </article>
-            <article className="roadmap-item" data-reveal>
-              <div className="roadmap-top">
-                <span className="mono">02 / M1</span>
-                <span className="roadmap-tag muted">Planned</span>
-              </div>
-              <div className="roadmap-track">
-                <span />
-              </div>
-              <h3>Open the circle.</h3>
-              <p>
-                A guarded alpha for invited users. Private escrow funding, more
-                payment modes, and a public status page.
-              </p>
-              <span className="roadmap-bottom">Grow with intention.</span>
-            </article>
-            <article className="roadmap-item" data-reveal>
-              <div className="roadmap-top">
-                <span className="mono">03 / M2</span>
-                <span className="roadmap-tag muted">Planned</span>
-              </div>
-              <div className="roadmap-track">
-                <span />
-              </div>
-              <h3>More possibilities.</h3>
-              <p>
-                A public beta with stablecoin pools. Broader access follows an
-                external audit and legal review.
-              </p>
-              <span className="roadmap-bottom">Build toward wider access.</span>
-            </article>
           </div>
         </section>
         <section
@@ -387,14 +315,9 @@ export default function App() {
           aria-labelledby="faq-title"
         >
           <div>
-            <span className="eyebrow">Good questions.</span>
-            <h2 id="faq-title">
-              A little more
-              <br />
-              <span>clarity.</span>
-            </h2>
+            <h2 id="faq-title">Good questions.</h2>
             <a className="text-link" href={DOCS}>
-              Go deeper in the docs <ArrowUpRight size={16} />
+              More in the docs <ArrowUpRight size={16} aria-hidden="true" />
             </a>
           </div>
           <div className="faq-list" data-reveal>
@@ -440,11 +363,9 @@ export default function App() {
             />
           </div>
           <div className="footer-invitation-copy" data-reveal>
-            <span className="eyebrow">For agents. For their humans.</span>
             <h2 id="footer-invitation-title">
               Move <em>freely.</em>
             </h2>
-            <p>A little less public. A little more yours.</p>
             <ReadDocs />
           </div>
         </section>
@@ -457,41 +378,24 @@ export default function App() {
                   zBase<span className="brand-network">Cardano</span>
                 </span>
               </a>
-              <p>
-                A private funding rail for AI agents.
-                <br />
-                Built on Cardano. Designed for you.
-              </p>
-              <span className="footer-signature">
-                <Fingerprint size={16} aria-hidden="true" /> Privacy is a choice
-                worth building for.
-              </span>
             </div>
             <nav aria-label="Footer explore">
               <h3>Explore</h3>
               <a href="#how-it-works">How it works</a>
               <a href="#payment-path">The payment path</a>
-              <a href="#privacy">Privacy by design</a>
-              <a href="#roadmap">Roadmap</a>
-              <a href="#questions">Questions</a>
+              <a href="#privacy">Privacy</a>
             </nav>
-            <nav aria-label="Footer documentation">
-              <h3>Documentation</h3>
-              <a href={DOCS}>Overview</a>
-              <a href="/docs/?topic=spec">Specification</a>
+            <nav aria-label="Footer resources">
+              <h3>Resources</h3>
+              <a href={DOCS}>Read docs</a>
               <a href="/docs/?topic=plan">Build plan</a>
-            </nav>
-            <nav aria-label="Footer project">
-              <h3>Project</h3>
               <a
                 href="https://github.com/Marcussy34/zbase-cardano-mainnet"
                 target="_blank"
                 rel="noreferrer"
               >
-                GitHub <ArrowUpRight size={13} />
+                GitHub <ArrowUpRight size={13} aria-hidden="true" />
               </a>
-              <a href="/docs/?topic=spec#13-privacy">Privacy model</a>
-              <a href="/docs/?topic=spec#12-security">Security</a>
             </nav>
           </div>
           <div className="footer-wordmark" aria-hidden="true" data-reveal>
@@ -500,7 +404,6 @@ export default function App() {
           </div>
           <div className="footer-bottom">
             <span>© 2026 zBase Cardano</span>
-            <span>Built in the open. Private by design.</span>
             <span className="footer-status">
               <i /> In development · ADA first
             </span>

@@ -95,7 +95,7 @@ it("FE-12 pins a fitting laptop scene and finishes at the actual sticky release 
   render(<PaymentOrbit />);
   flush();
   const scene = screen.getByRole("region", {
-    name: "One agent. A more private path.",
+    name: "From wallet to work.",
   });
   expect(scene.dataset.orbitPinned).toBe("true");
   selected("Wallet");
@@ -117,7 +117,7 @@ it("FE-12 releases pinning when the full scene no longer fits the resized viewpo
   render(<PaymentOrbit />);
   flush();
   const scene = screen.getByRole("region", {
-    name: "One agent. A more private path.",
+    name: "From wallet to work.",
   });
   expect(scene.dataset.orbitPinned).toBe("true");
   vi.stubGlobal("innerHeight", 620);
@@ -146,7 +146,7 @@ it("FE-12 remeasures late content size changes and disconnects its scene observe
   const view = render(<PaymentOrbit />);
   flush();
   const scene = screen.getByRole("region", {
-    name: "One agent. A more private path.",
+    name: "From wallet to work.",
   });
   expect(observe).toHaveBeenCalledWith(
     scene.querySelector(".payment-path-sticky"),
@@ -177,7 +177,7 @@ it("FE-12 exposes six keyboard controls and keeps manual selection until scroll 
   screen.getByRole("button", { name: "Local proof" }).focus();
   await user.keyboard("{Enter}");
   selected("Local proof");
-  expect(screen.getByText(/Note secrets stay on your machine/)).toBeTruthy();
+  expect(screen.getByText(/note secrets stay on your machine/)).toBeTruthy();
   fireEvent.resize(window);
   fireEvent.scroll(window);
   flush();
@@ -260,7 +260,7 @@ it.each(["addEventListener", "removeEventListener"])(
     render(<PaymentOrbit />);
     expect(frames.size).toBe(0);
     expect(
-      screen.getByRole("region", { name: "One agent. A more private path." })
+      screen.getByRole("region", { name: "From wallet to work." })
         .dataset.orbitMode,
     ).toBe("static");
     screen.getByRole("button", { name: "One-time key" }).focus();
@@ -275,7 +275,7 @@ it("FE-12 stays static without the observer API used by the shared motion contro
   render(<PaymentOrbit />);
   expect(frames.size).toBe(0);
   expect(
-    screen.getByRole("region", { name: "One agent. A more private path." })
+    screen.getByRole("region", { name: "From wallet to work." })
       .dataset.orbitMode,
   ).toBe("static");
   screen.getByRole("button", { name: "Relayer" }).focus();

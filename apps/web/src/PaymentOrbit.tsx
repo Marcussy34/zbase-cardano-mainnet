@@ -2,7 +2,6 @@ import { useEffect, useRef, useState, type CSSProperties } from "react";
 import {
   ArrowDown,
   ArrowRight,
-  Check,
   Fingerprint,
   KeyRound,
   Layers3,
@@ -16,68 +15,56 @@ const path = [
   {
     name: "Wallet",
     icon: Wallet,
-    label: "Start with an ordinary deposit",
-    title: "Your funds enter. Your story stays yours.",
+    title: "Start with ADA.",
     description:
-      "Deposit ADA through an ordinary Cardano transaction. Your agent keeps a private note for its balance.",
+      "An ordinary deposit creates a private note kept on your device.",
     signal: "ADA deposit",
     destination: "Shared pool",
-    detail: "Private note held locally",
   },
   {
     name: "Shared pool",
     icon: Layers3,
-    label: "A shared starting point",
-    title: "One pool. Many possible origins.",
+    title: "One shared pool.",
     description:
-      "Funds join one shared pool. A proof shows that a payment comes from an approved deposit, without identifying it.",
+      "Payments prove an approved deposit without revealing which one.",
     signal: "Approved deposits",
     destination: "Shared pool",
-    detail: "Approved deposits. Private note ownership.",
   },
   {
     name: "Local proof",
     icon: Fingerprint,
-    label: "Prove without exposing",
-    title: "The proof travels. The secrets stay.",
+    title: "Prove it locally.",
     description:
-      "Your agent creates a zero-knowledge proof locally. Note secrets stay on your machine in default mode.",
+      "Your agent proves locally; note secrets stay on your machine.",
     signal: "Private note",
     destination: "Local proof",
-    detail: "Generated on your machine",
   },
   {
     name: "Relayer",
     icon: Radio,
-    label: "Only what the network needs",
-    title: "Pass the proof. Keep the origin.",
+    title: "Pass the proof.",
     description:
-      "The relayer receives a proof and a payment intent. It submits the pool transaction without receiving your note secrets.",
+      "The relayer gets proof and intent, never note secrets.",
     signal: "Proof + intent",
     destination: "Relayer",
-    detail: "No note secrets sent",
   },
   {
     name: "One-time key",
     icon: KeyRound,
-    label: "A fresh address for the next step",
-    title: "Give each payment a fresh start.",
+    title: "A fresh key.",
     description:
-      "The pool funds a one-time key with the seller’s price plus the next transaction’s fee. Your agent controls that key.",
+      "The pool funds your agent’s one-time key with price plus fee.",
     signal: "Price + fee",
     destination: "One-time key",
-    detail: "Fresh key controlled by your agent",
   },
   {
     name: "x402 seller",
     icon: ShoppingBag,
-    label: "Back to work",
-    title: "Get the resource. Carry on.",
+    title: "Back to work.",
     description:
-      "The one-time key makes a standard x402 payment to the seller. The seller sees a fresh address funded by the pool.",
+      "Your one-time key makes a standard x402 payment to the seller.",
     signal: "One-time key",
     destination: "x402 seller",
-    detail: "Planned default payment path",
   },
 ];
 const clamp = (value: number) => Math.max(0, Math.min(1, value));
@@ -201,7 +188,6 @@ export default function PaymentOrbit({ paused = false }: { paused?: boolean }) {
   }, [paused]);
 
   const active = path[selected];
-  const ActiveIcon = active.icon;
   return (
     <section
       ref={section}
@@ -212,15 +198,8 @@ export default function PaymentOrbit({ paused = false }: { paused?: boolean }) {
     >
       <div ref={sticky} className="payment-path-sticky section-wrap">
         <header className="payment-path-heading">
-          <span className="eyebrow">THE PAYMENT PATH</span>
-          <h2 id="payment-path-heading">One agent. A more private path.</h2>
-          <p>
-            From your wallet to the tools your agent uses.
-            <br />A shared pool puts space between them.
-          </p>
-          <a className="path-docs-link" href="/docs/?topic=spec">
-            Explore the design <ArrowRight size={15} aria-hidden="true" />
-          </a>
+          <span className="eyebrow">Payment path</span>
+          <h2 id="payment-path-heading">From wallet to work.</h2>
         </header>
         <div className="payment-path-stage">
           <div
@@ -230,27 +209,19 @@ export default function PaymentOrbit({ paused = false }: { paused?: boolean }) {
             aria-label="Payment path detail"
           >
             <div className="path-card-top">
-              <span>Design preview · In development</span>
+              <span>Design preview</span>
               <span className="path-count">
                 0{selected + 1}
                 <span> / 06</span>
               </span>
             </div>
             <div className="path-card-content" key={selected}>
-              <div className="path-card-label">
-                <ActiveIcon size={16} aria-hidden="true" />
-                {active.label}
-              </div>
               <h3>{active.title}</h3>
               <p>{active.description}</p>
               <div className="path-card-transfer">
                 <span>{active.signal}</span>
                 <ArrowRight size={14} aria-hidden="true" />
                 <span>{active.destination}</span>
-              </div>
-              <div className="path-card-note">
-                <Check size={13} aria-hidden="true" />
-                {active.detail}
               </div>
             </div>
           </div>
@@ -294,12 +265,12 @@ export default function PaymentOrbit({ paused = false }: { paused?: boolean }) {
           </div>
         </div>
         <p className="path-boundary">
-          Amounts, recipients and timing are visible on-chain.
-          <br className="path-mobile-break" /> Privacy also depends on the
-          approved deposit set and payment patterns.
+          Amounts, recipients and timing stay public.
+          <br className="path-mobile-break" /> Privacy depends on approved
+          deposits and payment patterns.
         </p>
         <div className="path-scroll-guide" aria-hidden="true">
-          <span>Scroll to follow the path</span>
+          <span>Scroll to explore</span>
           <span className="path-scroll-track" />
           <ArrowDown size={12} />
         </div>

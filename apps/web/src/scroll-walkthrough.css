@@ -1,7 +1,6 @@
 .scroll-walkthrough.how-section {
   --scene-progress: 1;
   --transfer: clamp(0, (var(--scene-progress) - 0.22) / 0.5, 1);
-  --completion: clamp(0, (var(--scene-progress) - 0.76) / 0.2, 1);
   padding-top: 0;
   margin-top: 105px;
 }
@@ -43,10 +42,6 @@
   height: 5px;
   border: 1px solid #b7a7c6;
   border-radius: 50%;
-}
-.scw-preview-label > i {
-  color: #5c5762;
-  font-style: normal;
 }
 .scw-scroll-hint {
   display: flex;
@@ -124,15 +119,11 @@
   color: #c5afd7;
 }
 .scw-terminal-title h3 {
-  margin: 0 0 4px;
+  margin: 0;
   font-size: 17px;
   letter-spacing: -0.04em;
   font-weight: 480;
   color: #e2dce8;
-}
-.scw-terminal-title div > span {
-  font-size: 10px;
-  color: #99919f;
 }
 .scw-terminal-title .scw-terminal-badge {
   margin-left: auto;
@@ -152,26 +143,6 @@
 .scw-terminal-network .scw-terminal-badge {
   border-color: #66785b40;
   color: #a6b59b;
-}
-.scw-session-path {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  padding: 0 24px 11px;
-  color: #aca1b5;
-  font:
-    11px ui-monospace,
-    SFMono-Regular,
-    monospace;
-}
-.scw-session-path > span {
-  color: #756582;
-}
-.scw-session-path > i {
-  width: 5px;
-  height: 10px;
-  background: #bca3d5;
-  opacity: calc(0.25 + var(--scene-progress) * 0.6);
 }
 .scw-session-rows {
   list-style: none;
@@ -203,7 +174,10 @@
 .scw-session-rows li > div {
   min-width: 0;
   display: flex;
-  flex-direction: column;
+  flex: 1;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
   clip-path: inset(0 calc((1 - var(--line-progress)) * 100%) 0 0);
 }
 .scw-session-rows li:first-child > div {
@@ -231,35 +205,6 @@
   margin-left: auto;
   flex-shrink: 0;
   opacity: var(--line-progress);
-}
-.scw-terminal-status {
-  min-height: 43px;
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  border-top: 1px solid #b4a6bc13;
-  padding: 10px 24px;
-  font:
-    9px/1.5 ui-monospace,
-    SFMono-Regular,
-    monospace;
-  color: #a99ab7;
-  background: #a789c005;
-}
-.scw-terminal-status > span:first-child {
-  width: 4px;
-  height: 4px;
-  border-radius: 50%;
-  flex-shrink: 0;
-  background: #bfa4d4;
-  box-shadow: 0 0 calc(var(--completion) * 9px) #a182c8;
-}
-.scw-terminal-network .scw-terminal-status {
-  color: #acb99e;
-  background: #91a97904;
-}
-.scw-terminal-network .scw-terminal-status > span:first-child {
-  background: #9cad8c;
 }
 .scw-exchange {
   position: relative;
@@ -310,30 +255,10 @@
   top: -10px;
   color: #877292;
 }
-.scw-exchange-caption {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  margin-top: 18px;
-  font:
-    10px ui-monospace,
-    SFMono-Regular,
-    monospace;
-  color: #c9b1dc;
-}
-.scw-exchange-caption > span:first-child {
-  display: grid;
-  place-items: center;
-  width: 19px;
-  height: 19px;
-  border: 1px solid #564660;
-  border-radius: 50%;
-}
 .scw-caption {
-  margin: 10px auto 0;
+  margin: 24px auto 0;
   max-width: 670px;
-  min-height: 40px;
+  min-height: 21px;
   text-align: center;
   font-size: 12px;
   line-height: 1.7;
@@ -373,18 +298,17 @@
   .scw-terminal-title .scw-terminal-badge {
     display: none;
   }
-  .scw-session-path {
-    padding-inline: 16px;
-  }
   .scw-session-rows {
     padding-inline: 16px;
+  }
+  .scw-session-rows li > div {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0;
   }
   .scw-session-rows > li {
     gap: 8px;
     font-size: 10px;
-  }
-  .scw-terminal-status {
-    padding-inline: 16px;
   }
 }
 @media (max-width: 700px) {
@@ -396,9 +320,6 @@
   }
   .scroll-walkthrough .section-heading h2 {
     font-size: 32px;
-  }
-  .scroll-walkthrough .section-heading > p {
-    display: none;
   }
   .scw-scene-meta {
     padding-bottom: 12px;
@@ -436,13 +357,6 @@
   .scw-terminal-title h3 {
     font-size: 15px;
   }
-  .scw-terminal-title div > span {
-    font-size: 8px;
-  }
-  .scw-session-path {
-    padding: 0 12px 10px;
-    font-size: 10px;
-  }
   .scw-session-rows {
     padding: 0 12px 10px;
   }
@@ -457,19 +371,10 @@
   .scw-line-number {
     display: none;
   }
-  .scw-terminal-status {
-    padding: 9px 12px;
-    min-height: 43px;
-    font-size: 8px;
-    gap: 7px;
-  }
-  .scw-exchange-caption {
-    margin-top: 14px;
-  }
   .scw-caption {
     font-size: 11px;
-    min-height: 56px;
-    margin-top: 8px;
+    min-height: 38px;
+    margin-top: 18px;
   }
   .scroll-walkthrough .step-list {
     gap: 12px;
@@ -498,9 +403,6 @@
   .scw-terminal-title .scw-terminal-badge {
     display: block;
   }
-  .scw-session-path {
-    display: none;
-  }
   .scw-session-rows {
     padding: 0 16px 9px;
   }
@@ -517,10 +419,6 @@
     font-size: 9px;
     width: 81px;
     flex-shrink: 0;
-  }
-  .scw-terminal-status {
-    min-height: 32px;
-    padding: 8px 16px;
   }
   .scw-exchange {
     position: relative;
@@ -539,7 +437,7 @@
     font-size: 30px;
   }
   .scw-caption {
-    min-height: 70px;
+    min-height: 38px;
   }
 }
 @media (max-height: 760px) and (min-width: 521px) {

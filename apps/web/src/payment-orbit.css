@@ -6,7 +6,7 @@
 .payment-path-heading {
   text-align: center;
   max-width: 760px;
-  margin: 0 auto 26px;
+  margin: 0 auto 40px;
 }
 .payment-path-heading .eyebrow {
   font-size: 10px;
@@ -19,29 +19,6 @@
   letter-spacing: -0.055em;
   line-height: 1.1;
 }
-.payment-path-heading > p {
-  color: var(--muted);
-  font-size: 15px;
-  line-height: 1.65;
-  margin-top: 20px;
-}
-.path-docs-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 14px;
-  border: 1px solid #343331;
-  border-radius: 100px;
-  padding: 11px 17px;
-  margin-top: 24px;
-  font-size: 11px;
-  transition:
-    background 180ms,
-    border-color 180ms;
-}
-.path-docs-link:hover {
-  background: #201c26;
-  border-color: #796a89;
-}
 .payment-path-stage {
   display: grid;
   grid-template-columns: minmax(280px, 390px) minmax(340px, 440px);
@@ -52,7 +29,7 @@
 .payment-path-card {
   position: relative;
   z-index: 1;
-  min-height: 318px;
+  min-height: 265px;
   border: 1px solid #37333d;
   border-radius: 20px;
   background: linear-gradient(130deg, #201d23, #171619 80%);
@@ -80,27 +57,19 @@
   color: #77707f;
 }
 .path-card-content {
-  padding: 23px 24px 22px;
-}
-.path-card-label {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: var(--path-lavender);
-  font-size: 10px;
-  line-height: 1.3;
+  padding: 28px 28px 24px;
 }
 .path-card-content h3 {
   max-width: 290px;
-  font-size: 23px;
+  font-size: 28px;
   font-weight: 470;
   line-height: 1.22;
   letter-spacing: -0.045em;
-  margin-top: 18px;
+  margin: 0;
 }
 .path-card-content > p {
-  min-height: 65px;
-  font-size: 12px;
+  min-height: 48px;
+  font-size: 13px;
   line-height: 1.7;
   color: #a5a0aa;
   margin-top: 14px;
@@ -112,20 +81,12 @@
   gap: 8px;
   padding: 13px 0 12px;
   margin-top: 14px;
-  border-block: 1px solid #ffffff0b;
+  border-top: 1px solid #ffffff0b;
   font-size: 10px;
   color: #d6cbdc;
 }
 .path-card-transfer > svg {
   color: #766485;
-}
-.path-card-note {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  color: #9e94a7;
-  font-size: 9px;
-  margin-top: 14px;
 }
 .payment-path-orbit {
   width: 100%;
@@ -339,13 +300,7 @@
     top: 80px;
   }
   .payment-path-heading {
-    margin-bottom: 14px;
-  }
-  .payment-path-heading > p {
-    margin-top: 16px;
-  }
-  .path-docs-link {
-    margin-top: 19px;
+    margin-bottom: 28px;
   }
   .payment-path-orbit {
     max-width: 405px;
@@ -353,58 +308,29 @@
 }
 @media (min-width: 900px) and (max-height: 799px) {
   .payment-path-heading {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    align-items: center;
-    column-gap: 24px;
-    text-align: left;
-    max-width: 940px;
     margin-bottom: 24px;
   }
   .payment-path-heading .eyebrow {
-    grid-column: 1 / -1;
     margin-bottom: 10px;
   }
   .payment-path-heading h2 {
-    grid-column: 1;
     font-size: 34px;
-  }
-  .payment-path-heading > p {
-    grid-column: 1;
-    margin-top: 10px;
-    font-size: 13px;
-    line-height: 1.6;
-  }
-  .payment-path-heading > p br {
-    display: none;
-  }
-  .path-docs-link {
-    grid-column: 2;
-    grid-row: 2 / span 2;
-    margin-top: 0;
-    padding-block: 9px;
   }
   .payment-path-stage {
     grid-template-columns: minmax(280px, 390px) 340px;
     gap: clamp(24px, 6vw, 90px);
   }
   .payment-path-card {
-    min-height: 320px;
+    min-height: 265px;
   }
   .path-card-content {
     padding-block: 18px;
-  }
-  .path-card-content h3 {
-    margin-top: 14px;
   }
   .path-card-content > p {
     margin-top: 11px;
   }
   .path-card-transfer {
     margin-top: 10px;
-  }
-  .path-card-note {
-    margin-top: 11px;
   }
   .path-portrait {
     width: 112px;
@@ -435,7 +361,7 @@
     margin-bottom: 28px;
   }
   .payment-path-card {
-    min-height: 320px;
+    min-height: 265px;
   }
   .path-boundary {
     margin-top: 28px;
@@ -450,9 +376,6 @@
     max-width: 330px;
     margin-inline: auto;
     font-size: 34px;
-  }
-  .payment-path-heading > p {
-    font-size: 13px;
   }
   .payment-path-orbit {
     width: calc(100% + 8px);
