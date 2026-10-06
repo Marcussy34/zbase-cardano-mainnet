@@ -42,6 +42,8 @@ A test seller runs the stock `@x402/cardano` server with its TypeScript facilita
 
 1. **E2E-01. Freeze the circuits.** Tag the commit. Pass check: a clean rebuild gives the same `r1cs` hashes twice.
 2. **E2E-02. Run the ceremony.** Follow [CEREMONY.md](./CEREMONY.md) for all three circuits. Pass check: `snarkjs zkey verify` reports OK for each key, and the manifest is committed.
+   CAUTION: back up the proving keys before you deploy, in at least two places. A setup cannot be repeated with the same result.
+   Without the proving keys of a pool, nobody can insert, pay or exit, and the notes in that pool stay locked.
 3. **E2E-03. Build the validators.** Apply the three verification keys as parameters. Pass check: the script hashes are in the manifest, and `aiken check` passes against the ceremony keys.
 
 ## 3. Phase B: deploy
