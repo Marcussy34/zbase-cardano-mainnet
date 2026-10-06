@@ -26,7 +26,8 @@ Test IDs are stable. Use them in test names, commit messages, and reviews.
 | Validators | `aiken check` | `contracts` | None |
 | Transaction builders | Node test runner, local script evaluation with the pinned Aiken | `packages/txlib` | None, with a fake chain |
 | Services and SDK | Node test runner | `services/*`, `packages/sdk` | None, with a fake chain |
-| End to end | The runbook | Mainnet | Mainnet, capped funds |
+| Rehearsal | Node test runner, real HTTP, the stock x402 seller | `ops` | None, with a fake chain |
+| End to end | The runbooks | Preprod first, then mainnet | Preprod, then mainnet with capped funds |
 
 No pool UTXO exists on mainnet before deployment, so the transaction builder tests cannot evaluate against mainnet state.
 They run against an in-memory chain and evaluate scripts locally. Evaluation through a mainnet provider is part of the runbook.
@@ -228,6 +229,28 @@ If a bound cannot be met, change the Spec estimate first, then the bound.
 ## 12. End to end on mainnet (`E2E`)
 
 `E2E-01` to `E2E-17` are the steps of [RUNBOOK-M0.md](./RUNBOOK-M0.md), in order. Each step lists its pass check there.
+[RUNBOOK-PREPROD.md](./RUNBOOK-PREPROD.md) runs the same steps on the test network with the exact commands.
+
+### Rehearsal on the local chain
+
+`ops/test/rehearsal.test.ts` plays runbook steps 4 to 13 on the local chain: deploy, the node, the stock x402 seller, and the demo, through real HTTP.
+Its cases reuse four IDs for what they check:
+
+| ID in the rehearsal | What it checks |
+|---|---|
+| E2E-01 | The seller answers HTTP 200 and holds exactly its price. No transaction that pays the seller touches the wallet. The HTTP traffic of the node holds no note secret. |
+| E2E-02 | The exit returns the rest. The pool ends with its reserve plus fees. |
+| E2E-03 | A second run on the same chain and store works. |
+| E2E-04 | The node keeps running when one round fails. |
+
+### Admin actions (`ADM`)
+
+| ID | Test | Where |
+|---|---|---|
+| ADM-01 | Pause and unpause through a config update. A missing admin signature fails. A value outside the bounds is refused. | `packages/txlib/test/admin.test.ts` |
+| ADM-02 | Fee collection pays the treasury and lowers the pool by exactly the amount. More than the accrued fees is refused. | same file |
+| ADM-03 | During a pause an Insert of a deposit fails, and a Settle still confirms. | same file |
+| OPS-ADM-01 to 03 | The admin command: pause twice, no fees to collect, and a sweep that takes only this pool's reference outputs. | `ops/test/admin.test.ts` |
 
 ## 13. Invariant coverage
 

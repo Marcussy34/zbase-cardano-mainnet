@@ -88,6 +88,19 @@ The Preprod pool was deployed on 2026-10-06. Its record is [deployments/preprod.
 A deployment costs about 245 ADA: 160 ADA of role funding, 73.6 ADA locked in the four reference script outputs, 8.9 ADA in the three state outputs, and about 1.5 ADA of fees.
 The Init units are the evaluated units before the 10 percent margin.
 
+The first Init on Preprod was finished by hand, after the node refused it for a wrong script integrity hash.
+That defect is fixed in `packages/txlib` (live cost models).
+To prove the fix, the complete deploy function ran once more on Preprod on 2026-10-06 with the final code, as a rehearsal for mainnet.
+All four transactions were accepted on the first try, and the run took 201 seconds.
+That second pool is a rehearsal and is not recorded in this repository.
+
+| Rehearsal transaction | Transaction hash |
+|---|---|
+| Fund the role keys | `8706c1a3537f111999d2fb6d1c3c67d418a187c0c63a3a14a10c3bc079199c6a` |
+| Publish the pool script | `7be7af7699930f49b715e2f854f1a19a6a6e54524ef87c843ef762d6f1e285c0` |
+| Publish the deposit, config, and ASP scripts | `7e2c0d74c0b838eb604c352ae782825486efa710ecf0f8ef664682f4bb665180` |
+| Init | `7b156beead8160f683a932cb964d896bf5f7174f7a9decc56f04a6c5abcd7adc` |
+
 The rows from Deposit to Ragequit are one complete pool story, run on 2026-10-06 with the code of this repository.
 The indexer, the crank, the association set provider service and the relayer ran in one process against Blockfrost.
 The sizes, fees and units in those rows are the values that the chain recorded.
@@ -97,12 +110,72 @@ For the same shape of transaction, the live units of Refund, Settle, Insert of 1
 The association update is 5 percent higher on Preprod.
 So one private payment in stealth mode cost 0.849327 ADA in network fees for its two legs, before the relayer fee of 1 ADA.
 
+### The demo through the node and the stock x402 seller
+
+On 2026-10-06 the node (`npm run node -w ops`), the example seller with the stock x402 server and facilitator, and the demo (`npm run demo -w ops`) ran as three processes against Preprod.
+The demo ran twice with the same note store. Both runs ended with HTTP 200 and the weather body.
+The agent paid through the stock x402 client with the SDK's stealth signer. The stock facilitator checked and submitted the second leg.
+
+| Transaction, first run | CPU steps | Memory units | Size in bytes | Fee in ADA | Transaction hash |
+|---|---|---|---|---|---|
+| Deposit | none | none | 349 | 0.170781 | `188f2b64754228e1088f36cc68f63e35fca5b8cf42102791b8748471eefcd549` |
+| Insert, 1 deposit | 3,245,199,950 | 989,153 | 1,007 | 0.688442 | `f96c4e1ce6c990704fe952fe3dd48839d7449d2f19b9941a9588533a154bca1d` |
+| ASP update | 61,407,529 | 178,537 | 599 | 0.215321 | `c77106998cfd1b6f0aa00a04ad1476667566241e1d99b8021d1430b2a4cf2360` |
+| Settle, 1 payout to a one-time address | 3,258,408,716 | 999,972 | 1,451 | 0.701784 | `860faa892eff5205f6e1e6d60615837926c6eeb719d338163499a8a0b28f151e` |
+| Stealth leg 2, submitted by the stock facilitator | none | none | 202 | 0.165961 | `8295a36bb5111c94abc09d783552aac07ddd73769e5c9f42bca6b07f74fb39cf` |
+| Insert, 1 note | 2,892,116,632 | 807,226 | 954 | 0.642385 | `9d25ba585f7eb9ef06162ce420808122c540a3af9a039ce28be1686ca97e1426` |
+| Ragequit | 2,890,256,226 | 786,824 | 1,383 | 0.659950 | `3c9937b3ac020e23122c7d034640dd16afa13fd15242859818fbb1caf5020af4` |
+
+| Transaction, second run | CPU steps | Memory units | Size in bytes | Fee in ADA | Transaction hash |
+|---|---|---|---|---|---|
+| Deposit | none | none | 349 | 0.170781 | `15d64d2341f166cecb5aa70e65949cd3accad4dbd825d2c06a6ec287c7eb2903` |
+| Insert, 1 deposit | 3,249,934,452 | 1,003,805 | 1,077 | 0.692708 | `9f36ba4c0f568f4596fe1478e66b8688699a6eba95fd6fe19533896431d29c07` |
+| ASP update | 61,407,529 | 178,537 | 599 | 0.215321 | `dc50a6fd31020cc8fcdf42398d7f84c8e8547db02b82f474250a1f3e2fb66eb8` |
+| Settle, 1 payout to a one-time address | 3,257,548,858 | 1,001,622 | 1,522 | 0.704941 | `fdf36cc2f51bdfd700df5dad651fe8c303807200df280b7e6659b81ec1a7d381` |
+| Stealth leg 2, submitted by the stock facilitator | none | none | 202 | 0.165961 | `25232740f5bb6b297895e65184fd25cb55478752bd7885a5b4dd9f4c35c453d7` |
+| Insert, 1 note | 2,899,686,358 | 826,161 | 1,025 | 0.647147 | `26c06f86d6d4b41d8a91b60d1b484ff360a9901d6e0e9a26362770d6e1d8a1c3` |
+| Ragequit | 2,890,173,640 | 789,871 | 1,454 | 0.663244 | `051fd479d1a35b6310cfc5314de9d5323add552f097f845ea7f3ee7c750308d3` |
+
+Transactions grow by a few bytes as the pool ages, because the proof of a new nullifier gets longer with every spent note.
+
+### Admin transactions on Preprod
+
+Run on 2026-10-06 on the rehearsal pool with `ops/src/admin.ts`.
+
+| Transaction | CPU steps | Memory units | Size in bytes | Fee in ADA | Transaction hash |
+|---|---|---|---|---|---|
+| Config update, pause deposits | 82,889,536 | 236,548 | 737 | 0.234389 | `462a3a1c32b1c2c46b7de4dfe5855c39fd9925d3a4c81b21ecf47eebc871c437` |
+| Config update, unpause deposits | 82,889,536 | 236,548 | 737 | 0.234389 | `b8bca7aac78b8a24baa865e50d34ae22852639e38194abd9ff29c43d07ab2986` |
+| Sweep of 4 reference script outputs | none | none | 508 | 0.421152 | `1b7e85e2798319cdd4b54efa8aa09a1819f5b23c8c6fef9c6a9fac3e0a108c52` |
+
+The sweep returned 73.55015 ADA to the operator. Its fee is higher than a plain payment because the ledger charges for the bytes of every reference script on a spent input.
+
 ## 4. End-to-end timings
 
 | Flow | Time from request to one confirmation |
 |---|---|
-| Stealth payment, one-time key funded on demand | |
-| Stealth payment, one-time key funded ahead | |
+| Stealth payment, one-time key funded on demand | 116.0 s and 110.2 s on Preprod, two runs |
+| Stealth payment, one-time key funded ahead | not built in M0 |
+
+The time runs from the request to the seller until the seller answers HTTP 200.
+It covers the proof, the settlement by the relayer, one confirmation of the first leg, the second leg, and its check and one confirmation by the stock facilitator.
+
+### The demo on Preprod, step by step
+
+Both runs of the demo command from section 3. Times are in seconds.
+
+| Step | First run | Second run |
+|---|---|---|
+| Deposit submitted | 3.6 | 2.9 |
+| Note spendable, from the start | 119.0 | 163.7 |
+| First leg confirmed, from the payment request | 28.9 | 26.9 |
+| Seller answered HTTP 200, from the payment request | 116.0 | 110.2 |
+| Change note spendable, after the seller answered | 0.0 | 6.1 |
+| Exit submitted, after the change was spendable | 9.0 | 9.0 |
+| Exit confirmed, after the change was spendable | 19.5 | 75.0 |
+| Whole demo | 254.5 | 355.0 |
+
+Waiting for blocks dominates every step. The longest single wait, 75 seconds for the exit of the second run, was one slow block.
 
 ### Step timings on Preprod
 
@@ -125,7 +198,21 @@ An indexer that starts cold replayed this history of five pool transactions in a
 
 ## 5. Differences from the Spec estimates
 
-List each estimate in SPEC section 10 that was wrong by more than 20%, and update the Spec.
+No estimate in SPEC section 10.3 was wrong by more than 20 percent.
+
+| Transaction | Estimated CPU | Measured CPU | Estimated fee in ADA | Measured fee in ADA |
+|---|---|---|---|---|
+| Deposit | none | none | 0.17 to 0.20 | 0.170781 on Preprod |
+| Insert, 4 notes | about 2.9B | 3.08B in the validator tests | 0.60 to 0.70 | 0.638118 for 1 note on Preprod |
+| Insert, 4 deposits | about 4.1B | 4.26B in the validator tests | 0.75 to 0.90 | 0.714686 for 2 deposits on the local chain |
+| Settle | about 2.9B | 3.22B on Preprod | 0.65 to 0.80 | 0.683630 on Preprod |
+| Ragequit | about 2.6B | 2.86B on Preprod | 0.60 to 0.75 | 0.643865 on Preprod |
+| Stealth leg 2 | none | none | 0.17 to 0.20 | 0.165697 on Preprod |
+
+Settle and Ragequit use about 10 percent more CPU than estimated, and both stay under a third of the transaction limit.
+The Spec estimated 1.0 to 1.2 ADA for one private payment in stealth mode, counting a quarter of an Insert.
+The measured two legs cost 0.849327 ADA. A quarter of the Insert of one note adds 0.16 ADA, which gives 1.01 ADA.
+When a change note is inserted alone, the whole Insert of 0.638118 ADA belongs to that payment, which gives 1.49 ADA.
 
 ## 6. Contract building blocks
 

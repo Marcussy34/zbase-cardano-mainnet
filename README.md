@@ -5,9 +5,40 @@ An agent deposits into a shared pool once.
 Later it pays sellers, escrows, or payment channels from the pool with a zero-knowledge proof.
 The chain shows the pool as the payer, not the agent's wallet.
 
-**Status:** the design is approved (2026-10-06). This repo holds the documentation and verified test vectors. No product code exists yet.
+**Status (2026-10-07):** the first release, M0, is built and runs on the Preprod test network.
+On Preprod an agent deposited, paid a stock x402 seller through a one-time address, and exited the rest, with the code of this repository.
+Mainnet is not deployed yet. Nobody outside this project has reviewed the design or the code.
 
 **New here? Read [docs/HANDOFF.md](docs/HANDOFF.md) first.**
+
+## Try it
+
+1. Install the tools: `npm ci`
+2. Run the tests: `npm test`
+3. Compile the circuits and make the development keys: `npm run build:circuits`, then `npm run setup:dev`
+4. Run the tests again. The tests that need proofs no longer skip.
+
+Step 3 takes about 30 minutes the first time. Without it, every test that needs a proving key skips with a clear message.
+
+To run the whole product on the Preprod test network, follow [docs/RUNBOOK-PREPROD.md](docs/RUNBOOK-PREPROD.md).
+It ends with one command that deposits, pays an x402 seller in private, and exits.
+
+## What is in the repository
+
+| Folder | What it holds |
+|---|---|
+| `circuits/` | The three circom circuits: spend, insert and ragequit |
+| `contracts/` | The Aiken validators: pool, deposit, config, association set, and the token policy |
+| `packages/crypto` | Hashes, notes, trees, encodings and key derivation |
+| `packages/prover` | Proving and verifying with snarkjs |
+| `packages/txlib` | Transaction builders, the Blockfrost provider, and a local test chain that runs the real validators |
+| `packages/api` | The HTTP contracts of the indexer and the relayer, with clients |
+| `packages/sdk` | The agent SDK, `@zbase-cardano/core`, with the stealth x402 signer |
+| `services/` | The indexer, the crank, the association set provider service and the relayer |
+| `ops/` | Key setup, deploy, the one-process node, the demo and the admin command |
+| `examples/x402-seller` | A stock x402 seller that knows nothing about the pool |
+| `deployments/` | The record of the Preprod pool and its verification keys |
+| `artifacts/` | Development verification keys and the order of public signals |
 
 ## Documents
 
@@ -20,9 +51,10 @@ The chain shows the pool as the payer, not the agent's wallet.
 | [docs/TEST-PLAN.md](docs/TEST-PLAN.md) | Every test, with a stable ID, mapped to the Spec rules |
 | [docs/TEST-VECTORS.md](docs/TEST-VECTORS.md) | Known answers for hashes, encodings, and proofs |
 | [docs/SETUP.md](docs/SETUP.md) | Tools, versions, and known pitfalls |
+| [docs/RUNBOOK-PREPROD.md](docs/RUNBOOK-PREPROD.md) | Run the whole product on the Preprod test network, with the exact commands |
 | [docs/RUNBOOK-M0.md](docs/RUNBOOK-M0.md) | Step-by-step mainnet canary |
 | [docs/CEREMONY.md](docs/CEREMONY.md) | The Groth16 setup ceremony |
-| [docs/measurements.md](docs/measurements.md) | Template for measured costs, filled during M0 |
+| [docs/measurements.md](docs/measurements.md) | Measured costs, and every transaction of the Preprod runs |
 | [docs/research/](docs/research/) | Evidence: measurements, research digests, and two verified spikes |
 | [AGENTS.md](AGENTS.md) | Hard rules for people and AI agents |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Workflow and pull request checklist |

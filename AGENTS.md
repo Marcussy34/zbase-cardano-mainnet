@@ -47,6 +47,16 @@ Read [docs/HANDOFF.md](docs/HANDOFF.md) first.
 | Development keys, about 30 minutes the first time | `npm run setup:dev` | repo root |
 | Rebuild proof fixtures | `npm run fixtures` | repo root |
 | Check that proof fixtures are current | `npm run check:fixtures` | repo root |
+| Tests of one workspace | `npm test -w packages/txlib` | repo root |
+| The whole product on the local chain | `npm test -w ops` | repo root |
+| Network keys, about 4 minutes | `npm run ops:setup` | repo root |
+| Deploy cost and role addresses, nothing is sent | `npm run ops:deploy -- --dry-run` | repo root |
+| Deploy a pool | `npm run ops:deploy` | repo root |
+| Run the node | `npm run node -w ops` | repo root |
+| Play the user story against a running node and seller | `npm run demo -w ops` | repo root |
+| Pool status, pause, fee collection, wind-down | `npm run admin -w ops -- status` | repo root |
+
+The last six commands use a real network and read `.env`. [docs/RUNBOOK-PREPROD.md](docs/RUNBOOK-PREPROD.md) explains them.
 
 New proofs need the development proving keys. The check needs none, because it reuses the cached proofs.
 
@@ -61,6 +71,12 @@ New proofs need the development proving keys. The check needs none, because it r
 
 Cardano tooling changes fast. Do not answer from memory.
 Use the Cardano Dev Skills plugin described in [docs/SETUP.md](docs/SETUP.md), or read the official docs.
+
+Three lessons from the first live runs, each now enforced by the local test chain in `packages/txlib/src/testing/`:
+
+- Mesh 1.9.1 hashes script data with old built-in cost models. Always build through `newTxBuilder` in `packages/txlib/src/context.ts`, which sets the live cost models.
+- The live evaluator refuses a confirmed output that is sent as an extra input. `complete` sends only outputs that are not on chain yet.
+- Reads return confirmed data only. After a submit, wait for the confirmation before you build on its outputs.
 
 Never call Mesh `applyParamsToScript`. Mesh 1.9.1 cuts every byte string over 64 bytes down to 64 bytes and reports no error.
 That corrupts the 96-byte points of a verification key. Use `buildScripts` in `packages/txlib/src/scripts.ts`, which matches `aiken blueprint apply` byte for byte.
