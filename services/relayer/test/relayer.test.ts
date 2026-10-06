@@ -63,7 +63,7 @@ test('REL-01: quotes include both fees and validate payouts without proving keys
   assert.equal(quote.protocolFee, 50_000n);
   assert.equal(quote.relayerFee, 1_000_000n);
   assert.equal(quote.withdrawn, 6_050_000n);
-  assert.equal(quote.validUntil, 243_000);
+  assert.equal(quote.validUntil, 423_000);
   assert.equal(quote.poolId, ctx.deployment.poolId);
   assert.equal(quote.relayerKeyHash, hex(keyHash(keys.relayer)));
   for (const bad of [[], Array(5).fill(payouts[0]), [{ ...payouts[0]!, address: 'bad' }],
@@ -72,6 +72,31 @@ test('REL-01: quotes include both fees and validate payouts without proving keys
     await rejects(relayer.quote(bad), 'bad_request');
   }
   await rejects(relayer.getSettle('unknown'), 'not_found');
+});
+
+test('REL-01: quote limits include concurrent requests and expired quotes release capacity', { timeout: 120_000 }, async () => {
+  const { ctx, keys } = await startDevnet();
+  const indexer = fakeIndexer(ctx, [], []);
+  let now = 123_000;
+  const relayer = new Relayer({ ctx, indexer, seed: keys.relayer, vkey: await loadDevVkey('spend', repoRoot),
+    maxQuotes: 2, quoteTtlMs: 1000, now: () => now });
+  const payouts = [{ address: enterpriseAddress(keys.users[0]!, ctx.deployment.network), amount: 2_000_000n, datumHash: null }];
+  const results = await Promise.allSettled(Array.from({ length: 3 }, () => relayer.quote(payouts)));
+  assert.equal(results.filter(result => result.status === 'fulfilled').length, 2);
+  const busy = results.find(result => result.status === 'rejected');
+  assert.ok(busy?.status === 'rejected' && busy.reason instanceof ApiError);
+  assert.equal(busy.reason.status, 503);
+  assert.equal(busy.reason.code, 'internal');
+  assert.equal(busy.reason.message, 'Relayer is busy');
+  now += 999;
+  await assert.rejects(relayer.quote(payouts), { status: 503 });
+  now++;
+  assert.ok(await relayer.quote(payouts));
+  assert.ok(await relayer.quote(payouts));
+  await assert.rejects(relayer.quote(payouts), { status: 503 });
+  const old = results.find(result => result.status === 'fulfilled');
+  assert.ok(old?.status === 'fulfilled');
+  await rejects(relayer.settle({ quoteId: old.value.quoteId } as SettleRequest), 'not_found');
 });
 
 test('REL-02, REL-03, REL-04, REL-05, HTTP: real proof relayer story', {
@@ -121,8 +146,9 @@ test('REL-02, REL-03, REL-04, REL-05, HTTP: real proof relayer story', {
   await run(await buildAspUpdate(ctx, { payer: payer(keys.asp), root: aspTree.root, signers: [hex(keyHash(keys.asp))] }), [keys.asp]);
   const indexer = fakeIndexer(ctx, leaves, spent);
   let now = (await chain.getTip()).time;
+  const logs: { message: string; error: unknown }[] = [];
   const relayer = new Relayer({ ctx, indexer, seed: keys.relayer, vkey: artifacts.spend.vkey,
-    quoteTtlMs: 600_000, retryDelayMs: 5, now: () => now });
+    quoteTtlMs: 600_000, retryDelayMs: 5, now: () => now, log: (message, error) => logs.push({ message, error }) });
   const server = await serveJson(relayerRoutes(relayer), 0);
   t.after(() => server.close());
   const client = new RelayerClient(server.url);
@@ -158,10 +184,15 @@ test('REL-02, REL-03, REL-04, REL-05, HTTP: real proof relayer story', {
         withdrawn: quote.withdrawn, stateRoot: tree.root, aspRoot: aspTree.root, context } });
   }
   const first = requests[0]!;
+  const freshRequest = async (request = first, owner = relayer) => {
+    const quote = await owner.quote(request.intent.payouts);
+    assert.equal(quote.validUntil, request.intent.validUntil, 'the existing proof binds the same deadline');
+    return { ...request, quoteId: quote.quoteId };
+  };
   await t.test('REL-03: invalid proofs and mismatched intents never reach submission', async () => {
     const before = submissions;
-    await rejects(relayer.settle({ ...first, proof: { ...first.proof, a: first.proof.c } }), 'invalid_proof');
-    await rejects(relayer.settle({ ...first, proof: { ...first.proof, a: '00'.repeat(48) } }), 'invalid_proof');
+    await rejects(relayer.settle({ ...await freshRequest(), proof: { ...first.proof, a: first.proof.c } }), 'invalid_proof');
+    await rejects(relayer.settle({ ...await freshRequest(), proof: { ...first.proof, a: '00'.repeat(48) } }), 'invalid_proof');
     for (const change of [
       { ...first.intent, payouts: [{ ...first.intent.payouts[0]!, amount: 2_000_001n }] },
       { ...first.intent, relayer: hex(keyHash(keys.crank)) },
@@ -170,20 +201,142 @@ test('REL-02, REL-03, REL-04, REL-05, HTTP: real proof relayer story', {
     ]) await rejects(relayer.settle({ ...first, intent: change }), 'intent_mismatch');
     await rejects(relayer.settle({ ...first, publicInputs: { ...first.publicInputs, withdrawn: first.publicInputs.withdrawn + 1n } }), 'intent_mismatch');
     await rejects(relayer.settle({ ...first, publicInputs: { ...first.publicInputs, context: first.publicInputs.context + 1n } }), 'intent_mismatch');
-    await rejects(relayer.settle({ ...first, publicInputs: { ...first.publicInputs, nullifierHash: first.publicInputs.nullifierHash + R } }), 'invalid_proof');
+    await rejects(relayer.settle({ ...await freshRequest(), publicInputs: { ...first.publicInputs, nullifierHash: first.publicInputs.nullifierHash + R } }), 'invalid_proof');
     await rejects(relayer.settle({ ...first, quoteId: 'missing' }), 'not_found');
     assert.equal(submissions, before);
   });
+  await t.test('REL-03: invalid proof makes no chain reads and consumes its quote', async () => {
+    for (const a of [first.proof.c, '00'.repeat(48)]) {
+      const request = { ...await freshRequest(), proof: { ...first.proof, a } };
+      let indexerCalls = 0;
+      let providerCalls = 0;
+      const original = ctx.provider;
+      const getPool = indexer.getPool;
+      const getNullifiers = indexer.getNullifiers;
+      indexer.getPool = async () => { indexerCalls++; return getPool(); };
+      indexer.getNullifiers = async (...args) => { indexerCalls++; return getNullifiers(...args); };
+      ctx.provider = new Proxy(original, { get(target, property) {
+        const value: unknown = Reflect.get(target, property);
+        return typeof value === 'function' ? (...args: unknown[]) => {
+          providerCalls++;
+          return Reflect.apply(value, target, args);
+        } : value;
+      } });
+      try {
+        await rejects(relayer.settle(request), 'invalid_proof');
+        assert.equal(indexerCalls, 0);
+        assert.equal(providerCalls, 0);
+        await rejects(relayer.settle(request), 'not_found');
+        assert.equal(indexerCalls, 0);
+        assert.equal(providerCalls, 0);
+      } finally {
+        ctx.provider = original;
+        indexer.getPool = getPool;
+        indexer.getNullifiers = getNullifiers;
+      }
+    }
+  });
   await t.test('REL-04: stale roots and a full queue report their own errors', async () => {
     const before = submissions;
-    await rejects(relayer.settle({ ...first, publicInputs: { ...first.publicInputs, stateRoot: 1n } }), 'stale_root');
     const original = indexer.getPool;
+    indexer.getPool = async () => ({ ...await original(), roots: [1n] });
+    await rejects(relayer.settle(first), 'stale_root');
     indexer.getPool = async () => ({ ...await original(), aspRoot: 1n });
     await rejects(relayer.settle(first), 'stale_asp_root');
     indexer.getPool = async () => ({ ...await original(), queue: Array<bigint>(8).fill(1n) });
     await rejects(relayer.settle(first), 'queue_full');
     indexer.getPool = original;
     assert.equal(submissions, before);
+  });
+  await t.test('REL-02: failed builds log the underlying error and keep API errors general', async () => {
+    const original = chain.getProtocolParameters;
+    const underlying = new Error('private build diagnostic');
+    chain.getProtocolParameters = async () => { throw underlying; };
+    try {
+      await assert.rejects(relayer.settle(first), error => error instanceof ApiError
+        && error.code === 'internal' && error.message === 'Could not build or submit the settle transaction');
+      assert.ok(logs.some(entry => entry.error === underlying));
+      assert.equal((await relayer.getSettle(first.quoteId)).error, 'Could not build or submit the settle transaction');
+    } finally { chain.getProtocolParameters = original; }
+  });
+  await t.test('REL-02: failed pool reads log the underlying error', async () => {
+    const original = chain.getUtxosAt;
+    const underlying = new Error('private pool diagnostic');
+    chain.getUtxosAt = async () => { throw underlying; };
+    try {
+      await assert.rejects(relayer.settle(first), error => error instanceof ApiError
+        && error.code === 'internal' && error.message === 'Could not read the pool');
+      assert.ok(logs.some(entry => entry.error === underlying));
+    } finally { chain.getUtxosAt = original; }
+  });
+  await t.test('REL-03: unexpected verification errors reach the operator log', async () => {
+    const underlying = new Error('private verifier diagnostic');
+    const vkey = { ...artifacts.spend.vkey, get IC(): never { throw underlying; } };
+    const owner = new Relayer({ ctx, indexer, seed: keys.relayer, vkey, quoteTtlMs: 600_000,
+      now: () => now, log: (message, error) => logs.push({ message, error }) });
+    const request = await freshRequest(first, owner);
+    await rejects(owner.settle(request), 'invalid_proof');
+    assert.ok(logs.some(entry => entry.error === underlying));
+    await rejects(owner.settle(request), 'not_found');
+  });
+  await t.test('REL-02: the queue cap rejects excess work but admits duplicate requests', async () => {
+    const owner = new Relayer({ ctx, indexer, seed: keys.relayer, vkey: artifacts.spend.vkey,
+      quoteTtlMs: 600_000, retryDelayMs: 5, maxQueued: 1, now: () => now });
+    const a = await freshRequest(first, owner);
+    const b = await freshRequest(first, owner);
+    const c = await freshRequest(first, owner);
+    let release!: () => void;
+    let entered!: () => void;
+    const gate = new Promise<void>(resolve => { release = resolve; });
+    const started = new Promise<void>(resolve => { entered = resolve; });
+    const original = chain.getUtxosAt;
+    let reads = 0;
+    chain.getUtxosAt = async () => {
+      reads++;
+      entered();
+      await gate;
+      throw new Error('Pool temporarily unavailable');
+    };
+    const running = owner.settle(a);
+    void running.catch(() => undefined);
+    await started;
+    const repeated = owner.settle(a);
+    void repeated.catch(() => undefined);
+    const queued = owner.settle(b);
+    void queued.catch(() => undefined);
+    const duplicate = owner.settle(b);
+    void duplicate.catch(() => undefined);
+    const before = reads;
+    const rejected = Promise.resolve().then(() => owner.settle({ ...c,
+      get proof(): never { throw new Error('The full queue must not clone another request'); } }));
+    try {
+      await assert.rejects(rejected, { code: 'internal', status: 503, message: 'Relayer is busy' });
+      assert.equal(reads, before);
+      assert.equal(running, repeated);
+      assert.equal(queued, duplicate);
+    } finally {
+      release();
+      await Promise.allSettled([running, repeated, queued, duplicate, rejected]);
+      chain.getUtxosAt = original;
+    }
+    await rejects(owner.settle({ quoteId: 'missing' } as SettleRequest), 'not_found');
+  });
+  await t.test('REL-02: failed submission records expire during settle with a custom retention period', async () => {
+    const owner = new Relayer({ ctx, indexer, seed: keys.relayer, vkey: artifacts.spend.vkey,
+      quoteTtlMs: 600_000, submissionTtlMs: 1000, now: () => now });
+    const request = await freshRequest(first, owner);
+    const original = chain.getProtocolParameters;
+    const saved = now;
+    chain.getProtocolParameters = async () => { throw new Error('Build temporarily unavailable'); };
+    try {
+      await rejects(owner.settle(request), 'internal');
+      now = request.intent.validUntil + 999;
+      await rejects(owner.settle({ quoteId: 'missing' } as SettleRequest), 'not_found');
+      assert.equal((await owner.getSettle(request.quoteId)).status, 'failed');
+      now++;
+      await rejects(owner.settle({ quoteId: 'missing' } as SettleRequest), 'not_found');
+      await rejects(owner.getSettle(request.quoteId), 'not_found');
+    } finally { chain.getProtocolParameters = original; now = saved; }
   });
   await t.test('REL-03: quotes expire at their deadline', async () => {
     const saved = now;
@@ -204,12 +357,35 @@ test('REL-02, REL-03, REL-04, REL-05, HTTP: real proof relayer story', {
     assert.equal(confirmed.txHash, result.txHash);
     assert.equal((await chain.getUtxosAt(payer(sellers[0]!).address)).reduce((sum, u) => sum + u.value.lovelace, 0n), 2_000_000n);
     assert.equal((await readPool(ctx)).datum.feesAccrued, 20_000n);
-    await rejects(client.settle(first), 'nullifier_spent');
+    const before = submissions;
+    assert.deepEqual(await relayer.settle(first), confirmed);
+    assert.equal(submissions, before);
   });
-  await t.test('REL-02: simultaneous settles wait for confirmation and submit one at a time', async () => {
+  await t.test('REL-05: one stale nullifier list retries without a pool change', async () => {
+    const owner = new Relayer({ ctx, indexer, seed: keys.relayer, vkey: artifacts.spend.vkey,
+      quoteTtlMs: 600_000, retryDelayMs: 5, now: () => now });
+    const request = await freshRequest(requests[1]!, owner);
+    const original = indexer.getNullifiers;
+    const submit = chain.submit;
+    let pages = 0;
+    let attempts = 0;
+    indexer.getNullifiers = async (from, limit) => ++pages === 1 ? { from, nullifiers: [] } : original(from, limit);
+    chain.submit = async cbor => { attempts++; return decodeTx(cbor).txId; };
+    try {
+      assert.equal((await owner.settle(request)).status, 'submitted');
+      assert.ok(pages >= 3);
+      assert.equal(attempts, 1);
+    } finally { indexer.getNullifiers = original; chain.submit = submit; }
+  });
+  await t.test('REL-02: duplicate running and queued settles share promises', async () => {
     const before = submissions;
     const a = relayer.settle(requests[1]!);
     const b = relayer.settle(requests[2]!);
+    const duplicateA = relayer.settle(requests[1]!);
+    const duplicateB = relayer.settle(requests[2]!);
+    // Attach rejection handlers even if the identity assertion fails during the red run.
+    void duplicateA.catch(() => undefined);
+    void duplicateB.catch(() => undefined);
     const firstResult = await a;
     assert.equal(submissions, before + 1);
     assert.equal(firstResult.status, 'submitted');
@@ -218,6 +394,9 @@ test('REL-02, REL-03, REL-04, REL-05, HTTP: real proof relayer story', {
     assert.equal(secondResult.status, 'submitted');
     assert.equal(submissions, before + 2);
     mine();
+    await Promise.allSettled([duplicateA, duplicateB]);
+    assert.equal(a, duplicateA);
+    assert.equal(b, duplicateB);
     for (const result of [firstResult, secondResult]) assert.equal((await relayer.getSettle(result.id)).status, 'confirmed');
     for (const seller of sellers.slice(1, 3)) {
       assert.equal((await chain.getUtxosAt(payer(seller).address)).reduce((sum, u) => sum + u.value.lovelace, 0n), 2_000_000n);
@@ -226,13 +405,15 @@ test('REL-02, REL-03, REL-04, REL-05, HTTP: real proof relayer story', {
   await t.test('REL-05: an unchanged pool fails immediately and exposes a safe failed status', async () => {
     const original = chain.submit;
     let attempts = 0;
-    chain.submit = async () => { attempts++; throw new Error('private provider diagnostic'); };
+    const underlying = new Error('private provider diagnostic');
+    chain.submit = async () => { attempts++; throw underlying; };
     try {
       await rejects(relayer.settle(requests[3]!), 'internal');
       assert.equal(attempts, 1);
       const failed = await relayer.getSettle(requests[3]!.quoteId);
       assert.equal(failed.status, 'failed');
       assert.ok(!failed.error?.includes('private provider diagnostic'));
+      assert.ok(logs.some(entry => entry.error === underlying));
     } finally { chain.submit = original; }
   });
   await t.test('REL-05: two competing pool spends trigger two rebuilds and preserve the spend proof', async () => {
@@ -261,9 +442,27 @@ test('REL-02, REL-03, REL-04, REL-05, HTTP: real proof relayer story', {
       const result = await relayer.settle(requests[3]!);
       assert.equal(races, 2);
       assert.equal(result.status, 'submitted');
+      const before = submissions;
+      // Mining eventually releases implementations that incorrectly queue the duplicate.
+      const timer = setTimeout(mine, 1000);
+      try {
+        assert.deepEqual(await relayer.settle(requests[3]!), result);
+        assert.equal(submissions, before);
+      } finally { clearTimeout(timer); }
       mine();
       assert.equal((await relayer.getSettle(result.id)).status, 'confirmed');
       assert.equal((await readPool(ctx)).datum.queue.length, 2);
     } finally { chain.submit = original; }
+  });
+  await t.test('REL-01: old submissions expire after the default retention period during quote', async () => {
+    const saved = now;
+    try {
+      now = first.intent.validUntil + 3_600_000 - 1;
+      await relayer.quote(first.intent.payouts);
+      assert.equal((await relayer.getSettle(first.quoteId)).status, 'confirmed');
+      now++;
+      await relayer.quote(first.intent.payouts);
+      await rejects(relayer.getSettle(first.quoteId), 'not_found');
+    } finally { now = saved; }
   });
 });

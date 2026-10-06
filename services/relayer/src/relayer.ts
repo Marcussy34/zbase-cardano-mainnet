@@ -15,7 +15,7 @@ import {
 } from '@zbase-cardano/txlib';
 
 interface StoredQuote { quote: Quote; payouts: PayoutRequest[] }
-interface Submission { status: SettleStatus; nullifier: bigint }
+interface Submission { status: SettleStatus; nullifier: bigint; validUntil: number }
 const sameRef = (a: UtxoRef, b: UtxoRef) => a.txId === b.txId && a.index === b.index;
 
 function proofBytes(proof: ProofHex): CardanoProof {
@@ -53,25 +53,36 @@ export class Relayer implements RelayerApi {
   private readonly relayerFee: bigint;
   private readonly quoteTtlMs: number;
   private readonly retryDelayMs: number;
+  private readonly maxQuotes: number;
+  private readonly submissionTtlMs: number;
+  private readonly maxQueued: number;
   private readonly now: () => number;
+  private readonly log: (message: string, error?: unknown) => void;
   private readonly relayerKeyHash: string;
   private readonly quotes = new Map<string, StoredQuote>();
   private readonly submissions = new Map<string, Submission>();
+  private readonly inFlight = new Map<string, Promise<SettleStatus>>();
   private serial: Promise<unknown> = Promise.resolve();
   private pendingPool: { ref: UtxoRef; validUntil: number } | undefined;
 
   constructor(a: {
     ctx: ChainContext; indexer: IndexerApi; seed: Uint8Array; vkey: SnarkjsVk;
     relayerFee?: bigint; quoteTtlMs?: number; retryDelayMs?: number; now?: () => number;
+    maxQuotes?: number; submissionTtlMs?: number; maxQueued?: number;
+    log?: (message: string, error?: unknown) => void;
   }) {
     this.ctx = a.ctx;
     this.indexer = a.indexer;
     this.seed = a.seed.slice();
     this.vkey = a.vkey;
     this.relayerFee = a.relayerFee ?? 1_000_000n;
-    this.quoteTtlMs = a.quoteTtlMs ?? 120_000;
+    this.quoteTtlMs = a.quoteTtlMs ?? 300_000;
     this.retryDelayMs = a.retryDelayMs ?? 20_000;
+    this.maxQuotes = a.maxQuotes ?? 1000;
+    this.submissionTtlMs = a.submissionTtlMs ?? 3_600_000;
+    this.maxQueued = a.maxQueued ?? 16;
     this.now = a.now ?? Date.now;
+    this.log = a.log ?? (() => undefined);
     this.relayerKeyHash = Buffer.from(keyHash(this.seed)).toString('hex');
     if (this.relayerFee < 0n || !Number.isSafeInteger(this.quoteTtlMs) || this.quoteTtlMs <= 0
       || !Number.isSafeInteger(this.retryDelayMs) || this.retryDelayMs < 1) {
@@ -82,6 +93,11 @@ export class Relayer implements RelayerApi {
   getPool(): Promise<PoolView> { return this.indexer.getPool(); }
 
   async quote(payouts: PayoutRequest[]): Promise<Quote> {
+    this.cleanSubmissions();
+    for (const [id, { quote }] of this.quotes) {
+      if (this.now() >= quote.validUntil) this.quotes.delete(id);
+    }
+    if (this.quotes.size >= this.maxQuotes) throw new ApiError('internal', 'Relayer is busy', 503);
     if (!Array.isArray(payouts) || payouts.length < 1 || payouts.length > 4) {
       throw new ApiError('bad_request', 'A quote requires one to four payouts');
     }
@@ -102,14 +118,24 @@ export class Relayer implements RelayerApi {
     if (withdrawn >= 1n << 64n) throw new ApiError('bad_request', 'Withdrawal must fit in 64 bits');
     const quote: Quote = { quoteId: randomUUID(), poolId: this.ctx.deployment.poolId, withdrawn, protocolFee,
       relayerFee: this.relayerFee, relayerKeyHash: this.relayerKeyHash, validUntil: this.now() + this.quoteTtlMs };
+    // Other quote requests can finish while the indexer read is in flight.
+    if (this.quotes.size >= this.maxQuotes) throw new ApiError('internal', 'Relayer is busy', 503);
     this.quotes.set(quote.quoteId, { quote, payouts: saved });
     return { ...quote };
   }
 
   settle(request: SettleRequest): Promise<SettleStatus> {
+    this.cleanSubmissions();
+    const existing = this.inFlight.get(request.quoteId);
+    if (existing) return existing;
+    const submission = this.submissions.get(request.quoteId);
+    if (submission && submission.status.status !== 'failed') return this.getSettle(request.quoteId);
+    // One slot belongs to the active request; only the rest wait in the serial queue.
+    if (this.inFlight.size >= this.maxQueued + 1) return Promise.reject(new ApiError('internal', 'Relayer is busy', 503));
     // Callers can mutate their own objects while another request waits for the pool.
     const snapshot = structuredClone(request);
-    const result = this.serial.then(() => this.submit(snapshot));
+    const result = this.serial.then(() => this.submit(snapshot)).finally(() => this.inFlight.delete(snapshot.quoteId));
+    this.inFlight.set(snapshot.quoteId, result);
     this.serial = result.catch(() => undefined);
     return result;
   }
@@ -122,6 +148,13 @@ export class Relayer implements RelayerApi {
       return { ...entry.status, status: confirmed ? 'confirmed' : 'submitted', confirmations: confirmed ? 1 : 0 };
     }
     return { ...entry.status };
+  }
+
+  private cleanSubmissions(): void {
+    const now = this.now();
+    for (const [id, entry] of this.submissions) {
+      if (now - entry.validUntil >= this.submissionTtlMs) this.submissions.delete(id);
+    }
   }
 
   private checkExpiry(quote: Quote): void {
@@ -174,12 +207,25 @@ export class Relayer implements RelayerApi {
     if (inputs.withdrawn !== quote.withdrawn || inputs.context !== contextFor(intent)) {
       throw new ApiError('intent_mismatch', 'Public inputs do not match the intent');
     }
-    let proof: CardanoProof | undefined;
+    let proof: CardanoProof;
+    let verified = false;
+    try {
+      proof = proofBytes(request.proof);
+      verified = await verify(this.vkey, [inputs.newCommitment, inputs.nullifierHash, inputs.withdrawn,
+        inputs.stateRoot, inputs.aspRoot, inputs.context], snarkjsProof(proof));
+    } catch (error) {
+      this.log('Could not verify spend proof', error);
+    }
+    if (!verified) {
+      this.quotes.delete(quote.quoteId);
+      throw new ApiError('invalid_proof', 'Spend proof did not verify');
+    }
     for (let attempt = 0; attempt < 3; attempt++) {
       let pool: PoolState;
       try { pool = await this.availablePool(quote); }
       catch (error) {
         if (error instanceof ApiError) throw error;
+        this.log('Could not read the pool', error);
         throw new ApiError('internal', 'Could not read the pool');
       }
       const view = await this.getPool();
@@ -190,43 +236,41 @@ export class Relayer implements RelayerApi {
       const spent = await this.nullifiers();
       if (spent.includes(inputs.nullifierHash)) throw new ApiError('nullifier_spent', 'Nullifier is already spent');
       if (view.queue.length >= 8 || pool.datum.queue.length >= 8) throw new ApiError('queue_full', 'Pool queue is full');
-      if (proof === undefined) {
-        try {
-          proof = proofBytes(request.proof);
-          if (!await verify(this.vkey, [inputs.newCommitment, inputs.nullifierHash, inputs.withdrawn,
-            inputs.stateRoot, inputs.aspRoot, inputs.context], snarkjsProof(proof))) throw new Error('Invalid proof');
-        } catch {
-          throw new ApiError('invalid_proof', 'Spend proof did not verify');
-        }
-      }
       // The quote ID is also the tracking ID, including when submission throws.
       const status: SettleStatus = { id: quote.quoteId, status: 'failed', txHash: '00'.repeat(32), confirmations: 0, error: null };
       try {
         this.checkExpiry(quote);
         const trie = await nullifierInsertion(spent, inputs.nullifierHash);
-        if (trie.oldRoot !== pool.datum.nullifierRoot) throw new Error('Indexer nullifiers are behind the pool');
+        if (trie.oldRoot !== pool.datum.nullifierRoot) {
+          if (attempt < 2) {
+            await delay(this.retryDelayMs);
+            continue;
+          }
+          throw new Error('Indexer nullifiers are behind the pool');
+        }
         const tx = await buildSettle(this.ctx, { payer: { address: enterpriseAddress(this.seed, this.ctx.deployment.network) },
-          pool, proof, nullifierHash: inputs.nullifierHash, newCommitment: inputs.newCommitment,
+          pool, proof: proof!, nullifierHash: inputs.nullifierHash, newCommitment: inputs.newCommitment,
           withdrawn: inputs.withdrawn, stateRoot: inputs.stateRoot, intent,
           nullifierProof: trie.proofCbor, newNullifierRoot: trie.newRoot });
         status.txHash = tx.txId;
         this.checkExpiry(quote);
         status.txHash = await this.ctx.provider.submit(signTx(tx.cbor, [this.seed]));
         status.status = 'submitted';
-        this.submissions.set(status.id, { status, nullifier: inputs.nullifierHash });
+        this.submissions.set(status.id, { status, nullifier: inputs.nullifierHash, validUntil: quote.validUntil });
         this.pendingPool = { ref: pool.utxo.ref, validUntil: quote.validUntil };
         return { ...status };
       } catch (error) {
         if (error instanceof ApiError && error.code === 'quote_expired') throw error;
+        this.log('Could not build or submit the settle transaction', error);
         let changed = false;
         try { changed = !sameRef(pool.utxo.ref, (await readPool(this.ctx)).utxo.ref); }
-        catch { /* Provider diagnostics must never reach API callers. */ }
+        catch (error) { this.log('Could not read the pool after a failed settle', error); }
         if (changed && attempt < 2) {
           await delay(this.retryDelayMs);
           continue;
         }
         status.error = 'Could not build or submit the settle transaction';
-        this.submissions.set(status.id, { status, nullifier: inputs.nullifierHash });
+        this.submissions.set(status.id, { status, nullifier: inputs.nullifierHash, validUntil: quote.validUntil });
         throw new ApiError('internal', status.error);
       }
     }
