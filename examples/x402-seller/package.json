@@ -6,8 +6,8 @@
   "scripts": {
     "test": "node --import tsx --test \"test/**/*.test.ts\"",
     "typecheck": "tsc --noEmit -p .",
-    "seller": "node --import tsx src/seller.ts",
-    "pay": "node --import tsx src/pay-plain.ts"
+    "seller": "node --env-file=../../.env --import tsx src/seller.ts",
+    "pay": "node --env-file=../../.env --import tsx src/pay-plain.ts"
   },
   "dependencies": {
     "@meshsdk/core": "1.9.1",
