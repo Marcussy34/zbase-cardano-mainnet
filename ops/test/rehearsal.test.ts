@@ -138,7 +138,7 @@ test('E2E-04, CRK-01, ASP-01: idle steps wait for changed snapshots or their ret
 });
 
 // Only the chain adapter differs from the stock seller and facilitator.
-function facilitator(chain: FakeChain): FacilitatorCardanoSigner {
+function facilitator(chain: FakeChain, mine: () => Promise<unknown>): FacilitatorCardanoSigner {
   return {
     getAddresses: () => [],
     async getUtxo(ref, network) {
@@ -160,8 +160,8 @@ function facilitator(chain: FakeChain): FacilitatorCardanoSigner {
     },
     async submitTransaction(transaction) {
       const txHash = await chain.submit(Buffer.from(transaction, 'base64').toString('hex'));
-      chain.mineBlock();
-      chain.mineBlock();
+      await mine();
+      await mine();
       return { txHash, status: 'mempool' };
     },
     async getTransactionEvidence(hash) {
@@ -199,6 +199,9 @@ test('E2E-01 through E2E-04: deployed pool rehearsal through real HTTP and stock
   const seller = enterpriseAddress(roleSeed(operator, 'seller'), network);
   // Match wall time because the live relayer quotes POSIX validity deadlines.
   const chain = new FakeChain({ network, startSlot: timeToSlot(Date.now(), network) });
+  // A block takes the slots that really passed. A fixed step per block outruns the clock within a few polls,
+  // and then every later settlement expires before it is mined.
+  const mine = async () => chain.mineBlock(Math.max(0, timeToSlot(Date.now(), network) - (await chain.getTip()).slot));
   chain.addUtxo({ address: enterpriseAddress(operator, network), value: { lovelace: 400_000_000n, assets: {} },
     inlineDatum: null, datumHash: null, scriptRef: null });
   const transactions: { view: TxView; inputs: Utxo[] }[] = [];
@@ -216,7 +219,7 @@ test('E2E-01 through E2E-04: deployed pool rehearsal through real HTTP and stock
     vkeys: { spend: await loadDevVkey('spend', root), insert: await loadDevVkey('insert', root),
       ragequit: await loadDevVkey('ragequit', root) },
     config: { depositFeeBps: 50, settleFeeBps: 100 },
-    confirm: async () => { chain.mineBlock(); }, log: line => logs.push(line),
+    confirm: async () => { await mine(); }, log: line => logs.push(line),
   });
   t.diagnostic(`Deployment seconds: ${((performance.now() - started) / 1000).toFixed(3)}`);
   const ctx = { provider: chain, deployment };
@@ -229,7 +232,7 @@ test('E2E-01 through E2E-04: deployed pool rehearsal through real HTTP and stock
   const node = await startNode(nodeOptions);
   t.after(() => node.close());
   const server = await startSeller({ port: 0, network: 'cardano:preprod', payTo: seller,
-    priceLovelace: price, blockfrostProjectId: '', facilitatorSigner: facilitator(chain) });
+    priceLovelace: price, blockfrostProjectId: '', facilitatorSigner: facilitator(chain, mine) });
   t.after(() => server.close());
   const served: { url: string; body: string }[] = [];
   const ports = new Set(Object.values(node.urls).map(url => Number(new URL(url).port)));
@@ -249,7 +252,7 @@ test('E2E-01 through E2E-04: deployed pool rehearsal through real HTTP and stock
   const options = { ctx, indexerUrl: node.urls.indexer, relayerUrl: node.urls.relayer, sellerUrl: server.url,
     walletSeed, agentSeed, storePath,
     artifacts: { spend: await loadDevArtifacts('spend', root), ragequit: await loadDevArtifacts('ragequit', root) },
-    poll: { intervalMs: 0, timeoutMs: 900_000, onPoll: async () => { chain.mineBlock(); await node.tick(); } },
+    poll: { intervalMs: 0, timeoutMs: 900_000, onPoll: async () => { await mine(); await node.tick(); } },
     log: (line: string) => { logs.push(line); t.diagnostic(line); },
   };
   let first: DemoResult;
@@ -294,6 +297,8 @@ test('E2E-01 through E2E-04: deployed pool rehearsal through real HTTP and stock
   await t.test('E2E-01, E2E-02: weather payment, private settlement, confirmed exit, and exact solvency', async () => {
     first = await runDemo(options);
     await checkStory(first, runStart, 1);
+    // Quotes carry real deadlines. A chain that outruns the clock expires every later settlement.
+    assert.ok((await chain.getTip()).time <= Date.now(), 'Chain time must not run ahead of the real clock');
   });
   await t.test('E2E-03: a second demo resumes the store with new note and one-time indexes', async () => {
     const start = transactions.length;
@@ -337,15 +342,15 @@ test('E2E-01 through E2E-04: deployed pool rehearsal through real HTTP and stock
       precommitment: precommitment(secrets.nullifier, secrets.secret),
       refundKeyHash: Buffer.from(keyHash(walletSeed)).toString('hex') });
     const depositTx = await chain.submit(signTx(deposit.cbor, [walletSeed]));
-    chain.mineBlock();
+    await mine();
     const before = transactions.length;
     await node.tick();
     assert.equal(transactions.length, before + 1, 'A new pending deposit must trigger Insert in the next round');
     const insertion = transactions.at(-1)!;
     assert.ok(insertion.inputs.some(input => input.ref.txId === depositTx));
-    chain.mineBlock();
+    await mine();
     await node.tick();
-    chain.mineBlock();
+    await mine();
     await node.tick();
     assert.equal((await node.indexer.getDeposits()).find(d => d.txId === depositTx)?.status, 'absorbed');
   });
@@ -355,7 +360,7 @@ test('E2E-01 through E2E-04: deployed pool rehearsal through real HTTP and stock
       precommitment: precommitment(secrets.nullifier, secrets.secret),
       refundKeyHash: Buffer.from(keyHash(walletSeed)).toString('hex') });
     const depositTx = await chain.submit(signTx(deposit.cbor, [walletSeed]));
-    chain.mineBlock();
+    await mine();
     await node.indexer.sync();
     const sync = t.mock.method(node.indexer, 'sync');
     const getUtxosAt = chain.getUtxosAt.bind(chain);
@@ -382,9 +387,9 @@ test('E2E-01 through E2E-04: deployed pool rehearsal through real HTTP and stock
       assert.ok(transactions.at(-1)!.inputs.some(input => input.ref.txId === depositTx));
       assert.ok(logs.some(line => /indexer.*transient indexer provider failure/i.test(line)));
     } finally { stale.mock.restore(); }
-    chain.mineBlock();
+    await mine();
     await node.tick();
-    chain.mineBlock();
+    await mine();
     await node.tick();
   });
   await t.test('E2E-04: close waits for an in-flight relayer request', async () => {
