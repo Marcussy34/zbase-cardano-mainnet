@@ -1061,6 +1061,7 @@ Measured: a first full setup takes about 28 minutes, of which the phase 1 prepar
 
 - **Circuit or verifier bug.** It can drain the pool. Caps bound the loss. An audit comes before caps rise.
 - **Duplicate precommitment.** Two notes with the same nullifier cannot both be spent. If someone copies a pending deposit, the copier loses their deposit. The SDK follows the deposit that carries the refund key it used itself, because only that note can also exit in public. Among deposits with that key, or when the SDK was restored from the seed alone and no longer knows the key, it prefers an absorbed deposit and then the larger one.
+- **No rule on chain against a repeated precommitment.** zBase on Base refuses a second deposit with the same precommitment. This pool does not, because that needs a second set in the pool datum. So every wallet must make sure that it never uses a note secret twice in one pool. The SDK derives secrets from the seed and a counter in its store. It syncs before it deposits, and it skips every index whose precommitment is already on chain or whose nullifier is already spent. That holds for deposits and for change notes, also after a lost store. A wallet that builds deposits without the SDK must apply the same rule, or its deposit is locked for good.
 - **Malformed deposits.** They are lost (section 6.6).
 - **Rollbacks.** Cardano finality is probabilistic. The indexer and relayer handle rollbacks and rebuild.
 - **Seed loss.** The system is non-custodial. A lost seed means lost notes.
