@@ -7,8 +7,8 @@ import {
 } from '@zbase-cardano/crypto';
 import { prove, type CircuitArtifacts } from '@zbase-cardano/prover';
 import {
-  buildDeposit, buildRagequit, buildRefund, buildStealthPayment, encodeDepositDatum, enterpriseAddress, keyHash,
-  nullifierInsertion, readDeposits, readPool, signTx, slotToTime, stealthFee, type ChainContext,
+  buildDeposit, buildRagequit, buildRefund, buildStealthPayment, decodeTx, encodeDepositDatum, enterpriseAddress, keyHash,
+  nullifierInsertion, readConfig, readDeposits, readPool, signTx, slotToTime, stealthFee, type ChainContext,
 } from '@zbase-cardano/txlib';
 import { memoryStore, type NoteRecord, type NoteStore, type StoreData } from './store.js';
 import { stealthSigner } from './x402.js';
@@ -24,6 +24,8 @@ export interface ZbaseOptions {
   exitValidForSlots?: number;
   /** Maximum relayer fee in lovelace. Defaults to 2,000,000. */
   maxRelayerFee?: bigint;
+  /** Maximum quote lifetime from the provider tip. Defaults to 900,000 milliseconds. */
+  maxQuoteTtlMs?: number;
   poll?: { intervalMs?: number; timeoutMs?: number; onPoll?: () => void | Promise<void> };
 }
 export interface PreparedDeposit {
@@ -51,6 +53,8 @@ export interface ZbaseCardano {
 
 const CHANGE_OFFSET = 2 ** 20;
 const PAGE_SIZE = 1000;
+const settleRefusals = new Set<string>(['stale_root', 'stale_asp_root', 'nullifier_spent', 'queue_full', 'quote_expired',
+  'invalid_proof', 'intent_mismatch', 'not_found', 'bad_request', 'internal']);
 const hex = (bytes: Uint8Array) => Buffer.from(bytes).toString('hex');
 const fresh = (): StoreData => ({ nextDepositIndex: 0, nextChangeIndex: 0, nextOneTimeIndex: 0, notes: [] });
 const terminal = (note: NoteRecord) => ['spent', 'refunded', 'exited'].includes(note.status);
@@ -64,8 +68,10 @@ export function createZbaseCardano(o: ZbaseOptions): ZbaseCardano {
   const timeoutMs = o.poll?.timeoutMs ?? 600_000;
   const exitValidForSlots = o.exitValidForSlots ?? 600;
   const maxRelayerFee = o.maxRelayerFee ?? 2_000_000n;
+  const maxQuoteTtlMs = o.maxQuoteTtlMs ?? 900_000;
   if (!Number.isSafeInteger(exitValidForSlots) || exitValidForSlots <= 0) throw new RangeError('Exit validity must be a positive safe slot count');
   if (typeof maxRelayerFee !== 'bigint' || maxRelayerFee < 0n) throw new RangeError('Relayer fee limit must be nonnegative lovelace');
+  if (!Number.isSafeInteger(maxQuoteTtlMs) || maxQuoteTtlMs <= 0) throw new RangeError('Quote lifetime limit must be a positive safe millisecond count');
   if (!Number.isSafeInteger(intervalMs) || intervalMs < 0 || !Number.isSafeInteger(timeoutMs) || timeoutMs <= 0) {
     throw new RangeError('Poll interval must be nonnegative and timeout must be positive');
   }
@@ -78,7 +84,6 @@ export function createZbaseCardano(o: ZbaseOptions): ZbaseCardano {
   let spent: bigint[] = [];
   let usedPrecommitments = new Set<bigint>();
   let approvalKnown = false;
-  let settleFeeBps = 0;
 
   async function load(): Promise<void> {
     if (loaded) return;
@@ -234,7 +239,8 @@ export function createZbaseCardano(o: ZbaseOptions): ZbaseCardano {
       const previousStatus = record.status;
       record.status = 'created';
       const deposit = record.kind === 'deposit' ? byPrecommitment.get(record.precommitment)?.find(d =>
-        !record.expectedRefundKeyHash || d.refundKeyHash === record.expectedRefundKeyHash) : undefined;
+        (!record.expectedOrigin || (d.txId === record.expectedOrigin.txId && d.index === record.expectedOrigin.index))
+        && (!record.expectedRefundKeyHash || d.refundKeyHash === record.expectedRefundKeyHash)) : undefined;
       if (record.kind === 'deposit') {
         if (deposit) {
           record.origin = { txId: deposit.txId, index: deposit.index, refundKeyHash: deposit.refundKeyHash };
@@ -273,7 +279,6 @@ export function createZbaseCardano(o: ZbaseOptions): ZbaseCardano {
     spent = nextSpent;
     usedPrecommitments = new Set(byPrecommitment.keys());
     approvalKnown = known;
-    settleFeeBps = pool.config.settleFeeBps;
   }
   async function poll<T>(check: () => Promise<T | undefined>, description: string): Promise<T> {
     const deadline = Date.now() + timeoutMs;
@@ -305,7 +310,13 @@ export function createZbaseCardano(o: ZbaseOptions): ZbaseCardano {
       const quote = await relayer.quote(payouts);
       const total = payouts.reduce((sum, payout) => sum + payout.amount, 0n);
       if (quote.relayerFee > maxRelayerFee) throw new Error('Relayer fee exceeds the configured limit');
-      if (quote.protocolFee !== total * BigInt(settleFeeBps) / 10_000n) throw new Error('Relayer protocol fee does not match the pool configuration');
+      // The operator cannot choose the fee rate or how long an agent's proof stays valid.
+      const [config, tip] = await Promise.all([readConfig(ctx), ctx.provider.getTip()]);
+      if (quote.protocolFee !== total * BigInt(config.datum.settleFeeBps) / 10_000n) throw new Error('Relayer protocol fee does not match the pool configuration');
+      const quoteTtlMs = quote.validUntil - slotToTime(tip.slot, ctx.deployment.network);
+      if (!Number.isSafeInteger(quote.validUntil) || quoteTtlMs <= 0 || quoteTtlMs > maxQuoteTtlMs) {
+        throw new Error('Relayer quote deadline is expired or exceeds the quote lifetime limit');
+      }
       if (quote.poolId !== ctx.deployment.poolId || quote.protocolFee < 0n || quote.relayerFee < 0n
         || quote.withdrawn !== total + quote.protocolFee + quote.relayerFee) throw new Error('Relayer quote does not match the payment');
       const record = requested ?? candidates.find(n => n.value! >= quote.withdrawn);
@@ -344,7 +355,7 @@ export function createZbaseCardano(o: ZbaseOptions): ZbaseCardano {
             withdrawn: quote.withdrawn, stateRoot: witness.public.stateRoot, aspRoot: witness.public.aspRoot, context: witness.public.context },
           intent: { poolId: quote.poolId, payouts, relayer: quote.relayerKeyHash, validUntil: quote.validUntil } });
       } catch (error) {
-        if (!(error instanceof ApiError)) {
+        if (!(error instanceof ApiError) || !settleRefusals.has(error.code)) {
           throw new Error(`Settlement outcome is unknown for note ${record.id}; sync before retrying`, { cause: error });
         }
         // A definite refusal releases the note, but never reuses a reserved change index.
@@ -375,6 +386,11 @@ export function createZbaseCardano(o: ZbaseOptions): ZbaseCardano {
         amount: a.amount, precommitment: prepared.precommitment, refundKeyHash });
       const signed = signTx(tx.cbor, [a.walletSeed]);
       await ctx.provider.evaluate(signed);
+      const index = decodeTx(tx.cbor).outputs.findIndex(output => output.address === prepared.address);
+      if (index < 0) throw new Error('Built transaction has no deposit output');
+      // Pin the exact output before a lost submission response can hide our deposit.
+      await save({ ...data, notes: data.notes.map(n => n.id === prepared.noteId
+        ? { ...n, expectedOrigin: { txId: tx.txId, index } } : n) });
       return { txId: await ctx.provider.submit(signed), prepared };
     }),
     sync: () => exclusive(sync),

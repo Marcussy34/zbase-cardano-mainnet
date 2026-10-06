@@ -7,7 +7,7 @@ import { randomUUID } from 'node:crypto';
 import { ApiError, type DepositView, type ErrorCode, type IndexerApi, type RelayerApi, type SettleRequest } from '@zbase-cardano/api';
 import { commitment, deriveNoteSecrets, deriveOneTimeKey, MerkleTree, NETWORKS, nullifierHash, precommitment, type Note } from '@zbase-cardano/crypto';
 import { devKeysPresent, loadDevArtifacts, loadDevVkey, shutdown } from '@zbase-cardano/prover';
-import { buildDeposit, decodeDepositDatum, decodeTx, enterpriseAddress, keyHash, signTx, slotToTime, stealthFee, timeToSlot,
+import { buildConfigUpdate, buildDeposit, decodeDepositDatum, decodeTx, enterpriseAddress, keyHash, readConfig, signTx, slotToTime, stealthFee, timeToSlot,
   type Provider } from '@zbase-cardano/txlib';
 import { startDevnet } from '@zbase-cardano/txlib/testing/devnet';
 import { Indexer } from '@zbase-cardano/indexer';
@@ -58,8 +58,213 @@ async function reuseGuardHarness() {
   }
   const options = { seed: new Uint8Array(32).fill(151), ctx, indexer, relayer, artifacts,
     poll: { intervalMs: 1, timeoutMs: 600_000, onPoll: advance } };
-  return { chain, options, confirm, walletSeed: keys.users[0]!, seller: enterpriseAddress(keys.users[1]!, ctx.deployment.network) };
+  return { chain, options, confirm, keys, crank, asp,
+    walletSeed: keys.users[0]!, seller: enterpriseAddress(keys.users[1]!, ctx.deployment.network) };
 }
+
+test('SDK-03: a protocol fee rate from the indexer alone cannot raise the withdrawn amount', {
+  timeout: 1_800_000,
+  skip: devKeysPresent(root) ? false : 'Development proving keys are absent: circuits/build/dev/manifest.json is required',
+}, async t => {
+  const { options, walletSeed, seller } = await reuseGuardHarness();
+  const store = sdkModule.memoryStore();
+  const original = sdkModule.createZbaseCardano({ ...options, store });
+  const deposit = await original.deposit({ amount: 12_000_000n, walletSeed });
+  await original.waitForNote(deposit.prepared.noteId);
+  const getPool = options.indexer.getPool.bind(options.indexer);
+  t.mock.method(options.indexer, 'getPool', async () => {
+    const pool = await getPool();
+    return { ...pool, config: { ...pool.config, settleFeeBps: 5000 } };
+  });
+  let proving = 0;
+  const artifacts = { get spend(): never { proving++; throw new Error('Proving started'); },
+    get ragequit(): never { throw new Error('Unexpected exit'); } };
+  const sdk = sdkModule.createZbaseCardano({ ...options, store, artifacts });
+  const before = await store.load();
+  await assert.rejects(sdk.settlePrivately({ payouts: [{ address: seller, amount: 2_000_000n }] }), /protocol fee/i);
+  assert.equal(proving, 0);
+  assert.deepEqual(await store.load(), before);
+  assert.equal((await store.load())!.nextChangeIndex, 0);
+  assert.ok(sdk.listNotes().every(n => !n.pending));
+});
+
+test('SDK-03: a quote with a far deadline is refused before proving', {
+  timeout: 1_800_000,
+  skip: devKeysPresent(root) ? false : 'Development proving keys are absent: circuits/build/dev/manifest.json is required',
+}, async t => {
+  const { chain, options, walletSeed, seller } = await reuseGuardHarness();
+  const store = sdkModule.memoryStore();
+  const original = sdkModule.createZbaseCardano({ ...options, store });
+  const deposit = await original.deposit({ amount: 12_000_000n, walletSeed });
+  await original.waitForNote(deposit.prepared.noteId);
+  const tipTime = slotToTime((await chain.getTip()).slot, options.ctx.deployment.network);
+  for (const [name, offset] of [['one day ahead', 86_400_000], ['at the tip', 0], ['before the tip', -1]] as const) {
+    await t.test(`SDK-03: quote deadline ${name}`, async () => {
+      const relay: RelayerApi = {
+        getPool: () => options.relayer.getPool(), getSettle: id => options.relayer.getSettle(id),
+        settle: request => options.relayer.settle(request),
+        quote: async payouts => ({ ...await options.relayer.quote(payouts), validUntil: tipTime + offset }),
+      };
+      let proving = 0;
+      const artifacts = { get spend(): never { proving++; throw new Error('Proving started'); },
+        get ragequit(): never { throw new Error('Unexpected exit'); } };
+      const sdk = sdkModule.createZbaseCardano({ ...options, store, artifacts, relayer: relay });
+      const before = await store.load();
+      await assert.rejects(sdk.settlePrivately({ payouts: [{ address: seller, amount: 2_000_000n }] }), /quote.*(deadline|expir|lifetime)/i);
+      assert.equal(proving, 0);
+      assert.deepEqual(await store.load(), before);
+      assert.equal((await store.load())!.nextChangeIndex, 0);
+      assert.ok(sdk.listNotes().every(n => !n.pending));
+    });
+  }
+  await t.test('SDK-03: quote lifetime limits enforce defaults and caller bounds', async () => {
+    const proving = new Error('Proving started');
+    const artifacts = { get spend(): never { throw proving; }, get ragequit(): never { throw proving; } };
+    const cases = [
+      { offset: 1, limit: undefined, allowed: true },
+      { offset: 900_000, limit: undefined, allowed: true },
+      { offset: 900_001, limit: undefined, allowed: false },
+      { offset: 60_000, limit: 60_000, allowed: true },
+      { offset: 60_001, limit: 60_000, allowed: false },
+      { offset: 86_400_000, limit: 86_400_000, allowed: true },
+      { offset: NaN, limit: undefined, allowed: false },
+      { offset: Infinity, limit: undefined, allowed: false },
+      { offset: 1.5, limit: undefined, allowed: false },
+    ];
+    for (const example of cases) {
+      const relay: RelayerApi = {
+        getPool: () => options.relayer.getPool(), getSettle: id => options.relayer.getSettle(id),
+        settle: request => options.relayer.settle(request),
+        quote: async payouts => ({ ...await options.relayer.quote(payouts), validUntil: tipTime + example.offset }),
+      };
+      const sdk = sdkModule.createZbaseCardano({ ...options, store, artifacts, relayer: relay, maxQuoteTtlMs: example.limit });
+      const before = await store.load();
+      await assert.rejects(sdk.settlePrivately({ payouts: [{ address: seller, amount: 2_000_000n }] }),
+        error => example.allowed ? error === proving : error instanceof Error && /quote.*(deadline|expir|lifetime)/i.test(error.message));
+      assert.deepEqual(await store.load(), before);
+    }
+    for (const maxQuoteTtlMs of [0, -1, 1.5, NaN, Infinity, Number.MAX_SAFE_INTEGER + 1]) {
+      assert.throws(() => sdkModule.createZbaseCardano({ ...options, maxQuoteTtlMs }), /quote lifetime.*positive safe/i);
+    }
+  });
+});
+
+test('SDK-08: a copied precommitment with the same refund key cannot take over a deposit made by the SDK', {
+  timeout: 1_800_000,
+  skip: devKeysPresent(root) ? false : 'Development proving keys are absent: circuits/build/dev/manifest.json is required',
+}, async t => {
+  const { chain, options, confirm, keys, crank, asp, walletSeed } = await reuseGuardHarness();
+  const { ctx, indexer } = options;
+  const build = fileURLToPath(new URL('../build/', import.meta.url));
+  await mkdir(build, { recursive: true });
+  const path = join(build, `sdk-test-${randomUUID()}.json`);
+  t.after(async () => { await unlink(path).catch(() => undefined); });
+  const store = sdkModule.fileStore(path);
+  let atSubmit: sdkModule.StoreData | null = null;
+  let loseReply = false;
+  const lost = new Error('Lost deposit response');
+  const provider: Provider = { ...droppingProvider(chain, []), submit: async cbor => {
+    atSubmit = await store.load();
+    const txId = await chain.submit(cbor);
+    if (loseReply) throw lost;
+    return txId;
+  } };
+  const sdk = sdkModule.createZbaseCardano({ ...options, ctx: { ...ctx, provider }, store });
+  const own = await sdk.deposit({ amount: 12_000_000n, walletSeed });
+  const attacker = keys.users[1]!;
+  const copy = await buildDeposit(ctx, { payer: { address: enterpriseAddress(attacker, ctx.deployment.network) },
+    amount: 5_000_000n, precommitment: own.prepared.precommitment, refundKeyHash: own.prepared.refundKeyHash });
+  await chain.submit(signTx(copy.cbor, [attacker]));
+  await confirm();
+  // Select only the copy for this crank round while both deposits remain visible to the SDK.
+  const getUtxosAt = chain.getUtxosAt.bind(chain);
+  const selection = t.mock.method(chain, 'getUtxosAt', async (address: string) => {
+    const utxos = await getUtxosAt(address);
+    return address === ctx.deployment.scripts.deposit.address ? utxos.filter(u => u.ref.txId === copy.txId) : utxos;
+  });
+  try { await crank.tick(); } finally { selection.mock.restore(); }
+  await confirm();
+  await asp.tick();
+  await confirm();
+  await sdk.sync();
+  const note = sdk.listNotes().find(n => n.id === own.prepared.noteId)!;
+  const deposits = await indexer.getDeposits();
+  const copied = deposits.find(d => d.txId === copy.txId)!;
+  const pending = deposits.find(d => d.txId === own.txId)!;
+  assert.equal(copied.status, 'absorbed');
+  assert.equal(pending.status, 'pending');
+  assert.equal(note.status, 'deposited');
+  assert.equal(note.value, null);
+  const expectedOrigin = { txId: own.txId, index: pending.index };
+  assert.deepEqual(atSubmit!.notes[0]!.expectedOrigin, expectedOrigin);
+  assert.deepEqual(note.expectedOrigin, expectedOrigin);
+  const restarted = sdkModule.createZbaseCardano({ ...options, store: sdkModule.fileStore(path) });
+  const inserted = await restarted.waitForNote(note.id);
+  const absorbed = (await indexer.getDeposits()).find(d => d.txId === own.txId)!;
+  assert.equal(inserted.status, 'spendable');
+  assert.equal(inserted.value, 11_700_000n);
+  assert.equal(inserted.label, absorbed.label);
+  assert.notEqual(inserted.label, copied.label);
+  assert.deepEqual(inserted.origin, { ...expectedOrigin, refundKeyHash: own.prepared.refundKeyHash });
+
+  loseReply = true;
+  await assert.rejects(sdk.deposit({ amount: 12_000_000n, walletSeed }), error => error === lost);
+  const saved = (await store.load())!;
+  const unconfirmed = saved.notes.at(-1)!;
+  assert.deepEqual(unconfirmed.expectedOrigin, atSubmit!.notes.at(-1)!.expectedOrigin);
+  assert.ok(unconfirmed.expectedOrigin);
+  await confirm();
+  const resumed = sdkModule.createZbaseCardano({ ...options, store: sdkModule.fileStore(path) });
+  await resumed.sync();
+  assert.deepEqual(resumed.listNotes().at(-1)!.origin, { ...unconfirmed.expectedOrigin, refundKeyHash: own.prepared.refundKeyHash });
+});
+
+test('SDK-03: an uncertain answer keeps the tentative mark and the change note', {
+  timeout: 1_800_000,
+  skip: devKeysPresent(root) ? false : 'Development proving keys are absent: circuits/build/dev/manifest.json is required',
+}, async t => {
+  const { chain, options, confirm, walletSeed, seller } = await reuseGuardHarness();
+  const store = sdkModule.memoryStore();
+  const uncertain = Object.assign(new ApiError('internal', 'Submission outcome is uncertain'), { code: 'uncertain' });
+  let calls = 0;
+  const relay: RelayerApi = {
+    getPool: () => options.relayer.getPool(), quote: payouts => options.relayer.quote(payouts),
+    getSettle: id => options.relayer.getSettle(id), settle: async request => {
+      calls++;
+      await options.relayer.settle(request);
+      throw uncertain;
+    },
+  };
+  const provider: Provider = { ...droppingProvider(chain, []), submit: cbor => chain.submit(cbor) };
+  const methods = ['getTip', 'getProtocolParameters', 'getUtxos', 'getUtxosAt', 'evaluate', 'submit'] as const;
+  const reads = methods.map(name => t.mock.method(provider, name));
+  const sdk = sdkModule.createZbaseCardano({ ...options, ctx: { ...options.ctx, provider }, store, relayer: relay });
+  const deposited = await sdk.deposit({ amount: 12_000_000n, walletSeed });
+  await sdk.waitForNote(deposited.prepared.noteId);
+  reads.forEach(read => read.mock.resetCalls());
+  let rejection: unknown;
+  await assert.rejects(sdk.settlePrivately({ payouts: [{ address: seller, amount: 2_000_000n }] }), error => {
+    rejection = error;
+    return true;
+  });
+  t.diagnostic(`SDK provider calls during private settlement: ${reads.reduce((sum, read) => sum + read.mock.callCount(), 0)}`);
+  const saved = (await store.load())!;
+  const change = saved.notes.find(n => n.kind === 'change');
+  assert.ok(change, 'An uncertain answer must preserve the change note');
+  const original = saved.notes.find(n => n.id === deposited.prepared.noteId)!;
+  assert.equal(original.pending?.kind, 'settle');
+  assert.equal(original.pending.changeNoteId, change.id);
+  assert.equal(saved.nextChangeIndex, 1);
+  assert.equal(calls, 1);
+  assert.ok(rejection instanceof Error && /Settlement outcome is unknown for note/.test(rejection.message));
+  assert.equal(rejection.cause, uncertain);
+  assert.equal(reads.reduce((sum, read) => sum + read.mock.callCount(), 0), 2);
+  await confirm();
+  await sdk.sync();
+  assert.equal(sdk.listNotes().find(n => n.id === original.id)!.status, 'spent');
+  assert.equal(sdk.listNotes().find(n => n.id === original.id)!.pending, undefined);
+  assert.equal((await sdk.waitForNote(change.id)).status, 'spendable');
+});
 
 test('SDK-02: a deposit from an empty store never reuses a secret the pool has seen', {
   timeout: 1_800_000,
@@ -288,7 +493,7 @@ test('SDK-01 through SDK-08: local agent story with real validators and proofs',
   await step('SDK-02: an empty store recovers the deposit from the seed', async () => {
     const recovered = createZbaseCardano(options);
     await recovered.sync();
-    assert.deepEqual(recovered.listNotes(), sdk.listNotes().map(n => ({ ...n, expectedRefundKeyHash: null })));
+    assert.deepEqual(recovered.listNotes(), sdk.listNotes().map(({ expectedOrigin, ...n }) => ({ ...n, expectedRefundKeyHash: null })));
     const next = await recovered.prepareDeposit({ amount: 10_000_000n, refundKeyHash });
     assert.equal(next.noteId, 'd1');
   });
@@ -718,7 +923,10 @@ test('SDK-01, SDK-03, SDK-04, SDK-08: hardening against dropped submissions and 
 });
 
 test('SDK-03, SDK-04: hardening rejects untrusted fees and seller prices before proving or funding', async t => {
-  const { chain, ctx, keys } = await startDevnet();
+  const { chain, ctx, keys, run } = await startDevnet();
+  const { datum: config } = await readConfig(ctx);
+  await run(await buildConfigUpdate(ctx, { payer: { address: enterpriseAddress(keys.operator, ctx.deployment.network) },
+    config: { ...config, settleFeeBps: 123 }, signers: keys.admin.map(key => hex(keyHash(key))) }), [keys.operator, ...keys.admin]);
   const indexer = new Indexer({ ctx, history: chain });
   await indexer.sync();
   const pool = await indexer.getPool();
@@ -727,13 +935,13 @@ test('SDK-03, SDK-04: hardening rejects untrusted fees and seller prices before 
   const tree = MerkleTree.fromLeaves([commitment({ ...secrets, value: 40_000_000n, label: 42n })]);
   const approved = MerkleTree.fromLeaves([42n]);
   const snapshot: IndexerApi = {
-    getPool: async () => ({ ...pool, size: 1, roots: [tree.root], aspRoot: approved.root,
-      config: { ...pool.config, settleFeeBps: 123 } }),
+    getPool: async () => ({ ...pool, size: 1, roots: [tree.root], aspRoot: approved.root }),
     getLeaves: async from => ({ from, size: 1, root: tree.root, leaves: from === 0 ? [tree.leaf(0)] : [] }),
     getAspLeaves: async from => ({ from, root: approved.root, leaves: from === 0 ? [42n] : [] }),
     getDeposits: async () => [], getNullifiers: async from => ({ from, nullifiers: [] }),
   };
-  const relayer = new Relayer({ ctx, indexer: snapshot, seed: keys.relayer, vkey: await loadDevVkey('spend', root) });
+  const relayer = new Relayer({ ctx, indexer: snapshot, seed: keys.relayer, vkey: await loadDevVkey('spend', root),
+    now: () => slotToTime(pool.tip.slot, ctx.deployment.network) });
   const store = sdkModule.memoryStore();
   await store.save({ nextDepositIndex: 1, nextChangeIndex: 0, nextOneTimeIndex: 0, notes: [{
     id: 'd0', kind: 'deposit', secretIndex: 0, status: 'spendable', value: 40_000_000n,
