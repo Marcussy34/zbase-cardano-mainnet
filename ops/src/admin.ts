@@ -81,11 +81,13 @@ export async function collectFees(o: AdminOptions & { amount?: bigint }): Promis
   return { ...await submit(o, tx, [roleSeed(o.operatorSeed, 'operator')], 'collect-fees'), amount };
 }
 
-/** Wind-down only: spends every reference script output at the holder address back to the operator. */
+/** Wind-down only: spends the reference script outputs of this pool at the holder address back to the operator. */
 export async function sweepReferences(o: AdminOptions): Promise<{ txId: string; lovelace: bigint } | null> {
-  const { provider, deployment: { network } } = o.ctx;
+  const { provider, deployment: { network, refScripts } } = o.ctx;
   const holder = roleAddress(o.operatorSeed, 'holder', network);
-  const references = (await provider.getUtxosAt(holder)).filter(u => u.scriptRef !== null);
+  // Every pool of one operator publishes at the same holder address. Take only this pool's outputs.
+  const own = new Set(Object.values(refScripts).map(ref => `${ref.txId}#${ref.index}`));
+  const references = (await provider.getUtxosAt(holder)).filter(u => u.scriptRef !== null && own.has(`${u.ref.txId}#${u.ref.index}`));
   if (references.length === 0) {
     o.log?.('No reference script outputs to sweep.');
     return null;

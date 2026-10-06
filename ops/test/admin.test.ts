@@ -89,6 +89,20 @@ test('OPS-ADM-03: sweep returns reference funds minus fees and preserves ordinar
   assert.ok(logs.some(line => line.startsWith('CAUTION:')));
 });
 
+test('OPS-ADM-03: sweep leaves the reference outputs of another pool at the same holder key', { timeout: 180_000 }, async () => {
+  const { sweepReferences } = await import('../src/admin.js');
+  const { o, chain } = await setup();
+  const holder = roleAddress(operatorSeed, 'holder', 'preprod');
+  const own = (await chain.getUtxosAt(holder)).filter(u => u.scriptRef !== null);
+  // Every pool of one operator publishes its reference scripts at the same holder address.
+  const foreign = chain.addUtxo({ address: holder, value: { lovelace: 20_000_000n, assets: {} },
+    inlineDatum: null, datumHash: null, scriptRef: own[0]!.scriptRef });
+  const result = await sweepReferences(o);
+  assert.ok(result);
+  assert.equal(result.lovelace, sum(own));
+  assert.deepEqual((await chain.getUtxosAt(holder)).map(u => u.ref), [foreign]);
+});
+
 test('OPS-ADM-01: final evaluation precedes mainnet submission and a failure cannot submit', { timeout: 180_000 }, async () => {
   const { setDepositsPaused } = await import('../src/admin.js');
   const { o, chain, logs } = await setup('mainnet');
