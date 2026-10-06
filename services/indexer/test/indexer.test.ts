@@ -10,7 +10,7 @@ import { devKeysPresent, loadDevArtifacts, prove, shutdown } from '@zbase-cardan
 import {
   buildAspUpdate, buildDeposit, buildInsert, buildRagequit, buildRefund, buildSettle,
   enterpriseAddress, keyHash, nullifierInsertion, nullifierRoot, planInsert,
-  readConfig, readDeposits, readPool, type ChainHistory, type DepositUtxo,
+  readConfig, readDeposits, readPool, type ChainHistory, type DepositUtxo, type Provider,
 } from '@zbase-cardano/txlib';
 import { startDevnet } from '@zbase-cardano/txlib/testing/devnet';
 import { Indexer, serveIndexer } from '../src/index.js';
@@ -18,6 +18,14 @@ import { Indexer, serveIndexer } from '../src/index.js';
 const repoRoot = fileURLToPath(new URL('../../../', import.meta.url));
 const hex = (bytes: Uint8Array): string => Buffer.from(bytes).toString('hex');
 after(shutdown);
+
+async function waitUntil(done: () => boolean | Promise<boolean>): Promise<void> {
+  for (let attempt = 0; attempt < 200; attempt += 1) {
+    if (await done()) return;
+    await new Promise(resolve => setTimeout(resolve, 10));
+  }
+  assert.fail('Polling did not reach the expected state');
+}
 
 test('IDX-01: Init exposes genesis and validates pages without proving keys', async () => {
   const { chain, ctx } = await startDevnet();
@@ -52,11 +60,134 @@ test('IDX-03: a tip change during an asynchronous refresh preserves the snapshot
   await indexer.sync();
   const before = await indexer.getPool();
   changeTip = true;
+  chain.mineBlock();
   await assert.rejects(indexer.sync(), /tip changed/i);
   assert.deepEqual(await indexer.getPool(), before);
   changeTip = false;
   await indexer.sync();
   assert.equal((await indexer.getPool()).tip.hash, (await chain.getTip()).blockHash);
+});
+
+test('IDX-03: a failed cold sync keeps fetched transactions for the next attempt', async () => {
+  const { chain, ctx, keys, run } = await startDevnet();
+  const user = keys.users[0]!;
+  const depositId = await run(await buildDeposit(ctx, {
+    payer: { address: enterpriseAddress(user, ctx.deployment.network) }, amount: 5_000_000n,
+    precommitment: 1n, refundKeyHash: hex(keyHash(user)),
+  }), [user]);
+  const calls = new Map<string, number>();
+  const history: ChainHistory = {
+    getTransactionsAt: (address, after) => chain.getTransactionsAt(address, after),
+    getTransactionCbor: id => {
+      calls.set(id, (calls.get(id) ?? 0) + 1);
+      return chain.getTransactionCbor(id);
+    },
+  };
+  let changeTip = true;
+  const indexer = new Indexer({ ctx, history, aspLeaves: async () => {
+    if (changeTip) chain.mineBlock();
+    return [];
+  } });
+  await assert.rejects(indexer.sync(), /tip changed/i);
+  await assert.rejects(indexer.getPool(), /has not synced/);
+  assert.deepEqual(calls, new Map([[depositId, 1], [ctx.deployment.initTx, 1]]));
+  changeTip = false;
+  assert.equal(await indexer.sync(), 1);
+  assert.equal((await indexer.getPool()).tip.hash, (await chain.getTip()).blockHash);
+  assert.equal((await indexer.getDeposits())[0]?.txId, depositId);
+  for (const [id, count] of calls) assert.equal(count, 1, `Transaction ${id} was fetched more than once`);
+});
+
+test('IDX-03: a rollback resets the snapshot but keeps fetched transactions', async () => {
+  const { chain, ctx, keys, run } = await startDevnet();
+  const user = keys.users[0]!;
+  const depositId = await run(await buildDeposit(ctx, {
+    payer: { address: enterpriseAddress(user, ctx.deployment.network) }, amount: 5_000_000n,
+    precommitment: 1n, refundKeyHash: hex(keyHash(user)),
+  }), [user]);
+  const calls = new Map<string, number>();
+  const history: ChainHistory = {
+    getTransactionsAt: (address, after) => chain.getTransactionsAt(address, after),
+    getTransactionCbor: id => {
+      calls.set(id, (calls.get(id) ?? 0) + 1);
+      return chain.getTransactionCbor(id);
+    },
+  };
+  const indexer = new Indexer({ ctx, history });
+  assert.equal(await indexer.sync(), 1);
+  assert.equal((await indexer.getDeposits())[0]?.txId, depositId);
+  assert.deepEqual(calls, new Map([[depositId, 1], [ctx.deployment.initTx, 1]]));
+  chain.rollback(1);
+  assert.equal(await indexer.sync(), 1);
+  assert.deepEqual(await indexer.getDeposits(), []);
+  assert.equal((await indexer.getPool()).tip.hash, (await chain.getTip()).blockHash);
+  for (const [id, count] of calls) assert.equal(count, 1, `Transaction ${id} was fetched more than once`);
+});
+
+test('IDX-01: ASP refresh passes the confirmed root and caches leaf checks', async t => {
+  const { chain, ctx, keys, run } = await startDevnet();
+  const roots: bigint[] = [];
+  const labels = [7n];
+  const approvedRoot = MerkleTree.fromLeaves(labels).root;
+  let leaves: bigint[] = [];
+  const hashes = t.mock.method(MerkleTree, 'fromLeaves');
+  const indexer = new Indexer({ ctx, history: chain, aspLeaves: async root => {
+    roots.push(root);
+    return [...leaves];
+  } });
+  await indexer.sync();
+  const emptyRoot = (await indexer.getPool()).aspRoot;
+  assert.deepEqual(roots, [emptyRoot]);
+  assert.equal(hashes.mock.callCount(), 1);
+  await indexer.getAspLeaves(0, 10);
+  await indexer.getAspLeaves(0, 10);
+  await indexer.sync();
+  chain.mineBlock();
+  await indexer.sync();
+  assert.equal(hashes.mock.callCount(), 1);
+  leaves = labels;
+  await indexer.sync();
+  assert.equal(hashes.mock.callCount(), 2);
+  await assert.rejects(indexer.getAspLeaves(0, 10), error => error instanceof ApiError && error.code === 'stale_asp_root');
+  await indexer.sync();
+  assert.equal(hashes.mock.callCount(), 2);
+  await run(await buildAspUpdate(ctx, { payer: { address: enterpriseAddress(keys.asp, ctx.deployment.network) },
+    root: approvedRoot, signers: [hex(keyHash(keys.asp))] }), [keys.asp]);
+  const before = hashes.mock.callCount();
+  await indexer.sync();
+  assert.equal(roots.at(-1), approvedRoot);
+  assert.deepEqual((await indexer.getAspLeaves(0, 10)).leaves, labels);
+  assert.equal(hashes.mock.callCount(), before + 1);
+});
+
+test('IDX-01: an unchanged tip reads only getTip and refreshes ASP leaves', async () => {
+  const { chain, ctx } = await startDevnet();
+  const calls: string[] = [];
+  const provider: Provider = {
+    getTip: () => { calls.push('getTip'); return chain.getTip(); },
+    getUtxosAt: address => { calls.push('getUtxosAt'); return chain.getUtxosAt(address); },
+    getUtxos: refs => { calls.push('getUtxos'); return chain.getUtxos(refs); },
+    getProtocolParameters: () => { calls.push('getProtocolParameters'); return chain.getProtocolParameters(); },
+    evaluate: cbor => { calls.push('evaluate'); return chain.evaluate(cbor); },
+    submit: cbor => { calls.push('submit'); return chain.submit(cbor); },
+  };
+  const history: ChainHistory = {
+    getTransactionsAt: (address, after) => { calls.push('getTransactionsAt'); return chain.getTransactionsAt(address, after); },
+    getTransactionCbor: id => { calls.push('getTransactionCbor'); return chain.getTransactionCbor(id); },
+  };
+  const leaves: bigint[] = [1n];
+  const roots: bigint[] = [];
+  const indexer = new Indexer({ ctx: { ...ctx, provider }, history, aspLeaves: root => { roots.push(root); return leaves; } });
+  await indexer.sync();
+  await assert.rejects(indexer.getAspLeaves(0, 10), error => error instanceof ApiError && error.code === 'stale_asp_root');
+  const pool = await indexer.getPool();
+  calls.length = 0;
+  leaves.length = 0;
+  assert.equal(await indexer.sync(), 0);
+  assert.deepEqual(calls, ['getTip']);
+  assert.deepEqual(roots, [pool.aspRoot, pool.aspRoot]);
+  assert.deepEqual(await indexer.getAspLeaves(0, 10), { from: 0, leaves: [], root: pool.aspRoot });
+  assert.deepEqual(await indexer.getPool(), pool);
 });
 
 test('IDX-01: ASP pages cap responses and reject unpublished leaves', async () => {
@@ -71,6 +202,97 @@ test('IDX-01: ASP pages cap responses and reject unpublished leaves', async () =
   assert.deepEqual((await indexer.getAspLeaves(0, 10_000)).leaves, labels.slice(0, 1_000));
   assert.deepEqual((await indexer.getAspLeaves(1_000, 10_000)).leaves, labels.slice(1_000));
   assert.deepEqual((await indexer.getAspLeaves(2_000, 10)).leaves, []);
+});
+
+test('IDX-03 HTTP: a failed poll serves the last snapshot and reports the error once', async t => {
+  const { chain, ctx } = await startDevnet();
+  const getTip = chain.getTip.bind(chain);
+  const failure = new Error('provider unavailable');
+  let failOnce = false;
+  let failures = 0;
+  t.mock.method(chain, 'getTip', async () => {
+    if (failOnce) { failOnce = false; failures += 1; throw failure; }
+    return getTip();
+  });
+  const indexer = new Indexer({ ctx, history: chain });
+  const errors: unknown[] = [];
+  const server = await serveIndexer(indexer, { port: 0, syncMs: 500, onError: error => { errors.push(error); } });
+  t.after(() => server.close());
+  const client = new IndexerClient(server.url);
+  const before = await client.getPool();
+  failOnce = true;
+  await waitUntil(() => failures === 1);
+  assert.deepEqual(await client.getPool(), before);
+  assert.deepEqual(await client.getLeaves(0, 10), await indexer.getLeaves(0, 10));
+  assert.deepEqual(await client.getAspLeaves(0, 10), await indexer.getAspLeaves(0, 10));
+  assert.deepEqual(await client.getDeposits(), await indexer.getDeposits());
+  assert.deepEqual(await client.getNullifiers(0, 10), await indexer.getNullifiers(0, 10));
+  assert.deepEqual(errors, [failure]);
+});
+
+test('IDX-03 HTTP: expired snapshots answer 503 and recover after a successful poll', async t => {
+  const { chain, ctx } = await startDevnet();
+  const getTip = chain.getTip.bind(chain);
+  let failing = false;
+  let failures = 0;
+  const errors: unknown[] = [];
+  t.mock.method(chain, 'getTip', async () => {
+    if (failing) { failures += 1; throw new Error('provider unavailable'); }
+    return getTip();
+  });
+  let now = 1_000;
+  t.mock.method(Date, 'now', () => now);
+  const indexer = new Indexer({ ctx, history: chain });
+  const server = await serveIndexer(indexer, { port: 0, syncMs: 10, maxStaleMs: 50,
+    onError: error => { errors.push(error); } });
+  t.after(() => server.close());
+  const client = new IndexerClient(server.url);
+  const before = await client.getPool();
+  failing = true;
+  await waitUntil(() => failures >= 2);
+  now += 50;
+  assert.deepEqual(await client.getPool(), before);
+  now += 1;
+  for (const path of ['/v1/pool', '/v1/leaves?from=0&limit=1', '/v1/asp/leaves?from=0&limit=1',
+    '/v1/deposits', '/v1/nullifiers?from=0&limit=1']) {
+    const response = await fetch(server.url + path);
+    assert.equal(response.status, 503);
+    assert.deepEqual(await response.json(), { error: { code: 'internal', message: 'Indexer snapshot is too old' } });
+  }
+  assert.equal(errors.length, failures);
+  failing = false;
+  await waitUntil(async () => (await fetch(`${server.url}/v1/pool`)).status === 200);
+  assert.deepEqual(await client.getPool(), before);
+});
+
+test('IDX-03 HTTP: startup retries two failed syncs before serving', async t => {
+  const { chain, ctx } = await startDevnet();
+  const getTip = chain.getTip.bind(chain);
+  const failures = [new Error('startup one'), new Error('startup two')];
+  let calls = 0;
+  const errors: unknown[] = [];
+  t.mock.method(chain, 'getTip', async () => {
+    calls += 1;
+    if (calls <= failures.length) throw failures[calls - 1];
+    return getTip();
+  });
+  const indexer = new Indexer({ ctx, history: chain });
+  const server = await serveIndexer(indexer, { port: 0, syncMs: 10, onError: error => { errors.push(error); } });
+  t.after(() => server.close());
+  assert.deepEqual(errors, failures);
+  assert.deepEqual(await new IndexerClient(server.url).getPool(), await indexer.getPool());
+});
+
+test('IDX-03 HTTP: startup stops after five failed syncs and throws the last error', async t => {
+  const { chain, ctx } = await startDevnet();
+  const failures = Array.from({ length: 5 }, (_, index) => new Error(`startup ${index}`));
+  let calls = 0;
+  const errors: unknown[] = [];
+  t.mock.method(chain, 'getTip', async () => { throw failures[calls++]; });
+  await assert.rejects(serveIndexer(new Indexer({ ctx, history: chain }), { port: 0, syncMs: 10,
+    onError: error => { errors.push(error); } }), error => error === failures[4]);
+  assert.equal(calls, 5);
+  assert.deepEqual(errors, failures);
 });
 
 test('IDX-01, IDX-02, IDX-03: replay the confirmed pool story', {
@@ -257,6 +479,7 @@ test('IDX-01, IDX-02, IDX-03: replay the confirmed pool story', {
     await resilient.sync();
     const before = await resilient.getPool();
     fail = true;
+    chain.mineBlock();
     await assert.rejects(resilient.sync(), /provider unavailable/);
     assert.deepEqual(await resilient.getPool(), before);
   });
