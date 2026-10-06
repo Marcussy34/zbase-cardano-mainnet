@@ -1,0 +1,20 @@
+{
+  "name": "@zbase-cardano/example-x402-seller",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --import tsx --test \"test/**/*.test.ts\"",
+    "typecheck": "tsc --noEmit -p .",
+    "seller": "node --import tsx src/seller.ts",
+    "pay": "node --import tsx src/pay-plain.ts"
+  },
+  "dependencies": {
+    "@meshsdk/core": "1.9.1",
+    "@meshsdk/core-cst": "1.9.1",
+    "@x402/cardano": "2.28.0",
+    "@x402/core": "2.28.0",
+    "@x402/fetch": "2.28.0",
+    "@zbase-cardano/txlib": "0.0.0"
+  }
+}

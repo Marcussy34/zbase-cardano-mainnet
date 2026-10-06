@@ -5,7 +5,7 @@
   "engines": {
     "node": ">=22"
   },
-  "workspaces": ["packages/*", "services/*", "circuits", "ops"],
+  "workspaces": ["packages/*", "services/*", "circuits", "ops", "examples/*"],
   "scripts": {
     "test": "npm test --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present",
