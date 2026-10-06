@@ -43,11 +43,11 @@ Read [docs/HANDOFF.md](docs/HANDOFF.md) first.
 | Validator tests | `npm run check:contracts` | repo root |
 | Validator tests and cost bounds | `npm run check:budgets` | repo root |
 | Toolchain smoke test | `npm run test:smoke` | repo root |
-| Compile circuits | `bash circuits/scripts/build.sh` | repo root |
-| Development keys | `bash circuits/scripts/setup-dev.sh` | repo root |
+| Compile circuits | `npm run build:circuits` | repo root |
+| Development keys, about 30 minutes the first time | `npm run setup:dev` | repo root |
 | Rebuild proof fixtures | `node contracts/fixtures/gen.mjs` | repo root |
 
-The last three commands exist once work packages WP2 and WP4 of [docs/PLAN-M0.md](docs/PLAN-M0.md) are done.
+The last command exists once work package WP4 of [docs/PLAN-M0.md](docs/PLAN-M0.md) is done.
 
 ## Writing rules
 
