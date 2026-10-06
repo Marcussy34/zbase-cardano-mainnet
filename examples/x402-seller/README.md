@@ -4,10 +4,8 @@ This example runs a local HTTP seller and the stock Cardano facilitator in one p
 The plain buyer signs with one raw 32-byte Ed25519 seed.
 It has no privacy layer. The facilitator submits the signed transaction.
 
-Use the dependencies already installed at the repository root.
-The lead must add `examples/*` to the root workspace list before using workspace commands.
-Until then, use the commands below from the repository root.
-The example imports txlib source by relative path because the example workspace is not linked yet.
+Use the dependencies already installed at the repository root, and run the commands below from there.
+The example is a workspace package and imports `@zbase-cardano/txlib` by name.
 
 ## Preprod settings
 
