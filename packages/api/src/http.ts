@@ -28,14 +28,14 @@ class JsonClient {
     try {
       value = await response.json();
     } catch {
-      throw new ApiError('internal', 'The server returned invalid JSON');
+      throw new ApiError('uncertain', 'The server returned invalid JSON');
     }
     if (!response.ok) {
       let error: ApiError;
       try {
         error = errorFromJson(value, response.status);
       } catch {
-        throw new ApiError('internal', 'The server returned an invalid error response');
+        throw new ApiError('uncertain', 'The server returned an invalid error response');
       }
       throw error;
     }

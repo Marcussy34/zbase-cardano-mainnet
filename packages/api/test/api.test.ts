@@ -317,6 +317,28 @@ test('REL-04: clients preserve service errors and the server hides unexpected er
   assert.ok(!(await response.text()).includes('private diagnostic detail'));
 });
 
+test('REL-05: uncertain travels from a server handler to the client with status 503', async t => {
+  const message = 'The settlement outcome is unknown';
+  assert.equal(new api.ApiError('uncertain', message).status, 503);
+  const server = await api.serveJson([{ method: 'POST', path: '/v1/settle',
+    handle() { throw new api.ApiError('uncertain', message); } }], 0);
+  t.after(() => server.close());
+  const client = new api.RelayerClient(server.url);
+  await assert.rejects(client.settle(settle), { name: 'ApiError', code: 'uncertain', status: 503, message });
+});
+
+test('REL-05: unreadable settle replies are uncertain', async t => {
+  for (const [name, body, status] of [
+    ['invalid JSON', 'not JSON', 202],
+    ['invalid error body', JSON.stringify({ error: { code: 'internal' } }), 500],
+  ] as const) {
+    await t.test(name, async () => {
+      const client = new api.RelayerClient('http://127.0.0.1', async () => new Response(body, { status }));
+      await assert.rejects(client.settle(settle), { name: 'ApiError', code: 'uncertain', status: 503 });
+    });
+  }
+});
+
 test('REL-03: HTTP rejects unknown paths, invalid JSON, and bodies over one MiB', async (t) => {
   assert.equal(typeof api.serveJson, 'function');
   const server = await api.serveJson([{ method: 'POST', path: '/echo', handle: ({ body }) => body }], 0);

@@ -259,6 +259,97 @@ test('REL-02, REL-03, REL-04, REL-05, HTTP: real proof relayer story', {
       assert.equal((await relayer.getSettle(first.quoteId)).error, 'Could not build or submit the settle transaction');
     } finally { chain.getProtocolParameters = original; }
   });
+  await t.test('REL-02: a failure before any submit call stays a definite error', async () => {
+    const owner = new Relayer({ ctx, indexer, seed: keys.relayer, vkey: artifacts.spend.vkey,
+      quoteTtlMs: 600_000, retryDelayMs: 5, now: () => now });
+    const request = await freshRequest(first, owner);
+    const original = chain.getProtocolParameters;
+    const before = submissions;
+    chain.getProtocolParameters = async () => { throw new Error('private build diagnostic'); };
+    try {
+      await rejects(owner.settle(request), 'internal');
+      assert.equal(submissions, before);
+      assert.deepEqual(await owner.getSettle(request.quoteId), {
+        id: request.quoteId, status: 'failed', txHash: '00'.repeat(32), confirmations: 0,
+        error: 'Could not build or submit the settle transaction',
+      });
+    } finally { chain.getProtocolParameters = original; }
+  });
+  for (const [mode, name] of [
+    ['landed', 'REL-05: a submit whose reply is lost is uncertain, and its landed transaction confirms'],
+    ['late', 'REL-05: a submit whose reply is lost and whose block is late is uncertain'],
+    ['rejected', 'REL-05: a submit that failed for good expires as uncertain, then as failed'],
+  ] as const) {
+    await t.test(name, async () => {
+      const owner = new Relayer({ ctx, indexer, seed: keys.relayer, vkey: artifacts.spend.vkey,
+        quoteTtlMs: 600_000, retryDelayMs: 5, now: () => now });
+      const request = await freshRequest(first, owner);
+      const original = chain.submit;
+      const getUtxosAt = chain.getUtxosAt;
+      const height = chain.blocks().length;
+      const spentCount = spent.length;
+      let attempts = 0;
+      let txHash = '';
+      let recovery = false;
+      chain.submit = async cbor => {
+        attempts++;
+        txHash = decodeTx(cbor).txId;
+        if (mode !== 'rejected') await original(cbor);
+        recovery = true;
+        throw new Error('private lost submit reply');
+      };
+      chain.getUtxosAt = async address => {
+        if (mode === 'landed' && recovery && address === ctx.deployment.scripts.pool.address) {
+          recovery = false;
+          // Sync the public nullifier list only once the local block confirms it.
+          mine();
+        }
+        return getUtxosAt.call(chain, address);
+      };
+      try {
+        if (mode === 'landed') {
+          const result = await owner.settle(request);
+          assert.deepEqual(result, { id: request.quoteId, status: 'submitted', txHash, confirmations: 0, error: null });
+        } else {
+          const failure = await owner.settle(request).then(() => undefined, (error: unknown) => error);
+          const status = await owner.getSettle(request.quoteId);
+          assert.ok(failure instanceof ApiError);
+          assert.deepEqual({ code: failure.code, status: status.status }, { code: 'uncertain', status: 'submitted' });
+          assert.equal(failure.status, 503);
+          assert.ok(!failure.message.includes('private lost submit reply'));
+          assert.equal(status.txHash, txHash);
+          assert.equal(status.error, null);
+          assert.deepEqual(await owner.settle(request), status, 'a replay must keep tracking the same transaction');
+          if (mode === 'late') {
+            const getPool = indexer.getPool;
+            indexer.getPool = async () => { throw new ApiError('internal', 'private indexer diagnostic'); };
+            try {
+              await assert.rejects(owner.settle(request), error => error instanceof ApiError
+                && error.code === 'uncertain' && !error.message.includes('private indexer diagnostic'));
+              await rejects(owner.getSettle(request.quoteId), 'uncertain');
+            } finally { indexer.getPool = getPool; }
+            mine();
+          } else chain.mineBlock(timeToSlot(request.intent.validUntil, network) - (await chain.getTip()).slot + 1);
+        }
+        assert.equal(attempts, 1);
+        const status = await owner.getSettle(request.quoteId);
+        assert.equal(status.txHash, txHash);
+        assert.equal(status.status, mode === 'rejected' ? 'failed' : 'confirmed');
+        assert.equal(status.confirmations, mode === 'rejected' ? 0 : 1);
+        assert.equal(status.error, mode === 'rejected' ? 'Expired before confirmation' : null);
+        if (mode === 'rejected') {
+          await rejects(owner.settle(request), 'uncertain');
+          assert.equal(attempts, 1, 'a quote that reached submission must not be submitted again');
+        }
+      } finally {
+        chain.submit = original;
+        chain.getUtxosAt = getUtxosAt;
+        chain.rollback(chain.blocks().length - height);
+        spent.length = spentCount;
+        pending = [];
+      }
+    });
+  }
   await t.test('REL-02: failed pool reads log the underlying error', async () => {
     const original = chain.getUtxosAt;
     const underlying = new Error('private pool diagnostic');
@@ -371,7 +462,7 @@ test('REL-02, REL-03, REL-04, REL-05, HTTP: real proof relayer story', {
       const before = reads;
       assert.deepEqual(await owner.getSettle(result.id), failed);
       assert.equal(reads, before, 'the terminal failure is stored');
-      await rejects(owner.settle(request), 'not_found');
+      await rejects(owner.settle(request), 'uncertain');
       assert.equal(attempts, 1);
     } finally {
       chain.submit = original;
@@ -437,7 +528,10 @@ test('REL-02, REL-03, REL-04, REL-05, HTTP: real proof relayer story', {
       assert.equal((await chain.getUtxosAt(payer(seller).address)).reduce((sum, u) => sum + u.value.lovelace, 0n), 2_000_000n);
     }
   });
-  await t.test('REL-05: an unchanged pool fails after three reads and exposes a safe failed status', async () => {
+  await t.test('REL-05: an unchanged pool is uncertain after three reads and exposes a safe submitted status', async () => {
+    const owner = new Relayer({ ctx, indexer, seed: keys.relayer, vkey: artifacts.spend.vkey,
+      quoteTtlMs: 600_000, retryDelayMs: 5, now: () => now, log: (message, error) => logs.push({ message, error }) });
+    const request = await freshRequest(requests[3]!, owner);
     const original = chain.submit;
     const getUtxosAt = chain.getUtxosAt;
     let attempts = 0;
@@ -449,12 +543,12 @@ test('REL-02, REL-03, REL-04, REL-05, HTTP: real proof relayer story', {
       return getUtxosAt.call(chain, address);
     };
     try {
-      await rejects(relayer.settle(requests[3]!), 'internal');
+      await rejects(owner.settle(request), 'uncertain');
       assert.equal(attempts, 1);
       assert.equal(reads, 3);
-      const failed = await relayer.getSettle(requests[3]!.quoteId);
-      assert.equal(failed.status, 'failed');
-      assert.ok(!failed.error?.includes('private provider diagnostic'));
+      const submitted = await owner.getSettle(request.quoteId);
+      assert.equal(submitted.status, 'submitted');
+      assert.equal(submitted.error, null);
       assert.ok(logs.some(entry => entry.error === underlying));
     } finally { chain.submit = original; chain.getUtxosAt = getUtxosAt; }
   });
@@ -521,9 +615,10 @@ test('REL-02, REL-03, REL-04, REL-05, HTTP: real proof relayer story', {
       return getUtxosAt.call(chain, address);
     };
     try {
-      await rejects(owner.settle(request), 'quote_expired');
+      await rejects(owner.settle(request), 'uncertain');
       assert.equal(attempts, 1);
       assert.equal(reads, 1);
+      assert.equal((await owner.getSettle(request.quoteId)).status, 'submitted');
     } finally {
       clearTimeout(timer);
       chain.submit = original;

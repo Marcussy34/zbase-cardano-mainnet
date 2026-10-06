@@ -226,6 +226,6 @@ export function errorToJson(error: ApiError): { error: { code: ErrorCode; messag
 export function errorFromJson(value: unknown, status?: number): ApiError {
   const v = object(object(value, 'response').error, 'error');
   const code = oneOf(v.code, ['stale_root', 'stale_asp_root', 'nullifier_spent', 'queue_full', 'quote_expired',
-    'invalid_proof', 'intent_mismatch', 'not_found', 'bad_request', 'internal'], 'error.code');
+    'invalid_proof', 'intent_mismatch', 'not_found', 'bad_request', 'internal', 'uncertain'], 'error.code');
   return new ApiError(code, string(v.message, 'error.message'), status);
 }
