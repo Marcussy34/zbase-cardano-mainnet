@@ -5,5 +5,10 @@
     "ver_02_infinity_a_is_rejected": { "cpu": 50000000, "mem": 55000 },
     "ver_02_infinity_b_is_rejected": { "cpu": 50000000, "mem": 60000 },
     "ver_02_infinity_c_is_rejected": { "cpu": 50000000, "mem": 64000 }
+  },
+  "zbase/fixtures_test": {
+    "ver_00_real_insert_verifies": { "cpu": 2865379064, "mem": 297052 },
+    "ver_00_real_spend_verifies": { "cpu": 2970220049, "mem": 165488 },
+    "ver_00_real_ragequit_verifies": { "cpu": 2674009968, "mem": 132541 }
   }
 }
