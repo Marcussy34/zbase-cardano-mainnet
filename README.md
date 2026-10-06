@@ -48,4 +48,8 @@ It replaces the earlier notes in the private `zbase-cardano` repo.
 
 ## License
 
-Not set yet. zBase on Base uses Apache-2.0.
+MIT. See [LICENSE](LICENSE).
+
+Dependencies keep their own licenses.
+The prover uses snarkjs, which is GPL-3.0.
+Check that before you ship a product that bundles it.
