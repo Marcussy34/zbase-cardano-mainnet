@@ -11,6 +11,8 @@
     "typecheck": "npm run typecheck --workspaces --if-present",
     "check:contracts": "cd contracts && aiken check",
     "build:contracts": "cd contracts && aiken build",
+    "build:circuits": "bash circuits/scripts/build.sh",
+    "setup:dev": "node circuits/scripts/setup-dev.mjs",
     "check:budgets": "node contracts/scripts/check-budgets.mjs",
     "test:smoke": "node --import tsx --test scripts/smoke.test.ts"
   },
