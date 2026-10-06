@@ -1,0 +1,14 @@
+Method: Built-in image_gen tool. New image generation. Opaque background.
+
+Use case: stylized-concept
+Asset type: one original raster sprite atlas for the zBase Cardano privacy payments landing page.
+Primary request: A single square image containing exactly 3 columns by 3 rows, nine equal square portrait cells, one anonymous dark privacy character per cell. Make this a precisely aligned seamless 3x3 grid with no margins, no gutters, no borders, no labels, no text. Create at 1536x1536 or a large square resolution.
+Scene/backdrop: Each cell has its own simple muted charcoal studio backdrop, gently varying among desaturated lavender charcoal, blue slate, warm taupe charcoal, and deep sage charcoal. Every character and backdrop stays wholly inside its own equal square cell.
+Subject: Nine original distinct anonymous privacy characters, tasteful premium 3D collectible sculpture busts. Top row left to right: draped hood with completely shadowed face; smooth obsidian oval visor and sculpted collar; folded origami cloak and concealed face. Middle row left to right: tall rounded helmet with a narrow dark visor; layered scarf hiding the entire face; soft angular cowl with an entirely shadowed face. Bottom row left to right: faceted black chrome head; broad round hood with empty dark face; elongated abstract mask. Different silhouettes are essential.
+Style/medium: High-end 3D studio product photography, artistic collectible sculptures with believable materials, coherent camera and art direction across all nine tiles.
+Composition/framing: Portrait busts, centered, frontal or slight three-quarter pose. Shoulders meet the bottom of each individual square. Each head fits safely within the center 75 percent of its tile. Consistent scale, clean silhouette, no cropping at top or sides. Grid boundaries at exactly one-third and two-thirds of width and height.
+Lighting/mood: Soft sculpted studio illumination, understated rim lighting, nuanced shadows; silhouettes read clearly and beautifully at thumbnail sizes. Calm, mysterious, elegant, premium, anonymous. Never frightening.
+Color palette: Predominantly dark charcoal and obsidian, with restrained tonal highlights and muted backdrop hues.
+Materials/textures: Matte draped fabric, subtle woven texture, charcoal ceramic, satin black metal, smoked glossy visor and faceted chrome accents.
+Constraints: All characters original, no recognizable intellectual property, no logos, no watermarks, no text of any kind.
+Avoid: Weapons, Guy Fawkes masks, human eyes, visible human skin or identity, horror, skulls, threatening gestures, bright neon, oversaturated colors, smiling cartoon mascots, cross-tile overlap, extra cells, ornamental grid borders.

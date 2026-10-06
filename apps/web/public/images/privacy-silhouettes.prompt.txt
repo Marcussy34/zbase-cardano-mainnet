@@ -1,0 +1,13 @@
+Method: Built-in image_gen tool. Reference-based generation. Opaque background.
+Reference: User-supplied simple anonymous black head-and-shoulders silhouette.
+Output: One 1254 by 1254 image containing nine 418 by 418 portrait cells.
+
+Use case: stylized-concept
+Asset type: one square 3-by-3 raster sprite atlas for anonymous profile portraits on a dark website.
+Input image: the supplied screenshot is a STYLE REFERENCE ONLY. Ignore all surrounding browser/UI chrome. Its central simple black circle head and rounded shoulders on charcoal are the desired simplicity.
+Primary request: create exactly nine different variants of that minimal anonymous shadow avatar, in ONE precise 3-column by 3-row equal-cell square contact sheet. No spacing, no gutters, no outer margins, no tile borders, no text. Each cell is a square with a charcoal background and one avatar centered in it.
+Style: extremely simple, soft matte black cut-paper silhouettes. Flat black featureless head plus black shoulder shape. A very gentle defocused edge and subtle diffuse shadow, but the silhouette is readable. Anonymous profile icon aesthetic, understated, abstract. NOT realistic people, NOT clothing, NOT sculptures, NOT masks.
+Nine variants row by row: 1 circular head and rounded broad shoulders; 2 tall oval head and narrow rounded shoulders; 3 softly squared head and wider gently sloped shoulders; 4 smaller round head leaning slightly left and asymmetric shoulders; 5 short oval head and smooth domed shoulders; 6 longer oval head leaning slightly right and slim shoulders; 7 capsule head and broad low shoulders; 8 slightly tapered oval head and softly triangular shoulders; 9 wide round head and narrow oval shoulders.
+Composition: consistent medium bust crop, heads wholly visible with about 17 percent clear space above them; the torso extends cleanly to the bottom of its own tile. Heads separated from shoulders by a small clear gap like the reference. Frontal silhouettes without neck detail. Every avatar stays inside its own cell. Each tile must work as a small rounded-square portrait. Pixel grid division at exactly one-third and two-thirds.
+Palette: silhouette near-black #050506, background gently varies across graphite #242426, muted grey-violet #2a272e, and neutral charcoal #252627. Very low saturation. Enough luminance contrast to read at 60px, without a shiny highlight or bright rim. Flat matte surfaces, very subtle grain only, NO visible texture or folds.
+Avoid: eyes, mouth, nose, ears, faces, facial features, hair, skin, hoods, scarves, clothes, armor, helmets, robotic visors, glossy metal, 3D bevels, neon, text, logos, user-interface framing, gradients inside the silhouette, cropped heads. Create a large square image ideally 1536x1536.

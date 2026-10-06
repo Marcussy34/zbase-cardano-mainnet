@@ -5,7 +5,7 @@
 | For | The engineer who builds zBase Cardano |
 | From | Marcus |
 | Date | 2026-10-06 |
-| State of the repo | Documentation and verified test vectors. No product code yet |
+| State of the repo | M0 runs on Preprod. Public landing page and documentation reader are built. Mainnet is not deployed yet |
 
 ## 1. What you are building
 
@@ -62,6 +62,24 @@ The owner approved the design on 2026-10-06. SPEC section 2 lists each decision 
 
 The three circuits, the validators, the services and the SDK are written and run on Preprod.
 Nobody outside this project has reviewed the design or the code.
+
+The public frontend is in `apps/web`. It explains the design, distinguishes Preprod from mainnet, and marks the project as `In development`.
+Its main action, `Read docs`, opens `/docs/`, which renders the current PRD, SPEC, and M0 plan.
+It has scroll-driven character motion, a dual-terminal walkthrough, a visual privacy boundary, a six-node payment path, a subtle automatic headline light sweep, and a scenic footer.
+The terminal and orbit scenes stay pinned through their scroll sequences when their content fits the viewport. Compact screens retain readable manual controls.
+The pause control and reduced motion setting keep every section readable.
+It has no wallet connection or transaction functions. See SPEC 8.10 and tests FE-01 to FE-16.
+
+To work on the frontend, run these commands from the repo root:
+
+```sh
+npm ci
+npm run dev
+npm test -w apps/web
+npm run build
+```
+
+`npm test -w apps/web` runs the frontend checks. `npm test` runs all workspace tests.
 
 ## 5. Where the build stands
 

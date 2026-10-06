@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | v1.0, 2026-10-06 |
-| Covers | Release M0 (mainnet canary) |
+| Covers | Release M0 (mainnet canary) and the public frontend |
 | Companions | [SPEC.md](./SPEC.md), [TEST-VECTORS.md](./TEST-VECTORS.md), [PLAN-M0.md](./PLAN-M0.md), [RUNBOOK-M0.md](./RUNBOOK-M0.md) |
 
 Every rule in the Spec has at least one test that passes when the rule holds and one that fails when it is broken.
@@ -21,6 +21,7 @@ Test IDs are stable. Use them in test names, commit messages, and reviews.
 
 | Layer | Tool | Runs where | Network |
 |---|---|---|---|
+| Public frontend | Vitest, React Testing Library, browser checks | `apps/web` | None |
 | Crypto library | Node test runner | `packages/crypto` | None |
 | Circuits | circom, snarkjs, Node test runner | `circuits` | None |
 | Validators | `aiken check` | `contracts` | None |
@@ -266,3 +267,26 @@ Its cases reuse four IDs for what they check:
 | INV-8 Isolation | DEP-01, DEP-03, POOL-P3 |
 | INV-9 Immutability | Review of deployed script hashes against the manifest |
 | INV-10 Bounded admin | CFG-01, CFG-02, CFG-03, POOL-I2 |
+
+## 14. Public frontend (`FE`)
+
+These checks cover SPEC 8.10. Run automated checks with `npm test` from the repo root.
+
+| ID | Test |
+|---|---|
+| FE-01 | The landing page renders its sections, `In development` status, ADA-first scope, and the default privacy facts: note secrets stay on the agent's machine; the relayer gets a proof and an intent |
+| FE-02 | Every `Read docs` link targets `/docs/` |
+| FE-03 | Mobile navigation opens and closes with accessible controls; Escape closes it and returns focus to the trigger; selecting an anchor closes it |
+| FE-04 | Selecting each walkthrough step updates the selected state, explanation, and illustration |
+| FE-05 | FAQ items disclose and hide their answers with keyboard controls |
+| FE-06 | The documentation reader displays current PRD, SPEC, and PLAN-M0 source with working topic navigation |
+| FE-07 | Manual browser check: scrolling forward and back moves the character scene, intro word contrast, and illustrations; headings and cards reveal in a stagger; desktop and mobile layouts have no horizontal overflow or characters obscuring content; native scroll and anchor links work; navigation, walkthrough, FAQ, and docs work with a keyboard; focus reveals its content; reduced motion disables decorative animation |
+| FE-08 | Scroll updates decorative transforms and intro word contrast; `Pause motion` freezes those transforms and reveals all content; resuming applies the current scroll position |
+| FE-09 | Reduced motion shows a static, readable layout and disables JavaScript scroll animation listeners; changing the preference while the page is open updates the behavior; missing motion APIs or observers leave content visible |
+| FE-10 | Unmounting cleans up motion listeners, observers, and pending animation frames; remounting starts one working set without duplicate updates |
+| FE-11 | The hero exposes the unchanged readable headline to assistive technology. Pointer entry does not replace or replay the word. Light and shadow layers are decorative. Manual browser checks cover readable foreground type, the automatic light sweep, pause, and reduced motion without layout shift or overflow |
+| FE-12 | The payment path has six accessible node controls. Scroll progress selects the matching detail card. Keyboard selection updates it. Pause, reduced motion, and missing APIs stop automatic changes while keeping manual selection available. Unmounting removes its listeners and frame callbacks |
+| FE-13 | The footer groups working Explore, Documentation, and Project links, retains the development status, and uses the local Read docs destination |
+| FE-14 | The dual-terminal walkthrough moves forward and backward through Deposit, Prove locally, and Pay as scroll progresses. Terminal rows follow scroll position. Private secrets stay in the agent window, and only a proof and an intent reach the relayer. Keyboard selection holds until scrolling reaches another stage. Paused, reduced-motion, and unavailable-API modes keep all manual controls and readable terminals. Unmounting clears scroll listeners and pending frames. Manual browser checks verify pinning through the sequence and release at its end on ordinary laptop screens |
+| FE-15 | The privacy boundary distinguishes local note secrets from the proof and intent sent to the relayer. Public amounts, recipients, and timing remain explicit. Both local proving and privacy model links have working destinations. The visual fits desktop and mobile without hiding its explanation |
+| FE-16 | Manual visual asset check: the hero and payment orbit use cohesive charcoal silhouettes with featureless heads and rounded shoulders. Variants have distinct shapes and remain recognizable at desktop and phone sizes. No faces, detailed clothing, hoods, helmets, or armor appear in these portraits. Existing character motion, pause, and reduced motion behavior remain intact, and portraits do not obscure text. The scenic footer artwork stays unchanged |

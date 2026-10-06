@@ -1,0 +1,229 @@
+.site-footer.footer-redesign {
+  width: 100%;
+  margin: 80px 0 0;
+  padding: 0;
+  border: 0;
+  background: #191919;
+  overflow: clip;
+}
+.footer-invitation {
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  align-items: center;
+  min-height: 580px;
+  height: min(58vw, 760px);
+  overflow: hidden;
+}
+.footer-landscape {
+  position: absolute;
+  z-index: -2;
+  inset: -55px -30px;
+}
+.footer-landscape img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 65% center;
+}
+.site:is([data-motion="active"], [data-motion="paused"]) .footer-landscape {
+  rotate: none;
+}
+.footer-invitation::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    #111111 0%,
+    #11111100 20%,
+    #19191900 65%,
+    #191919 100%
+  );
+}
+.footer-invitation-copy {
+  text-align: center;
+  width: 64%;
+  padding: 50px 24px;
+}
+.footer-invitation-copy .eyebrow {
+  color: #c3becb;
+}
+.footer-invitation-copy h2 {
+  font-family: "Space Grotesk Variable", sans-serif;
+  font-size: clamp(60px, 7.5vw, 116px);
+  letter-spacing: -0.065em;
+  font-weight: 450;
+  line-height: 1;
+}
+.footer-invitation-copy em {
+  font-family: "Instrument Serif", Georgia, serif;
+  font-weight: 400;
+  letter-spacing: -0.045em;
+  color: #e2d7ed;
+}
+.footer-invitation-copy p {
+  color: #bbb7c1;
+  margin: 26px 0 32px;
+  font-size: 14px;
+}
+.footer-redesign .footer-top {
+  display: grid;
+  grid-template-columns: 1.65fr 1fr 1fr 0.75fr;
+  align-items: start;
+  gap: 48px;
+  padding: 72px 0 40px;
+  border: 0;
+}
+.footer-about p {
+  font-size: 13px;
+  line-height: 1.8;
+  color: #91908d;
+  margin: 24px 0;
+}
+.footer-signature {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 210px;
+  font-size: 10px;
+  line-height: 1.65;
+  color: #a59dac;
+}
+.footer-signature svg {
+  flex-shrink: 0;
+}
+.footer-redesign .footer-top nav {
+  display: flex;
+  flex-direction: column;
+  align-items: start;
+  gap: 17px;
+  font-size: 12px;
+}
+.footer-top nav h3 {
+  font-size: 10px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #91908d;
+  margin-bottom: 10px;
+}
+.footer-top nav a {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #b6b5b1;
+  transition: color 0.2s;
+}
+.footer-top nav a:hover {
+  color: #f4edf9;
+}
+.footer-wordmark {
+  padding: 35px 0 45px;
+  text-align: center;
+  font-family: "Space Grotesk Variable", sans-serif;
+  font-size: clamp(150px, 30vw, 440px);
+  font-weight: 550;
+  line-height: 0.95;
+  letter-spacing: -0.085em;
+  color: #ebeae5;
+}
+.footer-wordmark > span:first-child {
+  display: block;
+}
+.footer-wordmark-network {
+  display: block;
+  margin-top: 12px;
+  font-family: "Inter Variable", sans-serif;
+  font-size: 10px;
+  font-weight: 400;
+  line-height: 1;
+  letter-spacing: 0.55em;
+  text-transform: uppercase;
+  color: #888682;
+}
+.footer-redesign .footer-bottom {
+  border-top: 1px solid #ffffff12;
+  padding: 28px 0 42px;
+  color: #85847f;
+  font-size: 10px;
+}
+@media (max-width: 900px) {
+  .footer-redesign .footer-top {
+    gap: 30px;
+    grid-template-columns: 1.3fr 1fr 1fr;
+  }
+  .footer-about {
+    grid-column: 1 / -1;
+  }
+  .footer-about p {
+    margin: 18px 0 12px;
+  }
+  .footer-signature {
+    max-width: none;
+  }
+  .footer-invitation-copy {
+    width: 70%;
+  }
+}
+@media (max-width: 600px) {
+  .site-footer.footer-redesign {
+    margin-top: 50px;
+  }
+  .footer-invitation {
+    min-height: 600px;
+    height: 80svh;
+    max-height: 720px;
+    align-items: start;
+  }
+  .footer-landscape {
+    inset: -20px -90px -35px;
+  }
+  .footer-landscape img {
+    object-position: 76% center;
+  }
+  .footer-invitation::after {
+    background: linear-gradient(#111111, #11111188 35%, #19191900 65%, #191919);
+  }
+  .footer-invitation-copy {
+    width: 100%;
+    padding: 78px 22px 0;
+  }
+  .footer-invitation-copy .eyebrow {
+    font-size: 10px;
+  }
+  .footer-invitation-copy h2 {
+    font-size: clamp(51px, 13vw, 76px);
+  }
+  .footer-invitation-copy p {
+    font-size: 12px;
+    margin: 18px 0 22px;
+    color: #e5dfea;
+    text-shadow: 0 1px 10px #000a;
+  }
+  .footer-redesign .footer-top {
+    grid-template-columns: 1fr 1fr;
+    gap: 38px 22px;
+    padding: 35px 0;
+  }
+  .footer-redesign .footer-top nav {
+    gap: 15px;
+    font-size: 12px;
+  }
+  .footer-top nav h3 {
+    margin-bottom: 4px;
+  }
+  .footer-wordmark {
+    font-size: 30vw;
+    padding: 35px 0;
+  }
+  .footer-wordmark-network {
+    font-size: 8px;
+  }
+  .footer-redesign .footer-bottom {
+    gap: 15px;
+    padding-bottom: 70px;
+    flex-wrap: wrap;
+  }
+}

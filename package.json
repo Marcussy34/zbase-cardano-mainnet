@@ -4,9 +4,16 @@
   "license": "MIT",
   "type": "module",
   "engines": {
-    "node": ">=22"
+    "node": ">=22.12.0"
   },
-  "workspaces": ["packages/*", "services/*", "circuits", "ops", "examples/*"],
+  "workspaces": [
+    "packages/*",
+    "services/*",
+    "circuits",
+    "ops",
+    "examples/*",
+    "apps/web"
+  ],
   "scripts": {
     "test": "npm test --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present && tsc --noEmit -p contracts/fixtures",
@@ -19,7 +26,10 @@
     "check:budgets": "node contracts/scripts/check-budgets.mjs",
     "fixtures": "node --import tsx contracts/fixtures/gen.ts",
     "check:fixtures": "node --import tsx contracts/fixtures/gen.ts --check",
-    "test:smoke": "node --import tsx --test scripts/smoke.test.ts"
+    "test:smoke": "node --import tsx --test scripts/smoke.test.ts",
+    "dev": "npm run dev --workspace @zbase/web",
+    "build": "npm run build --workspace @zbase/web",
+    "preview": "npm run preview --workspace @zbase/web"
   },
   "devDependencies": {
     "@aiken-lang/aiken": "1.1.24",
