@@ -58,7 +58,9 @@ function chainUtxo(u: UTxO): Utxo {
 
 const resolved = (fee = feeBefore) => [pool, fee, collateral, referenceScript, config, asp].map(chainUtxo);
 const buildDirectory = new URL('../build/', import.meta.url);
-const temporaryDirectories = async () => (await readdir(buildDirectory)).filter(name => name.startsWith('simulate-')).sort();
+// Only this process's directories count. Other test files run the simulator at the same time.
+const temporaryDirectories = async () => (await readdir(buildDirectory))
+  .filter(name => name.startsWith(`simulate-${process.pid}-`)).sort();
 
 function builder(): MeshTxBuilder {
   return new MeshTxBuilder({ params: {
