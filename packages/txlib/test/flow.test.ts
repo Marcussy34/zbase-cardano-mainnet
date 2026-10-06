@@ -1,7 +1,10 @@
 import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { after, test } from 'node:test';
-import { Datum, Ed25519KeyHashHex, Hash, Transaction, TransactionOutput, TxCBOR, deserializePlutusData } from '@meshsdk/core-cst';
+import {
+  CborWriter, Datum, Ed25519KeyHashHex, Hash, Hash32ByteBase16, Transaction, TransactionOutput, TxCBOR, deserializePlutusData,
+} from '@meshsdk/core-cst';
+import { blake2b } from '@noble/hashes/blake2.js';
 import {
   R, NETWORKS, MerkleTree, commitment, contextFor, deriveNoteSecrets, deriveOneTimeKey, insertWitness,
   labelFor, precommitment, ragequitWitness, spendWitness,
@@ -11,6 +14,7 @@ import { devKeysPresent, loadDevArtifacts, prove, shutdown } from '@zbase-cardan
 import { buildAspUpdate } from '../src/admin.js';
 import { decodePoolDatum, decodePoolRedeemer, encodeDepositDatum, encodePoolDatum, encodePoolRedeemer, type ConfigDatum } from '../src/codec.js';
 import { readAsp, readConfig, readDeposits, readPool, type DepositUtxo, type PoolState } from '../src/context.js';
+import { PV11_COST_MODELS } from '../src/cost-models.js';
 import { buildDeposit, buildRefund } from '../src/deposit.js';
 import { buildInsert, planInsert } from '../src/insert.js';
 import { enterpriseAddress, keyHash, signTx, verifyWitnesses } from '../src/keys.js';
@@ -118,6 +122,20 @@ test('TX-02 to TX-09: real proof pool story and rejected attacks', {
   const edit = (tx: BuiltTx, change: (tx: Transaction) => void): string => {
     const decoded = Transaction.fromCbor(TxCBOR(tx.cbor));
     change(decoded);
+    // An attacker who edits a redeemer also fixes the script data hash, so the validator must be what refuses.
+    // These transactions carry PlutusV3 redeemers and no witness datums.
+    const redeemers = decoded.witnessSet().redeemers();
+    if (redeemers && redeemers.size() > 0) {
+      const writer = new CborWriter();
+      writer.writeEncodedValue(Buffer.from(redeemers.toCbor(), 'hex'));
+      writer.writeStartMap(1);
+      writer.writeInt(2);
+      writer.writeStartArray(PV11_COST_MODELS.PlutusV3.length);
+      PV11_COST_MODELS.PlutusV3.forEach(cost => writer.writeInt(cost));
+      const body = decoded.body();
+      body.setScriptDataHash(Hash32ByteBase16(Buffer.from(blake2b(Buffer.from(writer.encodeAsHex(), 'hex'), { dkLen: 32 })).toString('hex')));
+      decoded.setBody(body);
+    }
     const result = decoded.toCbor();
     assert.notEqual(result, tx.cbor, 'The attack must change the serialized transaction');
     return result;

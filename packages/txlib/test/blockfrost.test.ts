@@ -37,12 +37,14 @@ const parameters = {
   min_fee_a: 45, min_fee_b: 155382, price_mem: 0.06, price_step: 0.00008,
   max_tx_size: 16385, max_tx_ex_mem: '17500000', max_tx_ex_steps: '10000000001',
   coins_per_utxo_size: '4311', collateral_percent: 151, max_collateral_inputs: 4,
+  cost_models_raw: { PlutusV1: [1, -2], PlutusV2: [3, 0], PlutusV3: [5, 6] },
 };
 const expectedParameters = {
   minFeeA: 45n, minFeeB: 155382n, priceMem: 0.06, priceStep: 0.00008,
   maxTxSize: 16385, maxTxExMem: 17500000n, maxTxExSteps: 10000000001n,
   coinsPerUtxoByte: 4311n, collateralPercent: 151, maxCollateralInputs: 4,
   refScriptCostPerByte: 15, refScriptTierBytes: 25600, refScriptTierMultiplier: 1.2,
+  costModels: parameters.cost_models_raw,
 };
 const rawOutput = (u: UTxO) => ({
   tx_hash: u.input.txHash, output_index: u.input.outputIndex, address: u.output.address,
@@ -50,6 +52,19 @@ const rawOutput = (u: UTxO) => ({
   data_hash: u.output.dataHash ?? null, reference_script_hash: u.output.scriptHash ?? null,
 });
 const notFound = JSON.stringify({ data: { status_code: 404, message: 'Not found' }, status: 404 });
+
+test('TX-10 provider: missing or malformed raw cost models fail before transaction building', async () => {
+  const invalid: unknown[] = [undefined, null, [], 'models'];
+  for (const language of ['PlutusV1', 'PlutusV2', 'PlutusV3']) {
+    for (const value of [undefined, null, {}, [], [1, '2'], [1.5], [NaN], [Infinity], [Number.MAX_SAFE_INTEGER + 1], Array(1)]) {
+      invalid.push({ ...parameters.cost_models_raw, [language]: value });
+    }
+  }
+  for (const cost_models_raw of invalid) {
+    const provider = providerFromMesh(fake({ get: async () => ({ ...parameters, cost_models_raw }) }));
+    await assert.rejects(provider.getProtocolParameters(), /cost_models_raw.*PlutusV[123]|cost_models_raw.*object/);
+  }
+});
 
 function fake(overrides: Partial<MeshProviderLike> = {}): MeshProviderLike {
   const unexpected = async (): Promise<never> => { throw new Error('Unexpected Mesh method'); };

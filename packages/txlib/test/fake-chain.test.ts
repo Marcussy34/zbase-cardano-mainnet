@@ -3,11 +3,14 @@ import { randomBytes } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { before, test } from 'node:test';
 import { MeshTxBuilder, type Data } from '@meshsdk/core';
+import { blake2b } from '@noble/hashes/blake2.js';
 import {
-  CborSet, Certificate, CertificateType, Ed25519KeyHashHex, ExUnits, Hash, Hash28ByteBase16, Redeemers, RewardAccount, Slot,
+  CborSet, CborWriter, Certificate, CertificateType, Ed25519KeyHashHex, ExUnits, Hash, Hash28ByteBase16,
+  Hash32ByteBase16, HexBlob, PlutusData, PlutusV1Script, Redeemers, RewardAccount, Slot,
   Transaction, TransactionOutput, TxCBOR, VkeyWitness, fromBuilderToPlutusData, normalizePlutusScript,
   resolvePlutusScriptAddress, serializeAddress, toScriptRef,
 } from '@meshsdk/core-cst';
+import { PV11_COST_MODELS } from '../src/cost-models.js';
 import { enterpriseAddress, keyHash, signTx } from '../src/keys.js';
 import { MAINNET_PARAMETERS, PREPROD_PARAMETERS, ScriptFailure, slotToTime, type Utxo } from '../src/types.js';
 import { decodeTx, outputsOf } from '../src/txview.js';
@@ -50,7 +53,7 @@ const builder = () => new MeshTxBuilder({ params: {
   minFeeA: 44, minFeeB: 155381, priceMem: 0.0577, priceStep: 0.0000721,
   minFeeRefScriptCostPerByte: 15, coinsPerUtxoSize: 4310,
   maxTxExMem: '16500000', maxTxExSteps: '10000000000',
-} }).setNetwork('mainnet');
+} }).setCostModels([PV11_COST_MODELS.PlutusV1, PV11_COST_MODELS.PlutusV2, PV11_COST_MODELS.PlutusV3]);
 
 function chain(utxos = resolved, parameters = MAINNET_PARAMETERS): FakeChain {
   const result = new FakeChain({ startSlot: 100, parameters });
@@ -89,6 +92,19 @@ function edit(cbor: string, change: (tx: Pick<Transaction, 'body' | 'witnessSet'
   if (resign) witnesses.setVkeys(CborSet.fromCore([], VkeyWitness.fromCore));
   tx.setWitnessSet(witnesses);
   return resign ? signTx(tx.toCbor(), [seed]) : tx.toCbor();
+}
+
+const hashData = (hex: string) => Hash32ByteBase16(Buffer.from(blake2b(Buffer.from(hex, 'hex'), { dkLen: 32 })).toString('hex'));
+function v3IntegrityHash(tx: Pick<Transaction, 'witnessSet'>): Hash32ByteBase16 {
+  const writer = new CborWriter();
+  writer.writeEncodedValue(Buffer.from(tx.witnessSet().redeemers()!.toCbor(), 'hex'));
+  const datums = tx.witnessSet().plutusData();
+  if (datums?.size()) writer.writeEncodedValue(Buffer.from(datums.toCbor(), 'hex'));
+  writer.writeStartMap(1);
+  writer.writeInt(2);
+  writer.writeStartArray(PV11_COST_MODELS.PlutusV3.length);
+  PV11_COST_MODELS.PlutusV3.forEach(cost => writer.writeInt(cost));
+  return hashData(writer.encodeAsHex());
 }
 
 async function rejectsRule(c: FakeChain, cbor: string, rule: LedgerRule): Promise<void> {
@@ -259,6 +275,64 @@ test('TX-05 (rules): script_failure rejects changing only the next pool counter'
   await rejectsRule(chain(), await settle(2), 'script_failure');
 });
 
+test('TX-10 (rules): script_integrity rejects a wrong hash and a hash without script data', async () => {
+  for (const cbor of [scripted, plain]) {
+    await chain().submit(cbor);
+    await rejectsRule(chain(), edit(cbor, tx => tx.body().setScriptDataHash(Hash32ByteBase16('00'.repeat(32)))), 'script_integrity');
+  }
+});
+
+test('TX-10 (integrity): datum-only transactions use empty maps and the original datum bytes', async () => {
+  // The integer 42 uses an intentionally longer encoding inside an indefinite list.
+  const datumBytes = '9f19002aff';
+  const cbor = edit(plain, tx => {
+    tx.witnessSet().setPlutusData(CborSet.fromCbor(HexBlob(datumBytes), PlutusData.fromCbor));
+    tx.body().setScriptDataHash(hashData('a0' + datumBytes + 'a0'));
+  });
+  await chain().submit(cbor);
+  const wrong = edit(cbor, tx => tx.body().setScriptDataHash(hashData('a081182aa0')));
+  await rejectsRule(chain(), wrong, 'script_integrity');
+});
+
+test('TX-10 (integrity): redeemers retain their original map encoding', async () => {
+  const cbor = edit(scripted, tx => {
+    const encoded = tx.witnessSet().redeemers()!.toCbor();
+    assert.equal(encoded.slice(0, 2), 'a1');
+    tx.witnessSet().setRedeemers(Redeemers.fromCbor(HexBlob('bf' + encoded.slice(2) + 'ff')));
+    tx.body().setScriptDataHash(v3IntegrityHash(tx));
+  });
+  await chain().submit(cbor);
+  const oldHash = Transaction.fromCbor(TxCBOR(scripted)).body().scriptDataHash()!;
+  await rejectsRule(chain(), edit(cbor, tx => tx.body().setScriptDataHash(oldHash)), 'script_integrity');
+});
+
+test('TX-10 (integrity): unused reference languages pass the hash check before simulator rejection', async () => {
+  const unused = toScriptRef({ code: generic.code, version: 'V1' });
+  for (const holder of [config, input]) {
+    const utxos = resolved.map(u => u === holder ? {
+      ...u, scriptRef: { hash: unused.hash(), cbor: unused.toCbor(), size: 18 },
+    } : u);
+    // Aiken rejects extra scripts after phase one, even when they are only references.
+    await assert.rejects(chain(utxos, { ...MAINNET_PARAMETERS, refScriptCostPerByte: 0 }).submit(scripted), (error: unknown) => {
+      assert.ok(error instanceof Error && !(error instanceof LedgerError));
+      assert.match(error.message, /unexpected validator/);
+      return true;
+    });
+  }
+});
+
+test('TX-10 (integrity): unused witnesses pass the hash check before the simulator rejects the extra script', async () => {
+  const unused = toScriptRef({ code: generic.code, version: 'V1' });
+  const cbor = edit(scripted, tx => {
+    tx.witnessSet().setPlutusV1Scripts(CborSet.fromCore([unused.asPlutusV1()!.toCore()], PlutusV1Script.fromCore));
+  });
+  await assert.rejects(chain(resolved, { ...MAINNET_PARAMETERS, minFeeA: 0n }).submit(cbor), (error: unknown) => {
+    assert.ok(error instanceof Error && !(error instanceof LedgerError));
+    assert.match(error.message, /unexpected validator/);
+    return true;
+  });
+});
+
 test('TX-05 (rules): ex_units_exceeded rejects less memory or CPU than execution needs', async () => {
   await chain().submit(scripted);
   for (const units of [new ExUnits(1n, 200000000n), new ExUnits(1000000n, 1n)]) {
@@ -267,6 +341,7 @@ test('TX-05 (rules): ex_units_exceeded rejects less memory or CPU than execution
       redeemers.values()[0]!.setExUnits(units);
       redeemers.setValues([...redeemers.values()]);
       tx.witnessSet().setRedeemers(redeemers);
+      tx.body().setScriptDataHash(v3IntegrityHash(tx));
     });
     await rejectsRule(chain(), changed, 'ex_units_exceeded');
   }

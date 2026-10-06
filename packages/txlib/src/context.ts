@@ -68,12 +68,13 @@ type BuilderContext = { provider: Provider; network: Network };
 export async function newTxBuilder(ctx: BuilderContext): Promise<MeshTxBuilder> {
   const p = await ctx.provider.getProtocolParameters();
   // Mesh's default selector is random, which changes transaction IDs between runs.
+  // Mesh stores custom cost models in its network field; a network name would replace them.
   return new MeshTxBuilder({ selector: new LargestFirstInputSelector(), params: {
     minFeeA: Number(p.minFeeA), minFeeB: Number(p.minFeeB), priceMem: p.priceMem, priceStep: p.priceStep,
     maxTxSize: p.maxTxSize, maxTxExMem: String(p.maxTxExMem), maxTxExSteps: String(p.maxTxExSteps),
     coinsPerUtxoSize: Number(p.coinsPerUtxoByte), minFeeRefScriptCostPerByte: p.refScriptCostPerByte,
     collateralPercent: p.collateralPercent, maxCollateralInputs: p.maxCollateralInputs,
-  } }).setNetwork(ctx.network);
+  } }).setCostModels([p.costModels.PlutusV1, p.costModels.PlutusV2, p.costModels.PlutusV3]);
 }
 
 const refKey = (ref: UtxoRef): string => `${ref.txId}#${ref.index}`;

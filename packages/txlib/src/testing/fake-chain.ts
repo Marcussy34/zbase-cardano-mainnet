@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
-import { Address, CredentialType, Transaction, TxCBOR } from '@meshsdk/core-cst';
+import { Address, Costmdls, CredentialType, HexBlob, PlutusLanguageVersion, Script, Transaction, TxCBOR } from '@meshsdk/core-cst';
+import { blake2b } from '@noble/hashes/blake2.js';
 import type { ChainHistory, TxRecord } from '../history.js';
 import { verifyWitnesses } from '../keys.js';
 import { decodeTx, outputsOf, type TxView } from '../txview.js';
@@ -13,7 +14,7 @@ export type LedgerRule =
   | 'missing_input' | 'duplicate_input' | 'outside_validity_interval' | 'value_not_conserved'
   | 'fee_too_small' | 'tx_too_large' | 'ex_units_exceeded' | 'min_utxo' | 'bad_signature'
   | 'missing_signature' | 'missing_script' | 'missing_datum' | 'missing_redeemer'
-  | 'script_failure' | 'insufficient_collateral' | 'unsupported';
+  | 'script_integrity' | 'script_failure' | 'insufficient_collateral' | 'unsupported';
 
 /** A transaction broke one of the fake chain's supported ledger rules. */
 export class LedgerError extends Error {
@@ -57,6 +58,37 @@ function apply(utxos: Map<string, Utxo>, view: TxView): void {
 
 function nonnegativeInteger(value: number): void {
   if (!Number.isSafeInteger(value) || value < 0) throw new RangeError('Expected a nonnegative safe integer');
+}
+
+function checkScriptIntegrity(tx: Transaction, resolved: Utxo[], usedHashes: string[], parameters: ProtocolParameters): void {
+  const witnesses = tx.witnessSet();
+  const languages = new Map<string, PlutusLanguageVersion>();
+  for (const script of witnesses.plutusV1Scripts()?.values() ?? []) languages.set(script.hash(), PlutusLanguageVersion.V1);
+  for (const script of witnesses.plutusV2Scripts()?.values() ?? []) languages.set(script.hash(), PlutusLanguageVersion.V2);
+  for (const script of witnesses.plutusV3Scripts()?.values() ?? []) languages.set(script.hash(), PlutusLanguageVersion.V3);
+  for (const utxo of resolved) {
+    if (!utxo.scriptRef) continue;
+    const script = Script.fromCbor(HexBlob(utxo.scriptRef.cbor));
+    if (script.asPlutusV1()) languages.set(script.hash(), PlutusLanguageVersion.V1);
+    if (script.asPlutusV2()) languages.set(script.hash(), PlutusLanguageVersion.V2);
+    if (script.asPlutusV3()) languages.set(script.hash(), PlutusLanguageVersion.V3);
+  }
+  const costs = [parameters.costModels.PlutusV1, parameters.costModels.PlutusV2, parameters.costModels.PlutusV3];
+  // Unused witness and reference scripts must not add language views.
+  const used = new Set(usedHashes.flatMap(hash => languages.has(hash) ? [languages.get(hash)!] : []));
+  const models = Costmdls.fromCore(new Map([...used].map(language => [language, costs[language]!])));
+  const redeemers = witnesses.redeemers();
+  const datums = witnesses.plutusData();
+  let payload: string | undefined;
+  // Parsed SDK objects retain their original CBOR, including noncanonical encodings.
+  if (redeemers && redeemers.size() > 0) {
+    payload = redeemers.toCbor() + (datums && datums.size() > 0 ? datums.toCbor() : '') + models.languageViewsEncoding();
+  } else if (datums && datums.size() > 0) {
+    // The ledger uses empty maps on both sides for datum-only transactions.
+    payload = 'a0' + datums.toCbor() + 'a0';
+  }
+  const expected = payload === undefined ? undefined : Buffer.from(blake2b(Buffer.from(payload, 'hex'), { dkLen: 32 })).toString('hex');
+  check(tx.body().scriptDataHash() === expected, 'script_integrity', 'Script data hash does not match the chain cost models and witnesses');
 }
 
 /** A deterministic test chain for the transaction rules used by M0, not a complete Cardano ledger. */
@@ -206,6 +238,8 @@ export class FakeChain implements Provider, ChainHistory {
       const collateralValue = collateral.reduce((sum, input) => sum + input.value.lovelace, 0n);
       check(collateral.length > 0 && collateralValue * 100n >= view.fee * BigInt(this.parameters.collateralPercent), 'insufficient_collateral');
     }
+
+    checkScriptIntegrity(tx, [...inputs, ...references], [...scriptInputs.map(input => input.hash), ...policies], this.parameters);
 
     try {
       const actual = await simulate(cbor, resolved, this.network);

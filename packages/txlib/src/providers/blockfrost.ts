@@ -1,5 +1,6 @@
 import { BlockfrostProvider, type UTxO } from '@meshsdk/core';
 import { deserializeScriptRef } from '@meshsdk/core-cst';
+import type { CostModels } from '../cost-models.js';
 import type { ChainHistory, TxRecord } from '../history.js';
 import { MAINNET_PARAMETERS, ScriptFailure, type Network, type Provider, type RedeemerTag, type Utxo } from '../types.js';
 
@@ -10,6 +11,21 @@ export interface MeshProviderLike {
   fetchLatestBlock: BlockfrostProvider['fetchLatestBlock'];
   evaluateTx: BlockfrostProvider['evaluateTx'];
   submitTx: BlockfrostProvider['submitTx'];
+}
+
+function readCostModels(raw: unknown): CostModels {
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
+    throw new Error('Invalid cost_models_raw: expected an object with PlutusV1, PlutusV2, and PlutusV3 lists');
+  }
+  const read = (language: keyof CostModels): number[] => {
+    const costs = (raw as Record<string, unknown>)[language];
+    // Copy before validation so a sparse array cannot skip missing entries.
+    if (!Array.isArray(costs) || costs.length === 0 || ![...costs].every(Number.isSafeInteger)) {
+      throw new Error(`Invalid cost_models_raw.${language}: expected a nonempty list of safe integers`);
+    }
+    return [...costs];
+  };
+  return { PlutusV1: read('PlutusV1'), PlutusV2: read('PlutusV2'), PlutusV3: read('PlutusV3') };
 }
 
 /** Converts Mesh's decimal quantities without passing through JavaScript numbers. */
@@ -162,6 +178,7 @@ function adapt(mesh: MeshProviderLike, projectId: string): Provider {
       // Mesh's typed parameter method drops the live reference-script price.
       const p = await mesh.get('epochs/latest/parameters');
       return {
+        costModels: readCostModels(p.cost_models_raw),
         minFeeA: BigInt(p.min_fee_a), minFeeB: BigInt(p.min_fee_b),
         priceMem: Number(p.price_mem), priceStep: Number(p.price_step),
         maxTxSize: Number(p.max_tx_size), maxTxExMem: BigInt(p.max_tx_ex_mem), maxTxExSteps: BigInt(p.max_tx_ex_steps),
