@@ -125,3 +125,40 @@ test('TX-05 foundation: slot and time conversions use the mainnet origin and flo
   }
   assert.equal(timeToSlot(1596059090999), 4492799);
 });
+
+test('TX-05 foundation: preprod enterprise addresses retain the mainnet key hash', async () => {
+  const { addressFromBech32 } = await import('@zbase-cardano/crypto');
+  const seed = Uint8Array.from({ length: 32 }, (_, i) => i);
+  const mainnet = enterpriseAddress(seed);
+  const preprod = enterpriseAddress(seed, 'preprod');
+  assert.equal(enterpriseAddress(seed, 'mainnet'), mainnet);
+  assert.match(preprod, /^addr_test1v/);
+  assert.deepEqual(addressFromBech32(preprod, 'preprod'), addressFromBech32(mainnet));
+  assert.deepEqual(addressFromBech32(preprod, 'preprod').payment, { kind: 'key', hash: keyHash(seed) });
+});
+
+test('TX-05 foundation: slot and time conversions use the preprod origin and floor', () => {
+  assert.equal(slotToTime(86400, 'preprod'), 1655769600000);
+  assert.equal(slotToTime(135602531, 'preprod'), 1791285731000);
+  assert.equal(timeToSlot(1791285731000, 'preprod'), 135602531);
+  for (const slot of [0, 86400, 135602531, 200000000]) {
+    assert.equal(timeToSlot(slotToTime(slot, 'preprod'), 'preprod'), slot);
+    assert.equal(timeToSlot(slotToTime(slot, 'preprod') + 999, 'preprod'), slot);
+  }
+  assert.equal(timeToSlot(1655769599999, 'preprod'), 86399);
+});
+
+test('TX-05 foundation: explicit mainnet slot conversion preserves the default', () => {
+  for (const slot of [0, 4492800, 200000000]) {
+    assert.equal(slotToTime(slot, 'mainnet'), slotToTime(slot));
+    assert.equal(timeToSlot(slotToTime(slot), 'mainnet'), slot);
+  }
+});
+
+test('TX-05 foundation: preprod parameters change only the transaction memory limit', async () => {
+  const { PARAMETERS, PREPROD_PARAMETERS } = await import('../src/types.js');
+  assert.deepEqual(PREPROD_PARAMETERS, { ...MAINNET_PARAMETERS, maxTxExMem: 17500000n });
+  assert.equal(PARAMETERS.mainnet, MAINNET_PARAMETERS);
+  assert.equal(PARAMETERS.preprod, PREPROD_PARAMETERS);
+  assert.equal(MAINNET_PARAMETERS.maxTxExMem, 16500000n);
+});
