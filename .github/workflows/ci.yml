@@ -24,5 +24,7 @@ jobs:
       - run: npm test
       - run: npm run check:contracts
       - run: npm run check:budgets
+      # The generated proof fixtures must match their scenarios. Cached proofs need no proving key.
+      - run: npm run check:fixtures
       # The blueprint in git must match the sources.
       - run: npm run build:contracts && git diff --exit-code contracts/plutus.json

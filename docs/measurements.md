@@ -65,6 +65,9 @@ Measured in Aiken 1.1.24 unit tests on 2026-10-06. Each number includes the smal
 | `encoding.context` | 1 payout | 20,442,216 | 49,829 |
 | `encoding.context` | 4 payouts, each with a script credential, a stake credential, and a datum hash | 65,137,024 | 171,572 |
 | `encoding.nullifier_key` | one key | 1,598,855 | 1,105 |
+| `groth16.verify`, real `insert` proof | 15 public inputs, 9 of them 0 | 2,604,890,058 | 270,047 |
+| `groth16.verify`, real `spend` proof | 6 public inputs | 2,700,200,044 | 150,443 |
+| `groth16.verify`, real `ragequit` proof | 4 public inputs | 2,430,918,152 | 120,491 |
 
 A skipped zero input saves 130,679,623 CPU. So one proof check costs about 1.90B CPU plus 0.131B for each non-zero public input.
 That is close to the model in SPEC 10.2 (1.87B plus 0.13B).

@@ -45,9 +45,10 @@ Read [docs/HANDOFF.md](docs/HANDOFF.md) first.
 | Toolchain smoke test | `npm run test:smoke` | repo root |
 | Compile circuits | `npm run build:circuits` | repo root |
 | Development keys, about 30 minutes the first time | `npm run setup:dev` | repo root |
-| Rebuild proof fixtures | `node contracts/fixtures/gen.mjs` | repo root |
+| Rebuild proof fixtures | `npm run fixtures` | repo root |
+| Check that proof fixtures are current | `npm run check:fixtures` | repo root |
 
-The last command exists once work package WP4 of [docs/PLAN-M0.md](docs/PLAN-M0.md) is done.
+New proofs need the development proving keys. The check needs none, because it reuses the cached proofs.
 
 ## Writing rules
 
