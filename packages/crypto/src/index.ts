@@ -3,6 +3,7 @@ export * from "./poseidon.js";
 export * from "./note.js";
 export * from "./tree.js";
 export * from "./encoding.js";
+export * from "./network.js";
 export * from "./keys.js";
 export * from "./points.js";
 export * from "./witness/spend.js";
