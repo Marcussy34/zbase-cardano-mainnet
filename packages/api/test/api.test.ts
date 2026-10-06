@@ -262,6 +262,33 @@ test('REL-01 REL-02: relayer HTTP client preserves requests and SPEC responses',
   assert.deepEqual(responses[2]?.body, { id: submitted.id, status: 'submitted', txHash: hash32 });
 });
 
+test('REL-02: relayer HTTP client accepts a confirmed replay', async t => {
+  const server = await api.serveJson(api.relayerRoutes({
+    async getPool() { return pool; },
+    async quote() { return quote; },
+    async settle(value) {
+      assert.deepEqual(value, settle);
+      return { ...submitted, status: 'confirmed', confirmations: 4 };
+    },
+    async getSettle() { return submitted; },
+  }), 0);
+  t.after(() => server.close());
+  const result = await new api.RelayerClient(server.url).settle(settle);
+  // POST omits polling details, so callers use GET for the confirmation count.
+  assert.deepEqual(result, { ...submitted, status: 'confirmed' });
+});
+
+test('REL-02: relayer HTTP client rejects failed and unknown settle responses', async t => {
+  let status: unknown = 'failed';
+  const server = await api.serveJson([{ method: 'POST', path: '/v1/settle',
+    handle: () => ({ id: submitted.id, status, txHash: hash32 }) }], 0);
+  t.after(() => server.close());
+  const client = new api.RelayerClient(server.url);
+  for (status of ['failed', 'pending', '', null, 1]) {
+    await assert.rejects(client.settle(settle), badRequest('status'));
+  }
+});
+
 test('REL-04: clients preserve service errors and the server hides unexpected errors', async (t) => {
   assert.equal(typeof api.serveJson, 'function');
   const server = await api.serveJson([
