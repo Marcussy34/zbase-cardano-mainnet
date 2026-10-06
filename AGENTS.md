@@ -60,3 +60,6 @@ The last three commands exist once work packages WP2 and WP4 of [docs/PLAN-M0.md
 
 Cardano tooling changes fast. Do not answer from memory.
 Use the Cardano Dev Skills plugin described in [docs/SETUP.md](docs/SETUP.md), or read the official docs.
+
+Never call Mesh `applyParamsToScript`. Mesh 1.9.1 cuts every byte string over 64 bytes down to 64 bytes and reports no error.
+That corrupts the 96-byte points of a verification key. Use `buildScripts` in `packages/txlib/src/scripts.ts`, which matches `aiken blueprint apply` byte for byte.
