@@ -41,6 +41,10 @@ CAUTION: `.env` holds a signing key. Git ignores the file. Never commit it and n
 CAUTION: step 5 is a key setup by one party. Whoever runs it could forge proofs by keeping its randomness. That is acceptable on a test network, and on mainnet only for capped funds of the team itself.
 
 Step 5 takes about 4 minutes. It writes the proving keys to `circuits/build/keys-preprod/` and the verification keys to `deployments/preprod/keys/`.
+
+CAUTION: back up the folder with the proving keys before step 6. Git ignores it, and a second setup run makes other keys that do not fit a deployed pool.
+Without the proving keys of a pool, nobody can insert, pay or exit, and the notes in that pool stay locked.
+A deposit that is not inserted yet can still be refunded, because a refund needs no proof.
 Step 6 submits four transactions and takes about 3.5 minutes. It writes the record `deployments/preprod.json`.
 A deployment costs about 245 test ADA. Of that, 160 goes to the role keys of the crank, the relayer, the association service and the test user, and 73.6 stays in the four reference script outputs.
 
