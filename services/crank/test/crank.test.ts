@@ -8,7 +8,7 @@ import {
 } from '@zbase-cardano/crypto';
 import { devKeysPresent, loadDevArtifacts, prove, shutdown } from '@zbase-cardano/prover';
 import {
-  buildAspUpdate, buildDeposit, buildSettle, encodeDepositDatum, enterpriseAddress, keyHash,
+  buildAspUpdate, buildDeposit, buildSettle, decodeTx, encodeDepositDatum, enterpriseAddress, keyHash,
   nullifierInsertion, planInsert, readAsp, readConfig, readDeposits, readPool,
 } from '@zbase-cardano/txlib';
 import { startDevnet } from '@zbase-cardano/txlib/testing/devnet';
@@ -49,7 +49,8 @@ test('CRK-01, CRK-02, CRK-03: real proof crank rounds', {
         value: null, label: null, leafIndex: null }));
     },
   };
-  const crank = new Crank({ ctx, indexer, seed: keys.crank, artifacts: await loadDevArtifacts('insert', repoRoot) });
+  const artifacts = await loadDevArtifacts('insert', repoRoot);
+  const crank = new Crank({ ctx, indexer, seed: keys.crank, artifacts });
   let submissions = 0;
   const submit = chain.submit.bind(chain);
   chain.submit = async cbor => { submissions++; return submit(cbor); };
@@ -140,4 +141,52 @@ test('CRK-01, CRK-02, CRK-03: real proof crank rounds', {
     assert.equal(await crank.tick(), null);
     assert.equal(submissions, before);
   });
+  await t.test('CRK-01: pending insertion waits for confirmation before proving again', async () => {
+    await deposit(0, 10_000_000n);
+    const before = submissions;
+    const plan = planInsert({ poolId: ctx.deployment.poolId, pool: await readPool(ctx),
+      config: (await readConfig(ctx)).datum, deposits: await readDeposits(ctx) });
+    assert.ok(plan);
+    const expected = insertWitness({ tree, slots: plan.slots });
+    const result = await crank.tick();
+    assert.ok(result);
+    assert.equal(submissions, before + 1);
+    let leafReads = 0;
+    const getLeaves = indexer.getLeaves;
+    indexer.getLeaves = async (...args) => { leafReads++; return getLeaves(...args); };
+    try {
+      assert.equal(await crank.tick(), null);
+      assert.equal(submissions, before + 1);
+      assert.equal(leafReads, 0, 'waiting does not start witness construction');
+    } finally {
+      indexer.getLeaves = getLeaves;
+      chain.mineBlock();
+      leaves.push(...expected.leaves);
+      tree = expected.tree;
+    }
+    await deposit(1, 10_000_000n);
+    assert.equal((await insert()).deposits.length, 1);
+    assert.equal(submissions, before + 3);
+  });
+  for (const retryAfterMs of [undefined, 50]) {
+    await t.test(`CRK-01: a dropped insertion retries after ${retryAfterMs ?? 'the default'} delay`, async () => {
+      await deposit(0, 10_000_000n);
+      let now = 1000;
+      const retrying = new Crank({ ctx, indexer, seed: keys.crank, artifacts, now: () => now,
+        ...(retryAfterMs === undefined ? {} : { retryAfterMs }) });
+      const original = chain.submit;
+      let attempts = 0;
+      chain.submit = async cbor => { attempts++; return decodeTx(cbor).txId; };
+      try {
+        assert.ok(await retrying.tick());
+        now += (retryAfterMs ?? 180_000) - 1;
+        assert.equal(await retrying.tick(), null);
+        assert.equal(attempts, 1);
+        now++;
+        assert.ok(await retrying.tick());
+        assert.equal(attempts, 2);
+      } finally { chain.submit = original; }
+      await insert();
+    });
+  }
 });
