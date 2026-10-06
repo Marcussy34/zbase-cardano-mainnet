@@ -21,6 +21,7 @@ jobs:
       - run: npm ci
       - run: npm run test:smoke
       - run: npm run typecheck
+      - run: npm run build
       - run: npm test
       - run: npm run check:contracts
       - run: npm run check:budgets

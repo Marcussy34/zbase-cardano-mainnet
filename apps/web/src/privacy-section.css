@@ -1,0 +1,338 @@
+.privacy-boundary {
+  padding-block: 100px 40px;
+}
+.privacy-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 28px;
+  margin-bottom: 32px;
+}
+.privacy-heading h2 {
+  font-family: "Space Grotesk Variable", sans-serif;
+  font-size: clamp(34px, 4.2vw, 54px);
+  letter-spacing: -0.055em;
+}
+.privacy-heading h2 > span {
+  color: #a698b4;
+}
+.privacy-heading .text-link {
+  flex-shrink: 0;
+  font-size: 12px;
+}
+.privacy-canvas {
+  border: 1px solid #36313c;
+  border-radius: 22px;
+  background:
+    radial-gradient(ellipse at 25% 40%, #6852761a, transparent 58%), #151416;
+  overflow: hidden;
+}
+.privacy-boundary-scene {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 126px minmax(0, 1fr);
+  gap: 10px;
+  padding: 36px 46px 44px;
+}
+.privacy-local-zone,
+.privacy-network-zone {
+  position: relative;
+  min-width: 0;
+}
+.privacy-zone-label {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  color: #c2b7d0;
+  font-size: 11px;
+  margin-bottom: 28px;
+}
+.privacy-network-zone .privacy-zone-label {
+  color: #aaa2b1;
+}
+.privacy-vault {
+  position: relative;
+  z-index: 2;
+  min-height: 233px;
+  background: linear-gradient(135deg, #dfd5e9, #b5a8c7);
+  color: #302a38;
+  padding: 25px;
+  border: 1px solid #ebdeff66;
+  border-radius: 13px;
+  box-shadow:
+    0 24px 50px #0003,
+    inset 0 1px 0 #ffffff60;
+  transform: rotate(-2deg);
+  transition: transform 500ms ease;
+}
+.privacy-local-zone:hover .privacy-vault {
+  transform: rotate(0);
+}
+.privacy-vault-stack {
+  position: absolute;
+  inset: 42px 8px 0;
+  pointer-events: none;
+}
+.privacy-vault-stack > span {
+  position: absolute;
+  inset: 0;
+  border: 1px solid #70637e;
+  border-radius: 13px;
+  background: #2a2331;
+  transform: rotate(4deg);
+}
+.privacy-vault-stack > span:last-child {
+  transform: rotate(1deg);
+  background: #45384f;
+}
+.privacy-vault-top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 24px;
+}
+.privacy-vault-top > span {
+  flex: 1;
+  font:
+    10px ui-monospace,
+    monospace;
+  letter-spacing: 0.09em;
+}
+.privacy-vault-top > span > span {
+  display: block;
+  font-size: 7px;
+  letter-spacing: 0.08em;
+  color: #5b4d66;
+  margin-top: 5px;
+}
+.privacy-vault-top > svg:last-child {
+  opacity: 0.65;
+}
+.privacy-secret-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  font-size: 11px;
+  padding-block: 13px;
+  border-top: 1px solid #43374a1c;
+}
+.privacy-redacted {
+  display: flex;
+  gap: 4px;
+}
+.privacy-redacted i {
+  width: 5px;
+  height: 5px;
+  background: #56465f;
+  border-radius: 1px;
+}
+.privacy-vault-bottom {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 17px;
+  padding-top: 14px;
+  border-top: 1px solid #43374a30;
+  font-size: 10px;
+}
+.privacy-crossing {
+  position: relative;
+  display: grid;
+  place-content: center;
+  isolation: isolate;
+  padding-top: 40px;
+}
+.privacy-boundary-rule {
+  position: absolute;
+  inset: 0 50%;
+  border-left: 1px dashed #5f4e6a;
+  z-index: -1;
+}
+.privacy-proof-track {
+  display: flex;
+  align-items: center;
+  position: relative;
+  color: #bca4d1;
+}
+.privacy-proof-track > span {
+  position: absolute;
+  inset: 50% -34px auto;
+  height: 1px;
+  background: linear-gradient(90deg, #bcabd014, #bcabd0, #bcabd014);
+  z-index: -1;
+}
+.privacy-proof-track > svg {
+  position: absolute;
+  right: -24px;
+}
+.privacy-proof-packet {
+  display: grid;
+  justify-items: center;
+  gap: 9px;
+  width: 72px;
+  padding: 16px 4px 13px;
+  background: #292231;
+  border: 1px solid #655075;
+  border-radius: 12px;
+  box-shadow: 0 0 35px #ae82d312;
+}
+.privacy-proof-packet > span {
+  font:
+    7px ui-monospace,
+    monospace;
+  letter-spacing: 0.08em;
+}
+.privacy-receipt {
+  display: grid;
+  align-content: center;
+  min-height: 233px;
+  border: 1px solid #3b3442;
+  border-radius: 12px;
+  background: linear-gradient(120deg, #232026, #1b191e);
+  padding: 14px 25px;
+  box-shadow: 0 16px 40px #0002;
+}
+.privacy-receipt-row {
+  padding-block: 16px;
+}
+.privacy-receipt-row + .privacy-receipt-row {
+  border-top: 1px solid #ffffff0b;
+}
+.privacy-receipt-row > span {
+  display: block;
+  color: #a49aa9;
+  font-size: 10px;
+  margin-bottom: 7px;
+}
+.privacy-receipt-row strong {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: #d4cadc;
+  font-size: 12px;
+  font-weight: 450;
+}
+.privacy-receipt-row strong svg {
+  color: #a3b09a;
+}
+.privacy-pool-dots {
+  color: #b2a1c4;
+  font-size: 17px;
+  line-height: 0.7;
+}
+.privacy-limit {
+  margin-top: 22px;
+  color: #aca4b2;
+  font-size: 12px;
+  line-height: 1.8;
+  text-align: center;
+}
+.privacy-limit > span {
+  display: block;
+  color: #a198a8;
+  font-size: 11px;
+}
+@media (max-width: 1000px) {
+  .privacy-boundary-scene {
+    padding-inline: 28px;
+    grid-template-columns: minmax(0, 1fr) 85px minmax(0, 1fr);
+  }
+  .privacy-vault {
+    padding-inline: 20px;
+  }
+  .privacy-receipt {
+    padding-inline: 20px;
+  }
+  .privacy-proof-track > span {
+    inset-inline: -22px;
+  }
+}
+@media (max-width: 760px) {
+  .privacy-boundary {
+    padding-top: 75px;
+  }
+  .privacy-heading {
+    align-items: start;
+    flex-direction: column;
+    gap: 17px;
+    margin-bottom: 25px;
+  }
+  .privacy-boundary-scene {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+    padding: 28px;
+  }
+  .privacy-local-zone,
+  .privacy-network-zone {
+    width: min(100%, 340px);
+    margin-inline: auto;
+  }
+  .privacy-zone-label {
+    margin-bottom: 22px;
+  }
+  .privacy-vault-stack {
+    top: 36px;
+  }
+  .privacy-crossing {
+    height: 115px;
+    padding: 0;
+  }
+  .privacy-boundary-rule {
+    inset: 50% 0 auto;
+    border-left: 0;
+    border-top: 1px dashed #5f4e6a;
+  }
+  .privacy-proof-packet {
+    width: 64px;
+    gap: 7px;
+    padding-block: 12px;
+  }
+  .privacy-proof-track > span {
+    inset: -16px auto;
+    width: 1px;
+    height: calc(100% + 32px);
+    left: 50%;
+  }
+  .privacy-proof-track > svg {
+    right: calc(50% - 9px);
+    bottom: -22px;
+    rotate: 90deg;
+  }
+  .privacy-limit {
+    text-align: left;
+    font-size: 11px;
+  }
+  .privacy-limit > span {
+    margin-top: 4px;
+  }
+}
+@media (max-width: 380px) {
+  .privacy-boundary-scene {
+    padding: 24px 20px;
+  }
+  .privacy-vault,
+  .privacy-receipt {
+    padding-inline: 18px;
+  }
+  .privacy-heading h2 {
+    font-size: 32px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .privacy-vault {
+    transition: none;
+  }
+  .privacy-local-zone:hover .privacy-vault {
+    transform: rotate(-2deg);
+  }
+}
+.site:is(
+    [data-motion="paused"],
+    [data-motion="reduced"],
+    [data-motion="static"]
+  )
+  .privacy-local-zone:hover
+  .privacy-vault {
+  transform: rotate(-2deg);
+}

@@ -23,10 +23,28 @@ Step 3 takes about 30 minutes the first time. Without it, every test that needs 
 To run the whole product on the Preprod test network, follow [docs/RUNBOOK-PREPROD.md](docs/RUNBOOK-PREPROD.md).
 It ends with one command that deposits, pays an x402 seller in private, and exits.
 
+## Run the frontend
+
+The public landing page and documentation reader are in `apps/web`.
+Run these commands from the repo root:
+
+```sh
+npm ci
+npm run dev
+npm test -w apps/web
+npm run build
+```
+
+The landing page explains the ADA pool, local proofs, and private payments.
+`Read docs` opens a local reader at `/docs/` with the current product requirements, design, and M0 plan.
+The page has no wallet connection or transaction functions. M0 runs on Preprod; mainnet is not deployed yet.
+`npm test -w apps/web` runs the frontend checks. `npm test` runs all workspace tests.
+
 ## What is in the repository
 
 | Folder | What it holds |
 |---|---|
+| `apps/web` | The public landing page and documentation reader |
 | `circuits/` | The three circom circuits: spend, insert and ragequit |
 | `contracts/` | The Aiken validators: pool, deposit, config, association set, and the token policy |
 | `packages/crypto` | Hashes, notes, trees, encodings and key derivation |

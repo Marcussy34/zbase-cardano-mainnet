@@ -830,6 +830,7 @@ The relayer verifies every proof locally before it builds a transaction.
 ### 8.9 Repository layout for the code
 
 ```text
+apps/web           public landing page and documentation reader
 circuits/          circom sources, circuit tests, build and key setup scripts
 contracts/         one Aiken project: lib/zbase/* modules and validators/*
 contracts/fixtures generator that turns scenarios with real proofs into Aiken test modules
@@ -850,6 +851,36 @@ docs/              this documentation
 ```
 
 [PLAN-M0.md](./PLAN-M0.md) maps each folder to a work package.
+
+### 8.10 Public frontend
+
+The first frontend is a public landing page in `apps/web`, built with React, TypeScript, and Vite.
+It explains the protocol design and the verified Preprod status. Mainnet is not deployed yet.
+It has no wallet connection, deposit, proof generation, or transaction submission function.
+
+- Follow the dark visual direction of [Skydive](https://www.skydive.com/): large type, generous space, rounded controls, and cards around the hero.
+- Keep the landing page minimal and led by visuals. Use short headings and single-sentence explanations. Remove repeated supporting paragraphs and feature summaries. Keep technical detail in the docs, three collapsed FAQ answers, and the selected animation stage. Preserve the portraits, scroll interactions, privacy limits, and accessible controls.
+- Use the original sculpted anonymous portraits in the hero and payment orbit. The nine variants use dark hoods, masks, visors, and layered fabric with concealed faces and soft studio lighting. Keep the portraits cohesive and recognizable at small sizes. Preserve the existing character motion and leave the scenic footer artwork unchanged.
+- Make `Read docs` the main action. Every `Read docs` link opens `/docs/`.
+- Show `In development`. Describe ADA as the first asset. Use a compact roadmap row marked `Tested on Preprod`, with mainnet next and a link to the full build plan. Explain in the FAQ that mainnet is not live and a capped canary using team funds is next.
+- Explain that note secrets stay on the agent's machine in default mode. The relayer gets a proof and an intent.
+- Include a hero, a design explanation, an interactive `Deposit`, `Prove locally`, `Pay` walkthrough, a local proof privacy feature, a roadmap, an FAQ, and a footer.
+- The walkthrough tells a three-part story through two terminal windows: `Your agent` and `The network`. Deposit shows ordinary ADA funding and a local note. Prove locally keeps note secrets on the machine and passes a proof and an intent to the relayer. Pay shows the pool funding a one-time key, followed by a standard x402 seller payment. Scroll progress reveals terminal rows and the exchange between the windows. Scrolling backward reverses the sequence. Label the session as illustrative, not executable commands or a live payment. Each step also has a keyboard-accessible manual control.
+- Pin the terminal walkthrough and payment orbit through their full scroll sequences on viewports where their compact scenes fit. Include progress and a clear scroll cue. Release each scene at its final stage. Use native scrolling. Smaller or shorter screens that cannot fit the scene retain normal document flow and manual controls.
+- Explain privacy with one visual boundary between the agent's device and the public network. Contrast local note secrets with the proof and intent that can leave the device. Show the shared pool as the funding source and explain that amounts, recipients, and timing remain public. Use a short privacy-limit line and one documentation link. Omit repeated captions and the supporting feature grid. The visual remains readable without animation.
+- The documentation reader renders the current source from `PRD.md`, `SPEC.md`, and `PLAN-M0.md`. Its topic navigation works at `/docs/`.
+- Support desktop and mobile layouts without horizontal overflow. Navigation and FAQ controls work with a keyboard. Escape closes mobile navigation and returns focus to its trigger. Selecting an anchor also closes it.
+- A shared character scene spans the hero and introduction. It stays in view briefly within the opening story. Scrolling spreads, shrinks, and tilts the characters at different depths. Intro words gain contrast with scroll progress. Words remain readable throughout.
+- Section headings and supporting facts reveal in a short stagger. The closing landscape uses subtle parallax. Keep native scrolling and anchor links. Do not hijack scrolling. Sticky scenes only apply when the viewport has enough room; shorter screens keep a normal document flow.
+- `Pause motion` freezes decorative transforms and reveals all content. The explanatory walkthrough completes its selected illustration so it remains readable while paused. Resuming motion uses the current scroll position. The operating system's reduced motion setting shows a static, readable layout and disables JavaScript scroll animation listeners, including when the setting changes while the page is open.
+- Keep content visible if browser motion APIs or observers are unavailable. Keyboard focus reveals its content. Decorative characters and animation must not prevent reading or using the page. Clean up listeners, observers, and pending animation frames when the page unmounts.
+- Give the hero a distinct display type treatment. Render `Unknown` in an italic editorial face with a graphite and silver finish, a fine offset shadow, and a slow automatic light sweep. Keep the word fully readable at all times. The headline has no hover response or decoding glyphs. The light and shadow are decorative and cannot intercept input. Keep the accessible headline stable. Pause freezes the light sweep; static and reduced motion modes show still lettering.
+- Add a scroll-driven payment path scene inspired by Skydive's integration orbit. An anonymous portrait from the same set as the hero stays at the center as six nodes appear: Wallet, Shared pool, Local proof, Relayer, One-time key, and x402 seller. Scrolling highlights successive nodes and changes an illustrative detail card. Each node is also a keyboard-accessible button. User selection holds until scrolling reaches another stage. Native page scrolling remains intact.
+- Mark the orbit scene as a design preview in development. Keep its planned status and privacy limits visible. Reduced motion, paused motion, or missing browser APIs leave all six node controls and a readable detail card available without automatic changes.
+- End with a short invitation over an original character landscape and two concise footer link groups for Explore and Resources. Use an oversized zBase wordmark above the project status and copyright. Omit repeated descriptions and taglines. Use existing destinations only. Do not imply legal policies, certifications, or live services that the project does not have.
+
+Run the frontend with `npm run dev` at the repo root. `npm test -w apps/web` runs its Vitest and React Testing Library checks. `npm test` runs all workspace tests. `npm run build` checks frontend types and creates the production build.
+Frontend tests use the `FE` IDs in [TEST-PLAN.md](./TEST-PLAN.md).
 
 ## 9. x402 integration
 
