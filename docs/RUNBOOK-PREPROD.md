@@ -57,6 +57,13 @@ It logs one line for each round that did something, for example an Insert or an 
 A line such as `indexer: Chain tip changed during sync` is normal. The next round succeeds.
 Stop the node with Ctrl+C.
 
+The node reads four optional settings from the environment:
+
+- `ZBASE_INTERVAL_MS` is the pause between two rounds in milliseconds. The default is 10000.
+- `ZBASE_IDLE_RETRY_MS` is the time before the crank or the association service repeats a step that submitted nothing, while its input data is unchanged. The default is 20000.
+- `ZBASE_INDEXER_PORT` is the port of the indexer. The default is 4010.
+- `ZBASE_RELAYER_PORT` is the port of the relayer. The default is 4011.
+
 ## 5. Run a seller
 
 1. Start the example seller in a second terminal: `SELLER_ADDRESS=<address> npm run seller -w examples/x402-seller`
@@ -77,8 +84,10 @@ The demo does this, and prints each transaction:
 4. It prints the weather.
 5. It exits the rest of the note in public, back to the `user` key.
 
-One run takes about 4 minutes on Preprod. The user ends with about 5 ADA less: 2 ADA for the weather, 1 ADA for the relayer, 0.3 ADA for the crank, and the network fees.
+One run took 3.5 minutes on Preprod with the final code. Slow blocks can double that.
+The user ends with about 5 ADA less: 2 ADA for the weather, 1 ADA for the relayer, 0.3 ADA for the crank, and the network fees.
 You can run the demo again at any time. It keeps its notes in `deployments/preprod/demo-store.json`.
+If you changed a port, set `INDEXER_URL`, `RELAYER_URL` or `SELLER_URL` for the demo.
 
 ## 7. Admin actions
 
@@ -96,12 +105,21 @@ Exits cannot be paused. A paused pool still serves private payments and Ragequit
 
 Every read of the chain is a request to Blockfrost. The free plan allows 50,000 requests a day.
 
-- An idle round of the node makes about 7 requests, and a round after a new block about 15.
-- With the default round of 10 seconds, the node uses about 4,000 requests an hour.
-- One demo run adds about 150 requests.
+These numbers were measured on the Preprod pool of this repository, which had about 20 transactions.
 
-So the free plan carries a session of several hours, not a node that runs all day.
-For a node that runs all day, use a paid plan or your own chain backend.
+- A round of the node that finds no new block makes 1 request.
+- A round after a new block makes 8 requests.
+- For two minutes after a change, the node reads each new block a second time. That adds 7 requests per block.
+- A node that submits nothing uses about 1,100 to 1,600 requests an hour.
+- A start of the node replays the pool history once. That took 33 requests for 17 pool transactions.
+- One demo run adds about 150 to 200 requests in the node.
+
+So an idle node needs about 27,000 to 39,000 requests a day. That fits the free plan and leaves room for some dozens of demo runs.
+No run of a whole day has confirmed this yet.
+The demo and the seller's facilitator use the same Blockfrost project and make their own requests. These numbers do not include them.
+A read of the history costs one more request for every 100 transactions at the pool address and at the deposit address.
+To spend fewer requests, set a longer round with `ZBASE_INTERVAL_MS`. Payments then take longer.
+For a busy pool, use a paid plan or your own chain backend.
 
 ## 9. If something goes wrong
 
