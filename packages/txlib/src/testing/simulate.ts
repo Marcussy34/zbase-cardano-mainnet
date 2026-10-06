@@ -58,7 +58,8 @@ export async function simulate(txCbor: string, resolved: Utxo[], network: Networ
   }));
 
   await mkdir(build, { recursive: true });
-  const temporary = await mkdtemp(`${build}simulate-`);
+  // The process ID keeps parallel test files from seeing each other's directories.
+  const temporary = await mkdtemp(`${build}simulate-${process.pid}-`);
   try {
     await writeFile(`${temporary}/tx.hex`, txCbor);
     await writeFile(`${temporary}/inputs.hex`, cborArray(utxos.map(u => u.input().toCbor())));
