@@ -24,9 +24,12 @@ Test IDs are stable. Use them in test names, commit messages, and reviews.
 | Crypto library | Node test runner | `packages/crypto` | None |
 | Circuits | circom, snarkjs, Node test runner | `circuits` | None |
 | Validators | `aiken check` | `contracts` | None |
-| Transaction builders | Node test runner, provider evaluation | `packages/txlib` | Mainnet read only |
+| Transaction builders | Node test runner, local script evaluation with the pinned Aiken | `packages/txlib` | None, with a fake chain |
 | Services and SDK | Node test runner | `services/*`, `packages/sdk` | None, with a fake chain |
 | End to end | The runbook | Mainnet | Mainnet, capped funds |
+
+No pool UTXO exists on mainnet before deployment, so the transaction builder tests cannot evaluate against mainnet state.
+They run against an in-memory chain and evaluate scripts locally. Evaluation through a mainnet provider is part of the runbook.
 
 ## 3. Crypto library (`CRY`)
 
