@@ -1,0 +1,22 @@
+# dependencies and builds
+node_modules/
+dist/
+build/
+coverage/
+
+# secrets
+.env
+.env.*
+!.env.example
+
+# circuit artifacts (large, reproducible)
+*.zkey
+*.ptau
+*.wtns
+*.r1cs
+
+# local tooling
+.DS_Store
+.serena/
+.firecrawl/
+.codebase-memory/
