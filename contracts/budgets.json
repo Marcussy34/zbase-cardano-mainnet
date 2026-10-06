@@ -11,6 +11,10 @@
     "ver_00_real_spend_verifies": { "cpu": 2970220049, "mem": 165488 },
     "ver_00_real_ragequit_verifies": { "cpu": 2674009968, "mem": 132541 }
   },
+  "zbase/pool/insert_test": {
+    "bud_02_four_deposits": { "cpu": 4500000000, "mem": 2500000 },
+    "bud_03_four_notes": { "cpu": 3300000000, "mem": 1500000 }
+  },
   "zbase/pool/ragequit_test": {
     "bud_04_deposit_note": { "cpu": 3200000000, "mem": 2500000 }
   }
