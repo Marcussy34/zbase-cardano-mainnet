@@ -82,11 +82,11 @@ export interface RelayerApi {
 
 export type ErrorCode =
   | 'stale_root' | 'stale_asp_root' | 'nullifier_spent' | 'queue_full' | 'quote_expired'
-  | 'invalid_proof' | 'intent_mismatch' | 'not_found' | 'bad_request' | 'internal';
+  | 'invalid_proof' | 'intent_mismatch' | 'not_found' | 'bad_request' | 'internal' | 'uncertain';
 
 const defaultStatuses: Record<ErrorCode, number> = {
   stale_root: 409, stale_asp_root: 409, nullifier_spent: 409, queue_full: 409, quote_expired: 409,
-  invalid_proof: 400, intent_mismatch: 400, not_found: 404, bad_request: 400, internal: 500,
+  invalid_proof: 400, intent_mismatch: 400, not_found: 404, bad_request: 400, internal: 500, uncertain: 503,
 };
 
 /** Services throw this error, and HTTP clients reconstruct it with the response status. */
