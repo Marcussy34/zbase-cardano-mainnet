@@ -13,7 +13,7 @@ import { devKeysPresent, loadDevArtifacts, loadDevVkey, prove, shutdown } from '
 import {
   buildAspUpdate, buildDeposit, buildInsert, complete, decodePoolRedeemer, decodeTx,
   encodeConfigDatum, encodeVoid, enterpriseAddress, keyHash, newTxBuilder, planInsert,
-  readAsp, readConfig, readDeposits, readPool, signTx, utxoToMesh,
+  readAsp, readConfig, readDeposits, readPool, signTx, timeToSlot, utxoToMesh,
   type ChainContext,
 } from '@zbase-cardano/txlib';
 import { startDevnet } from '@zbase-cardano/txlib/testing/devnet';
@@ -344,6 +344,41 @@ test('REL-02, REL-03, REL-04, REL-05, HTTP: real proof relayer story', {
     await rejects(relayer.settle(first), 'quote_expired');
     now = saved;
   });
+  await t.test('REL-02: a dropped settle fails only after the indexer tip passes its deadline', async () => {
+    let reads = 0;
+    const statusIndexer: IndexerApi = { ...indexer,
+      async getPool() { reads++; return indexer.getPool(); },
+      async getNullifiers(from, limit) { reads++; return indexer.getNullifiers(from, limit); },
+    };
+    const owner = new Relayer({ ctx, indexer: statusIndexer, seed: keys.relayer, vkey: artifacts.spend.vkey,
+      quoteTtlMs: 600_000, now: () => now });
+    const request = await freshRequest(first, owner);
+    const original = chain.submit;
+    const saved = now;
+    const height = chain.blocks().length;
+    let attempts = 0;
+    chain.submit = async cbor => { attempts++; return decodeTx(cbor).txId; };
+    try {
+      const result = await owner.settle(request);
+      assert.equal((await owner.getSettle(result.id)).status, 'submitted');
+      now = request.intent.validUntil + 1;
+      assert.equal((await owner.getSettle(result.id)).status, 'submitted', 'wall-clock expiry is not confirmed chain expiry');
+      chain.mineBlock(timeToSlot(request.intent.validUntil, network) - (await chain.getTip()).slot);
+      assert.equal((await owner.getSettle(result.id)).status, 'submitted');
+      chain.mineBlock(1);
+      const failed = await owner.getSettle(result.id);
+      assert.deepEqual(failed, { ...result, status: 'failed', error: 'Expired before confirmation' });
+      const before = reads;
+      assert.deepEqual(await owner.getSettle(result.id), failed);
+      assert.equal(reads, before, 'the terminal failure is stored');
+      await rejects(owner.settle(request), 'not_found');
+      assert.equal(attempts, 1);
+    } finally {
+      chain.submit = original;
+      now = saved;
+      chain.rollback(chain.blocks().length - height);
+    }
+  });
   await t.test('REL-02, HTTP: a valid settle is submitted, then confirmed with the exact payout', async () => {
     assert.deepEqual(await client.getPool(), await relayer.getPool());
     const result = await client.settle(first);
@@ -402,19 +437,99 @@ test('REL-02, REL-03, REL-04, REL-05, HTTP: real proof relayer story', {
       assert.equal((await chain.getUtxosAt(payer(seller).address)).reduce((sum, u) => sum + u.value.lovelace, 0n), 2_000_000n);
     }
   });
-  await t.test('REL-05: an unchanged pool fails immediately and exposes a safe failed status', async () => {
+  await t.test('REL-05: an unchanged pool fails after three reads and exposes a safe failed status', async () => {
     const original = chain.submit;
+    const getUtxosAt = chain.getUtxosAt;
     let attempts = 0;
+    let reads = 0;
     const underlying = new Error('private provider diagnostic');
     chain.submit = async () => { attempts++; throw underlying; };
+    chain.getUtxosAt = async address => {
+      if (attempts > 0 && address === ctx.deployment.scripts.pool.address) reads++;
+      return getUtxosAt.call(chain, address);
+    };
     try {
       await rejects(relayer.settle(requests[3]!), 'internal');
       assert.equal(attempts, 1);
+      assert.equal(reads, 3);
       const failed = await relayer.getSettle(requests[3]!.quoteId);
       assert.equal(failed.status, 'failed');
       assert.ok(!failed.error?.includes('private provider diagnostic'));
       assert.ok(logs.some(entry => entry.error === underlying));
-    } finally { chain.submit = original; }
+    } finally { chain.submit = original; chain.getUtxosAt = getUtxosAt; }
+  });
+  await t.test('REL-05: a competing insertion mined during recovery permits a rebuilt settle', async () => {
+    const current = await readPool(ctx);
+    const plan = planInsert({ poolId: ctx.deployment.poolId, pool: current, config: (await readConfig(ctx)).datum, deposits: [] });
+    assert.ok(plan);
+    plan.flush = 1;
+    plan.slots = plan.slots.slice(0, 1);
+    const witness = insertWitness({ tree, slots: plan.slots });
+    const proof = await prove(artifacts.insert, witness.input);
+    const competing = await buildInsert(ctx, { payer: payer(keys.crank), pool: current, plan,
+      proof: proof.cardano, newRoot: witness.newRoot });
+    let failed = false;
+    const owner = new Relayer({ ctx, indexer, seed: keys.relayer, vkey: artifacts.spend.vkey,
+      quoteTtlMs: 600_000, retryDelayMs: 5, now: () => now,
+      log: message => { if (message === 'Could not build or submit the settle transaction') failed = true; } });
+    const request = await freshRequest(requests[3]!, owner);
+    const original = chain.submit;
+    const getUtxosAt = chain.getUtxosAt;
+    const height = chain.blocks().length;
+    let reads = 0;
+    let attempts = 0;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    await submit(signTx(competing.cbor, [keys.crank]));
+    chain.submit = async cbor => { attempts++; return submit(cbor); };
+    chain.getUtxosAt = async address => {
+      const outputs = await getUtxosAt.call(chain, address);
+      if (failed && address === ctx.deployment.scripts.pool.address && ++reads === 1) {
+        // The first recovery read still sees the input reserved in the mempool.
+        timer = setTimeout(() => chain.mineBlock(), 0);
+      }
+      return outputs;
+    };
+    try {
+      const result = await owner.settle(request);
+      assert.equal(result.status, 'submitted');
+      assert.ok(reads >= 2);
+      assert.equal(attempts, 1, 'only the rebuilt transaction reaches submission');
+      const view = decodeTx(chain.transaction(result.txHash)!.cbor);
+      assert.ok(view.inputs.some(ref => ref.txId === competing.txId));
+    } finally {
+      clearTimeout(timer);
+      chain.submit = original;
+      chain.getUtxosAt = getUtxosAt;
+      chain.rollback(chain.blocks().length - height);
+    }
+  });
+  await t.test('REL-05: recovery stops when the quote expires during the wait', async () => {
+    const owner = new Relayer({ ctx, indexer, seed: keys.relayer, vkey: artifacts.spend.vkey,
+      quoteTtlMs: 600_000, retryDelayMs: 5, now: () => now });
+    const request = await freshRequest(requests[3]!, owner);
+    const original = chain.submit;
+    const getUtxosAt = chain.getUtxosAt;
+    const saved = now;
+    let attempts = 0;
+    let reads = 0;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    chain.submit = async () => { attempts++; throw new Error('Pool reserved by another transaction'); };
+    chain.getUtxosAt = async address => {
+      if (attempts > 0 && address === ctx.deployment.scripts.pool.address && ++reads === 1) {
+        timer = setTimeout(() => { now = request.intent.validUntil; }, 0);
+      }
+      return getUtxosAt.call(chain, address);
+    };
+    try {
+      await rejects(owner.settle(request), 'quote_expired');
+      assert.equal(attempts, 1);
+      assert.equal(reads, 1);
+    } finally {
+      clearTimeout(timer);
+      chain.submit = original;
+      chain.getUtxosAt = getUtxosAt;
+      now = saved;
+    }
   });
   await t.test('REL-05: two competing pool spends trigger two rebuilds and preserve the spend proof', async () => {
     const original = chain.submit;
