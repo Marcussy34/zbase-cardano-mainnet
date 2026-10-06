@@ -688,6 +688,7 @@ Behavior:
 - The relayer keeps a local copy of the pool state and chains transactions. One relayer can advance the pool several times per block.
 - It rebuilds a transaction when another party spends the pool UTXO first.
 - It holds hot keys with small balances only: a fee wallet and a collateral UTXO.
+- M0 status: the relayer does not chain. It waits for a confirmation between pool transactions, and it rebuilds when another party wins the block. The proof fixes the withdrawn amount, and the validator fixes only the protocol fee, so the wallet must refuse a relayer fee that is too high. The SDK refuses a quote above 2 ADA unless the caller raises the limit.
 - It stores no note secrets. In default mode it never receives any.
 
 ### 8.3 Crank
@@ -702,14 +703,14 @@ Behavior:
 
 - Follows the pool and deposit addresses.
 - Serves ordered leaves, approved labels, nullifier hashes, and pool state.
-- Handles rollbacks. It marks data final after a set number of blocks.
+- Handles rollbacks. It marks data final after a set number of blocks. M0 status: it treats confirmed data as final and rebuilds when its history cursor disappears.
 - Anyone can run one from chain data alone.
 
 ### 8.5 ASP service
 
 - Watches new deposits and screens the funding addresses.
 - Builds the ASP tree of approved labels and posts the root.
-- Approves by default after a delay unless a deposit is flagged. This mirrors zBase on Base.
+- Approves by default after a delay unless a deposit is flagged. This mirrors zBase on Base. M0 status: it approves at once, and a deny function can refuse a deposit. No delay and no data source are built.
 - Auto-approves deposits funded only by pool payouts, such as returned one-time funds.
 - The screening data source for Cardano is an open question (PRD section 14).
 
@@ -747,6 +748,11 @@ Point conversion uses `@noble/curves` 2.4.0. [TEST-VECTORS.md](./TEST-VECTORS.md
 | `exited` | The depositor used ragequit. | none |
 
 The SDK learns the credited value and the label of a deposit from the Insert transaction that absorbs it.
+
+A state is computed from chain data on every sync. The SDK never trusts its own earlier answer.
+When the SDK itself submits a spend, an exit or a refund, it marks the note at once and saves a `pending` record with a deadline before the request leaves.
+A later sync confirms the mark from chain data. If the chain passes the deadline without the transaction, the sync removes the mark and the note returns to its computed state.
+A settlement is valid until its quote deadline. The SDK gives an exit and a refund an expiry of 600 slots.
 
 ### 8.8 API contracts
 
@@ -963,7 +969,7 @@ A spike verifier that wrapped points in `Option` measured 2.40B CPU with 2 input
 
 ### 10.3 Estimates per transaction
 
-All rows are estimates. M0 replaces them with measured values.
+All rows are estimates. M0 measured them, and no row was off by more than 20 percent. [measurements.md](./measurements.md), section 5, has the comparison.
 
 | Transaction | Non-zero public inputs | CPU | Share of limit | Fee |
 |---|---|---|---|---|
@@ -1023,7 +1029,7 @@ Measured: a first full setup takes about 28 minutes, of which the phase 1 prepar
 ### 12.2 Known sharp edges
 
 - **Circuit or verifier bug.** It can drain the pool. Caps bound the loss. An audit comes before caps rise.
-- **Duplicate precommitment.** Two notes with the same nullifier cannot both be spent. If someone copies a pending deposit, the SDK must spend the larger note. The copier loses their deposit.
+- **Duplicate precommitment.** Two notes with the same nullifier cannot both be spent. If someone copies a pending deposit, the copier loses their deposit. The SDK follows the deposit that carries the refund key it used itself, because only that note can also exit in public. Among deposits with that key, or when the SDK was restored from the seed alone and no longer knows the key, it prefers an absorbed deposit and then the larger one.
 - **Malformed deposits.** They are lost (section 6.6).
 - **Rollbacks.** Cardano finality is probabilistic. The indexer and relayer handle rollbacks and rebuild.
 - **Seed loss.** The system is non-custodial. A lost seed means lost notes.
@@ -1256,3 +1262,4 @@ That measurement is the reason for decision D3.
 | 1.0.1 | 2026-10-06 | Recorded the result of the transaction library spike: Mesh 1.9.1 is confirmed (sections 8.6 and 17). |
 | 1.0.2 | 2026-10-06 | Rule P3 also forbids a reference script on the continuing pool output. |
 | 1.0.3 | 2026-10-06 | Build findings. The first live run is on Preprod, and all off-chain code takes a network setting (section 15). Script parameters use the Evolution SDK, because the Mesh function truncates long byte strings (8.6). The indexer serves `GET /v1/pool`, and two error codes were added (8.8). The code layout matches the repository (8.9). The Preprod pool uses a single-contributor setup (11). |
+| 1.0.4 | 2026-10-07 | Findings from the first live runs on Preprod. The SDK treats its own marks as tentative until the chain confirms them, and exits and refunds carry an expiry (8.7). A copied precommitment is resolved by the refund key (12.2). M0 status notes for the relayer, the indexer and the association service (8.2, 8.4, 8.5). |
