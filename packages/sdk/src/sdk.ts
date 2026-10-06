@@ -8,7 +8,7 @@ import {
 import { prove, type CircuitArtifacts } from '@zbase-cardano/prover';
 import {
   buildDeposit, buildRagequit, buildRefund, encodeDepositDatum, enterpriseAddress, keyHash,
-  nullifierInsertion, readDeposits, readPool, signTx, type ChainContext,
+  nullifierInsertion, readDeposits, readPool, signTx, slotToTime, type ChainContext,
 } from '@zbase-cardano/txlib';
 import { memoryStore, type NoteRecord, type NoteStore, type StoreData } from './store.js';
 import { stealthSigner } from './x402.js';
@@ -20,6 +20,10 @@ export interface ZbaseOptions {
   relayer: RelayerApi;
   artifacts: { spend: CircuitArtifacts; ragequit: CircuitArtifacts };
   store?: NoteStore;
+  /** Exit and refund lifetime from the provider tip. Defaults to 600 slots. */
+  exitValidForSlots?: number;
+  /** Maximum relayer fee in lovelace. Defaults to 2,000,000. */
+  maxRelayerFee?: bigint;
   poll?: { intervalMs?: number; timeoutMs?: number; onPoll?: () => void | Promise<void> };
 }
 export interface PreparedDeposit {
@@ -39,7 +43,8 @@ export interface ZbaseCardano {
   waitForSettle(id: string): Promise<SettleStatus>;
   ragequit(a: ExitArgs): Promise<{ txId: string }>;
   refund(a: ExitArgs): Promise<{ txId: string }>;
-  x402Signer(a?: { mode?: 'stealth' }): ClientCardanoSigner;
+  /** maxPrice limits the seller's price in lovelace, before any funding fees. */
+  x402Signer(a?: { mode?: 'stealth'; maxPrice?: bigint }): ClientCardanoSigner;
 }
 
 const CHANGE_OFFSET = 2 ** 20;
@@ -55,6 +60,10 @@ export function createZbaseCardano(o: ZbaseOptions): ZbaseCardano {
   const store = o.store ?? memoryStore();
   const intervalMs = o.poll?.intervalMs ?? 3000;
   const timeoutMs = o.poll?.timeoutMs ?? 600_000;
+  const exitValidForSlots = o.exitValidForSlots ?? 600;
+  const maxRelayerFee = o.maxRelayerFee ?? 2_000_000n;
+  if (!Number.isSafeInteger(exitValidForSlots) || exitValidForSlots <= 0) throw new RangeError('Exit validity must be a positive safe slot count');
+  if (typeof maxRelayerFee !== 'bigint' || maxRelayerFee < 0n) throw new RangeError('Relayer fee limit must be nonnegative lovelace');
   if (!Number.isSafeInteger(intervalMs) || intervalMs < 0 || !Number.isSafeInteger(timeoutMs) || timeoutMs <= 0) {
     throw new RangeError('Poll interval must be nonnegative and timeout must be positive');
   }
@@ -66,6 +75,7 @@ export function createZbaseCardano(o: ZbaseOptions): ZbaseCardano {
   let approved: bigint[] = [];
   let spent: bigint[] = [];
   let approvalKnown = false;
+  let settleFeeBps = 0;
 
   async function load(): Promise<void> {
     if (loaded) return;
@@ -103,7 +113,7 @@ export function createZbaseCardano(o: ZbaseOptions): ZbaseCardano {
   }
   function depositRecord(index: number, gross: bigint | null): NoteRecord {
     return { id: `d${index}`, kind: 'deposit', secretIndex: index, status: 'created', value: null, label: null,
-      leafIndex: null, origin: null, gross, precommitment: precommitmentFor(index) };
+      leafIndex: null, origin: null, gross, precommitment: precommitmentFor(index), expectedRefundKeyHash: null };
   }
   function privateNote(record: NoteRecord): Note {
     if (record.value === null || record.label === null) throw new Error(`Note ${record.id} has not been inserted`);
@@ -119,6 +129,7 @@ export function createZbaseCardano(o: ZbaseOptions): ZbaseCardano {
     if (!/^[0-9a-f]{56}$/.test(a.refundKeyHash)) throw new Error('Refund key hash must be 28 bytes of lowercase hex');
     if (data.nextDepositIndex >= CHANGE_OFFSET) throw new Error('Deposit derivation indexes are exhausted');
     const record = depositRecord(data.nextDepositIndex, a.amount);
+    record.expectedRefundKeyHash = a.refundKeyHash;
     const inlineDatum = encodeDepositDatum({ precommitment: record.precommitment, refund: a.refundKeyHash });
     await save({ ...data, nextDepositIndex: data.nextDepositIndex + 1, notes: [...data.notes, record] });
     return { noteId: record.id, address: ctx.deployment.scripts.deposit.address, amount: a.amount,
@@ -161,11 +172,21 @@ export function createZbaseCardano(o: ZbaseOptions): ZbaseCardano {
     }
     const deposits = await indexer.getDeposits();
     const next = structuredClone(data);
-    const byPrecommitment = new Map<bigint, DepositView>();
-    // Reusing a precommitment shares its nullifier. Prefer the largest credited deposit.
+    const byPrecommitment = new Map<bigint, DepositView[]>();
+    const rank = { absorbed: 0, pending: 1, refunded: 2 };
+    // A public precommitment can be copied. Preserve the owner's exit key before ranking duplicates.
+    deposits.sort((a, b) => {
+      const status = rank[a.status] - rank[b.status];
+      if (status) return status;
+      const av = a.value ?? a.gross;
+      const bv = b.value ?? b.gross;
+      if (av !== bv) return av > bv ? -1 : 1;
+      return a.txId < b.txId ? -1 : a.txId > b.txId ? 1 : a.index - b.index;
+    });
     for (const deposit of deposits) {
-      const old = byPrecommitment.get(deposit.precommitment);
-      if (!old || (deposit.value ?? deposit.gross) > (old.value ?? old.gross)) byPrecommitment.set(deposit.precommitment, deposit);
+      const matches = byPrecommitment.get(deposit.precommitment) ?? [];
+      matches.push(deposit);
+      byPrecommitment.set(deposit.precommitment, matches);
     }
     if (next.notes.length === 0) {
       let misses = 0;
@@ -180,10 +201,34 @@ export function createZbaseCardano(o: ZbaseOptions): ZbaseCardano {
     }
     const approvedSet = new Set(nextApproved.filter(label => label !== 0n));
     const spentSet = new Set(nextSpent);
+    const confirmed = new Set<string>();
+    const deadChanges = new Set<string>();
     for (const record of next.notes) {
+      const pending = record.pending;
+      if (!pending) continue;
+      const hash = nullifierHash(deriveNoteSecrets(seed, record.secretIndex).nullifier);
+      const included = pending.kind === 'refund' ? deposits.some(d => d.status === 'refunded'
+        && d.txId === record.origin?.txId && d.index === record.origin.index) : spentSet.has(hash);
+      if (included) {
+        delete record.pending;
+        confirmed.add(record.id);
+      } else if (slotToTime(pool.tip.slot, ctx.deployment.network) > pending.validUntil + 120_000) {
+        delete record.pending;
+        const change = pending.kind === 'settle' ? next.notes.find(n => n.id === pending.changeNoteId) : undefined;
+        if (change && change.value !== null && change.label !== null) {
+          const leaf = commitment(privateNote(change));
+          if (!nextLeaves.includes(leaf) && !pool.queue.includes(leaf)) deadChanges.add(change.id);
+        }
+      }
+    }
+    next.notes = next.notes.filter(n => !deadChanges.has(n.id));
+    for (const record of next.notes) {
+      if (record.pending || confirmed.has(record.id)) continue;
       const previousStatus = record.status;
+      record.status = 'created';
+      const deposit = record.kind === 'deposit' ? byPrecommitment.get(record.precommitment)?.find(d =>
+        !record.expectedRefundKeyHash || d.refundKeyHash === record.expectedRefundKeyHash) : undefined;
       if (record.kind === 'deposit') {
-        const deposit = byPrecommitment.get(record.precommitment);
         if (deposit) {
           record.origin = { txId: deposit.txId, index: deposit.index, refundKeyHash: deposit.refundKeyHash };
           record.gross = deposit.gross;
@@ -192,19 +237,25 @@ export function createZbaseCardano(o: ZbaseOptions): ZbaseCardano {
             record.label = deposit.label;
             record.leafIndex = deposit.leafIndex;
             if (record.value === null || record.label === null || record.leafIndex === null) throw new Error('Absorbed deposit is missing note data');
-            if (!terminal(record)) record.status = 'inserted';
-          } else if (!terminal(record)) { record.status = deposit.status === 'pending' ? 'deposited' : 'refunded'; }
+            record.status = 'inserted';
+          } else {
+            record.status = deposit.status === 'pending' ? 'deposited' : 'refunded';
+            record.value = null;
+            record.label = null;
+            record.leafIndex = null;
+          }
         }
-      } else if (record.value !== null && record.label !== null) {
-        const index = nextLeaves.indexOf(commitment(privateNote(record)));
-        if (index >= 0) record.leafIndex = index;
+      }
+      if (!deposit && record.value !== null && record.label !== null) {
+        const leaf = commitment(privateNote(record));
+        const index = nextLeaves.indexOf(leaf);
+        record.leafIndex = index >= 0 ? index : null;
+        if (pool.queue.includes(leaf)) record.status = 'queued';
       }
       if (record.leafIndex !== null) {
         if (nextLeaves[record.leafIndex] !== commitment(privateNote(record))) throw new Error(`Tree commitment mismatch for note ${record.id}`);
-        if (!terminal(record)) {
-          record.status = known && approvedSet.has(record.label!) ? 'spendable'
-            : !known && previousStatus === 'spendable' ? 'spendable' : 'inserted';
-        }
+        record.status = known && approvedSet.has(record.label!) ? 'spendable'
+          : !known && previousStatus === 'spendable' ? 'spendable' : 'inserted';
       }
       const hash = nullifierHash(deriveNoteSecrets(seed, record.secretIndex).nullifier);
       if (spentSet.has(hash)) record.status = previousStatus === 'exited' ? 'exited' : 'spent';
@@ -214,6 +265,7 @@ export function createZbaseCardano(o: ZbaseOptions): ZbaseCardano {
     approved = nextApproved;
     spent = nextSpent;
     approvalKnown = known;
+    settleFeeBps = pool.config.settleFeeBps;
   }
   async function poll<T>(check: () => Promise<T | undefined>, description: string): Promise<T> {
     const deadline = Date.now() + timeoutMs;
@@ -238,12 +290,14 @@ export function createZbaseCardano(o: ZbaseOptions): ZbaseCardano {
     for (let attempt = 0; attempt < 3; attempt++) {
       await sync();
       if (!approvalKnown) await poll(async () => { await sync(); return approvalKnown ? true : undefined; }, 'the approved list');
-      const candidates = data.notes.filter(n => n.status === 'spendable').sort((a, b) => a.value! < b.value! ? -1 : a.value! > b.value! ? 1 : 0);
+      const candidates = data.notes.filter(n => n.status === 'spendable' && !n.pending).sort((a, b) => a.value! < b.value! ? -1 : a.value! > b.value! ? 1 : 0);
       const requested = a.noteId === undefined ? undefined : find(a.noteId);
-      if (requested && requested.status !== 'spendable') throw new Error(`Note ${requested.id} is not spendable`);
+      if (requested && (requested.status !== 'spendable' || requested.pending)) throw new Error(`Note ${requested.id} is not spendable`);
       if (!requested && candidates.length === 0) throw new Error('No spendable note is available');
       const quote = await relayer.quote(payouts);
       const total = payouts.reduce((sum, payout) => sum + payout.amount, 0n);
+      if (quote.relayerFee > maxRelayerFee) throw new Error('Relayer fee exceeds the configured limit');
+      if (quote.protocolFee !== total * BigInt(settleFeeBps) / 10_000n) throw new Error('Relayer protocol fee does not match the pool configuration');
       if (quote.poolId !== ctx.deployment.poolId || quote.protocolFee < 0n || quote.relayerFee < 0n
         || quote.withdrawn !== total + quote.protocolFee + quote.relayerFee) throw new Error('Relayer quote does not match the payment');
       const record = requested ?? candidates.find(n => n.value! >= quote.withdrawn);
@@ -281,6 +335,7 @@ export function createZbaseCardano(o: ZbaseOptions): ZbaseCardano {
           label: record.label, leafIndex: null, origin: record.origin === null ? null : { ...record.origin }, gross: null,
           precommitment: precommitment(secrets.nullifier, secrets.secret) });
       }
+      next.notes.find(n => n.id === record.id)!.pending = { kind: 'settle', validUntil: quote.validUntil, changeNoteId };
       await save(next);
       return { id: status.id, txHash: status.txHash, noteId: record.id, changeNoteId, withdrawn: quote.withdrawn };
     }
@@ -308,7 +363,7 @@ export function createZbaseCardano(o: ZbaseOptions): ZbaseCardano {
       let spendable = 0n;
       let pending = 0n;
       for (const note of current().notes) {
-        if (note.status === 'spendable') spendable += note.value ?? 0n;
+        if (note.status === 'spendable' && !note.pending) spendable += note.value ?? 0n;
         else if (['deposited', 'inserted', 'queued'].includes(note.status)) pending += note.value ?? note.gross ?? 0n;
       }
       return { spendable, pending };
@@ -317,7 +372,7 @@ export function createZbaseCardano(o: ZbaseOptions): ZbaseCardano {
       await sync();
       const note = find(id);
       if (terminal(note)) throw new Error(`Note ${id} is ${note.status}`);
-      return note.status === 'spendable' && approvalKnown ? structuredClone(note) : undefined;
+      return note.status === 'spendable' && !note.pending && approvalKnown ? structuredClone(note) : undefined;
     }), `note ${id}`),
     settlePrivately: a => exclusive(() => settle(a)),
     waitForSettle: id => poll(async () => {
@@ -328,7 +383,7 @@ export function createZbaseCardano(o: ZbaseOptions): ZbaseCardano {
     ragequit: a => exclusive(async () => {
       await sync();
       const record = find(a.noteId);
-      if (terminal(record) || record.leafIndex === null) throw new Error(`Note ${record.id} cannot exit in status ${record.status}`);
+      if (terminal(record) || record.pending || record.leafIndex === null) throw new Error(`Note ${record.id} cannot exit in status ${record.status}`);
       const address = refundAddress(record, a.refundSeed);
       const payTo = a.payTo ?? address;
       addressFromBech32(payTo, ctx.deployment.network);
@@ -337,34 +392,38 @@ export function createZbaseCardano(o: ZbaseOptions): ZbaseCardano {
       const trie = await nullifierInsertion(spent, witness.nullifierHash);
       const pool = await readPool(ctx);
       if (pool.datum.nullifierRoot !== trie.oldRoot) throw new Error('Nullifier tree changed; sync and retry the exit');
+      const invalidHereafter = (await ctx.provider.getTip()).slot + exitValidForSlots;
       const tx = await buildRagequit(ctx, { payer: { address }, pool, proof: proof.cardano, nullifierHash: witness.nullifierHash,
         value: record.value!, stateRoot: witness.stateRoot, depositRef: { txId: record.origin!.txId, index: record.origin!.index },
-        refundKeyHash: record.origin!.refundKeyHash, nullifierProof: trie.proofCbor, newNullifierRoot: trie.newRoot, payTo });
+        refundKeyHash: record.origin!.refundKeyHash, nullifierProof: trie.proofCbor, newNullifierRoot: trie.newRoot, payTo, invalidHereafter });
       const signed = signTx(tx.cbor, [a.refundSeed]);
       await ctx.provider.evaluate(signed);
       const txId = await ctx.provider.submit(signed);
-      await save({ ...data, notes: data.notes.map(n => n.id === record.id ? { ...n, status: 'exited' } : n) });
+      await save({ ...data, notes: data.notes.map(n => n.id === record.id ? { ...n, status: 'exited',
+        pending: { kind: 'exit', validUntil: slotToTime(invalidHereafter, ctx.deployment.network), changeNoteId: null } } : n) });
       return { txId };
     }),
     refund: a => exclusive(async () => {
       await sync();
       const record = find(a.noteId);
-      if (record.kind !== 'deposit' || record.status !== 'deposited') throw new Error(`Note ${record.id} is not a pending deposit`);
+      if (record.kind !== 'deposit' || record.status !== 'deposited' || record.pending) throw new Error(`Note ${record.id} is not a pending deposit`);
       const address = refundAddress(record, a.refundSeed);
       const payTo = a.payTo ?? address;
       addressFromBech32(payTo, ctx.deployment.network);
       const deposit = (await readDeposits(ctx)).find(d => d.utxo.ref.txId === record.origin!.txId && d.utxo.ref.index === record.origin!.index);
       if (!deposit) throw new Error('Pending deposit UTXO is no longer available');
-      const tx = await buildRefund(ctx, { payer: { address }, deposit, payTo });
+      const invalidHereafter = (await ctx.provider.getTip()).slot + exitValidForSlots;
+      const tx = await buildRefund(ctx, { payer: { address }, deposit, payTo, invalidHereafter });
       const signed = signTx(tx.cbor, [a.refundSeed]);
       await ctx.provider.evaluate(signed);
       const txId = await ctx.provider.submit(signed);
-      await save({ ...data, notes: data.notes.map(n => n.id === record.id ? { ...n, status: 'refunded' } : n) });
+      await save({ ...data, notes: data.notes.map(n => n.id === record.id ? { ...n, status: 'refunded',
+        pending: { kind: 'refund', validUntil: slotToTime(invalidHereafter, ctx.deployment.network), changeNoteId: null } } : n) });
       return { txId };
     }),
     x402Signer(a) {
       if (a?.mode !== undefined && a.mode !== 'stealth') throw new Error('Only stealth mode is supported');
-      return stealthSigner({ seed, ctx, exclusive, settle, poll, index: () => current().nextOneTimeIndex,
+      return stealthSigner({ seed, ctx, exclusive, settle, poll, maxPrice: a?.maxPrice, index: () => current().nextOneTimeIndex,
         advance: () => save({ ...data, nextOneTimeIndex: data.nextOneTimeIndex + 1 }) });
     },
   };
