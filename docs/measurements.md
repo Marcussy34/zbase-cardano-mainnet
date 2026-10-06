@@ -46,6 +46,25 @@ Script hashes depend on the deployment and are filled in after the live run.
 | ASP update | | | | | |
 | Config update | | | | | |
 
+### Transactions on the local test chain
+
+Measured on 2026-10-06 in `packages/txlib/test/flow.test.ts`, with the real validators, real proofs, and Preprod parameters.
+Execution units include the 10 percent margin that the builders add. Sizes include signatures.
+
+| Transaction | CPU steps | Memory units | Size in bytes | Fee in ADA |
+|---|---|---|---|---|
+| Deposit | none | none | 350 | 0.170781 |
+| Refund | 9,549,351 | 30,049 | 478 | 0.186606 |
+| Insert, 2 deposits | 3,561,283,645 | 1,062,749 | 990 | 0.714686 |
+| Insert, 1 note | 2,882,288,665 | 775,150 | 885 | 0.636746 |
+| Settle, 1 payout | 3,223,990,487 | 886,982 | 1,243 | 0.683587 |
+| Settle, 4 payouts | 3,354,760,372 | 1,219,493 | 1,555 | 0.725929 |
+| Ragequit | 2,854,798,448 | 676,089 | 1,312 | 0.647836 |
+| Stealth leg 2 | none | none | 203 | 0.165961 |
+| ASP update | 61,407,529 | 178,537 | 600 | 0.215321 |
+
+So one private payment in stealth mode costs about 0.85 ADA in network fees for its two legs, before the relayer fee.
+
 ### Transactions on Preprod
 
 The Preprod pool was deployed on 2026-10-06. Its record is [deployments/preprod.json](../deployments/preprod.json).
