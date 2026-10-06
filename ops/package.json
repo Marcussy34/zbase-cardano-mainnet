@@ -8,10 +8,20 @@
     "test": "node --import tsx --test \"test/**/*.test.ts\"",
     "typecheck": "tsc --noEmit -p .",
     "setup": "node --env-file=../.env --import tsx src/setup.ts",
-    "deploy": "node --env-file=../.env --import tsx src/deploy.ts"
+    "deploy": "node --env-file=../.env --import tsx src/deploy.ts",
+    "node": "node --env-file=../.env --import tsx src/node.ts",
+    "demo": "node --env-file=../.env --import tsx src/demo.ts"
   },
   "dependencies": {
+    "@zbase-cardano/api": "*",
+    "@zbase-cardano/asp": "*",
+    "@zbase-cardano/core": "*",
+    "@zbase-cardano/crank": "*",
     "@zbase-cardano/crypto": "*",
+    "@zbase-cardano/example-x402-seller": "*",
+    "@zbase-cardano/indexer": "*",
+    "@zbase-cardano/prover": "*",
+    "@zbase-cardano/relayer": "*",
     "@zbase-cardano/txlib": "*"
   }
 }

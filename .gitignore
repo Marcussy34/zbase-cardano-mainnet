@@ -15,6 +15,11 @@ coverage/
 *.wtns
 *.r1cs
 
+# runtime state of the node and the demo
+deployments/*/asp-store.json
+deployments/*/asp-store.json.tmp
+deployments/*/demo-store.json
+
 # local tooling
 .DS_Store
 .serena/
