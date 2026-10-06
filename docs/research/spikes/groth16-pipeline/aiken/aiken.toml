@@ -1,0 +1,16 @@
+# Spike project: Groth16 verifier over BLS12-381 using only Plutus V3
+# builtins (aiken/builtin is part of the compiler prelude), so no stdlib
+# dependency is needed here. See ../aiken-mpf for the stdlib question.
+name = "spike/groth16"
+version = "0.0.0"
+compiler = "v1.1.24"
+plutus = "v3"
+license = "Apache-2.0"
+description = "Throwaway spike: minimal Groth16 verifier over BLS12-381"
+
+[repository]
+user = "spike"
+project = "groth16"
+platform = "github"
+
+[config]

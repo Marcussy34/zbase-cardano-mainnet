@@ -2,10 +2,10 @@
 
 | Field | Value |
 |---|---|
-| Status | Draft v0.1 for owner review |
+| Status | Approved v1.0. The owner approved it on 2026-10-06 |
 | Date | 2026-10-06 |
 | Owner | Marcus |
-| Companion | [SPEC.md](./SPEC.md) |
+| Companions | [SPEC.md](./SPEC.md), [PLAN-M0.md](./PLAN-M0.md), [HANDOFF.md](./HANDOFF.md) |
 | Target network | Cardano mainnet, protocol version 11 |
 
 ## 1. Summary
@@ -244,16 +244,21 @@ That is why the product targets funding flows, not per-call payments.
 - A BLS12-381 powers of tau file from the community ceremony.
 - A chain provider (Blockfrost or Koios) for mainnet.
 
-## 14. Open questions
+## 14. Open questions and defaults
 
-1. Which data source screens Cardano addresses for the compliance list?
-2. What is the protocol fee at M2?
-3. Which entity operates the pool, and which jurisdiction reviews it?
-4. Which TypeScript transaction library do we standardize on? SPEC proposes a default.
-5. Do we propose a `zbase` transfer method upstream in x402?
-6. How does the relayer quote and fund the minimum ADA for stablecoin payouts?
-7. Does an auditor accept the Poseidon parameter set (56 partial rounds)?
-8. Which stablecoin pool ships first, USDM or USDCx?
+None of these blocks M0. Each has a default that the builder can assume.
+
+| # | Question | Default for the build | Must be decided before |
+|---|---|---|---|
+| 1 | Which data source screens Cardano addresses for the compliance list? | In M0 the operator approves its own deposits by hand | M1 |
+| 2 | What is the protocol fee? | 0 | M2 |
+| 3 | Which entity operates the pool, and which jurisdiction reviews it? | Not needed for a canary with team funds | M1 |
+| 4 | Which TypeScript transaction library do we standardize on? | Mesh SDK. The first build task confirms it | First week of M0 |
+| 5 | Do we propose a `zbase` transfer method upstream in x402? | Not needed for stealth mode | M1 |
+| 6 | How does the relayer quote and fund the minimum ADA for stablecoin payouts? | The relayer fronts the ADA and is repaid in tokens | M2 |
+| 7 | Does an auditor accept the Poseidon parameter set (56 partial rounds)? | Use `poseidon-bls12381-circom` 1.0.0 | The M2 audit |
+| 8 | Which stablecoin pool ships first, USDM or USDCx? | USDCx if Masumi is the main target, otherwise USDM | M2 |
+| 9 | Which license does this repo use? | Not set. zBase on Base uses Apache-2.0 | The repo goes public |
 
 ## 15. Landscape
 
@@ -284,3 +289,25 @@ That is why the product targets funding flows, not per-call payments.
 | Relayer | The service that builds and submits pool transactions, so the agent's wallet never appears. |
 | Crank | The job that inserts pending entries into the tree. Anyone can run it. |
 | Intent | The payment instruction that the proof is bound to. |
+
+## 17. M0 acceptance criteria
+
+M0 is done when all of these hold. Each maps to a step in [RUNBOOK-M0.md](./RUNBOOK-M0.md).
+
+1. A team wallet deposits 10 ADA with one ordinary transaction, and the note appears after Insert (runbook steps 7 and 8).
+2. The agent pays a stock x402 seller 3 ADA in stealth mode. The paying wallet appears in neither transaction (step 10).
+3. A second payment from the change note works (step 11).
+4. An unapproved deposit cannot settle privately, and its owner exits by ragequit (step 12).
+5. A deposit is refunded before Insert (step 13).
+6. Pausing deposits blocks new deposits and does not block payments or exits (step 14).
+7. Every case in the negative suite fails in evaluation (step 15).
+8. Measured costs are recorded, and they meet NFR-6 and NFR-9, or the Spec is updated with the real numbers (step 16).
+9. The solvency monitor reports no gap for 7 days (step 17).
+10. Every test in [TEST-PLAN.md](./TEST-PLAN.md) passes in CI.
+
+## Revision history
+
+| Version | Date | Change |
+|---|---|---|
+| 0.1 | 2026-10-06 | First draft. |
+| 1.0 | 2026-10-06 | Owner approved. Stealth mode is the default x402 path. Open questions now carry defaults. Added M0 acceptance criteria. |

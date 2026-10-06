@@ -2,16 +2,18 @@
 
 | Field | Value |
 |---|---|
-| Status | Draft v0.1 for owner review |
+| Status | Approved v1.0. The owner approved the design on 2026-10-06 |
 | Date | 2026-10-06 |
 | Owner | Marcus |
-| Companion | [PRD.md](./PRD.md) |
+| Companions | [PRD.md](./PRD.md), [PLAN-M0.md](./PLAN-M0.md), [TEST-PLAN.md](./TEST-PLAN.md), [TEST-VECTORS.md](./TEST-VECTORS.md) |
 | Target network | Cardano mainnet, protocol version 11 |
 
 This document says how zBase Cardano works and why.
 Requirement IDs such as FR-P3 point to the PRD.
 Numbers marked "measured" come from runs or live chain data listed in Appendix A.
 Numbers marked "estimate" must be replaced by measurements during M0.
+
+This document is the single source of truth for the design. If code and this document disagree, fix one of them in the same change.
 
 ## 1. Scope
 
@@ -134,13 +136,19 @@ This matches the note model of zBase on Base.
 
 ### 4.4 Label
 
-The chain derives the label when Insert absorbs a deposit:
+The chain derives the label when Insert absorbs a deposit.
 
 ```text
-label = int_be( blake2b_256( serialise_data(deposit_out_ref) || refund_key_hash || pool_id )[0..31] )
+label_preimage = "zbase/label/v1"                 14 ASCII bytes
+              || pool_id                          28 bytes
+              || deposit_tx_id                    32 bytes
+              || u32_be(deposit_output_index)      4 bytes
+              || refund_key_hash                  28 bytes
+
+label = int_be( first 31 bytes of blake2b_256(label_preimage) )
 ```
 
-- `pool_id` is the 28-byte policy ID of the pool NFT.
+- `pool_id` is the policy ID of the pool NFT.
 - The first 31 bytes give a 248-bit integer, which is always below `r`.
 - The validator rejects a label of 0.
 
@@ -165,15 +173,40 @@ type SettleIntent {
 }
 ```
 
+The validator and the SDK both turn the intent into bytes with these fixed rules:
+
 ```text
-context = int_be( blake2b_256( serialise_data(intent) )[0..31] )
+cred(c)    = 0x00 || key_hash       verification key credential, 28-byte hash
+           = 0x01 || script_hash    script credential, 28-byte hash
+
+stake(a)   = 0x00                   address a has no stake credential
+           = 0x01 || cred(c)        address a has an inline stake credential c
+
+datum(p)   = 0x00                   payout p sets no datum hash
+           = 0x01 || datum_hash     payout p sets one, 32 bytes
+
+payout(p)  = cred(p.address.payment) || stake(p.address) || u64_be(p.amount) || datum(p)
+
+relayer(i) = 0x00                   intent i names no relayer
+           = 0x01 || key_hash       intent i names one, 28 bytes
+
+intent_bytes = "zbase/intent/v1"    15 ASCII bytes
+            || pool_id              28 bytes
+            || u8(number of payouts)
+            || payout(p_1) || ... || payout(p_n)
+            || relayer(intent)
+            || u64_be(valid_until)
+
+context = int_be( first 31 bytes of blake2b_256(intent_bytes) )
 ```
 
 - `payouts` has 1 to `MAX_PAYOUTS` entries.
+- A payout address with a pointer stake credential is rejected.
 - `relayer`, when set, names the only key that may submit this settle. It stops fee theft by a copycat.
 - `valid_until` is POSIX time in milliseconds. The transaction must expire on or before it.
+- `datum_hash` is `blake2b_256(serialise_data(datum))` of the datum that the payout output must carry inline.
 
-The SDK must produce the same bytes as `serialise_data` on-chain. A shared test-vector file enforces this.
+These encodings do not depend on any CBOR library. [TEST-VECTORS.md](./TEST-VECTORS.md) lists known answers for both.
 
 ### 4.6 Trees
 
@@ -196,6 +229,26 @@ Because the ASP tree uses 0 for empty leaves, the spend circuit rejects `label =
 - Each HKDF output is 64 bytes, reduced modulo `r`, so values are uniform.
 - One-time payment keys for stealth mode come from the same seed with their own info string.
 - A user can rebuild every note from the seed plus public chain data (FR-S2).
+
+The HKDF salt is empty. The info strings are exact ASCII:
+
+| Value | Info string |
+|---|---|
+| `nullifier_i` | `zbase/nullifier/v1/` followed by the decimal index `i` |
+| `secret_i` | `zbase/secret/v1/` followed by the decimal index `i` |
+| One-time payment key `j` (32-byte Ed25519 seed) | `zbase/onetime/v1/` followed by the decimal index `j` |
+
+A deposit uses the next unused index. A change note uses the next unused index after that.
+
+### 4.8 Encoding conventions
+
+- A field element is a Plutus `Int` on-chain and a `bigint` in TypeScript. It is always in the range 0 to `r - 1`.
+- `int_be(bytes)` reads bytes as an unsigned big-endian integer.
+- `u8`, `u32_be`, and `u64_be` are fixed-width unsigned big-endian encodings. A value that does not fit is rejected.
+- Hashes are raw bytes: 32 bytes for blake2b_256, 28 bytes for key hashes and script hashes.
+- Curve points are compressed bytes: 48 for G1 and 96 for G2.
+- ASCII tags are literal bytes with no terminator.
+- On-chain, fixed-width encodings use the `integer_to_bytearray` builtin in big-endian mode. It fails when the value does not fit.
 
 ## 5. Circuits
 
@@ -285,6 +338,7 @@ Size: about 8,500 constraints (estimate). Setup power: 2^14.
 ### 5.4 Circuit rules
 
 - Every circuit is frozen before its setup. A change means a new setup and a new pool version.
+- Compile with `--O2`. At that level `Poseidon255(1)`, `(2)`, and `(3)` have 213, 237, and 261 constraints (measured). The default level keeps linear constraints and gives 472, 624, and 776.
 - Each constraint above has at least one negative test that must fail witness generation or verification.
 - Poseidon outputs are checked against the TypeScript library on shared vectors.
 
@@ -404,6 +458,14 @@ type Proof {
 }
 ```
 
+Encoding rules for these types:
+
+- They use Aiken's default Plutus Data encoding. The constructor index is the declaration order, starting at 0.
+- Field elements are `Int`. Hashes are `ByteArray`.
+- `mpf.Proof` is the proof type of the Merkle Patricia Forestry library.
+- Every datum is an inline datum.
+- The SDK must build datums and redeemers that decode to exactly these shapes.
+
 ### 6.4 Groth16 verifier module
 
 We write a small verifier of our own. It adapts the Apache-2.0 verifiers from the Cardano Foundation and DAYZERO.
@@ -415,10 +477,17 @@ We write a small verifier of our own. It adapts the Apache-2.0 verifiers from th
 | V3 | The number of public inputs equals the number of key points minus one. |
 | V4 | The check is `e(A, B) = e(alpha, beta) * e(vk_x, gamma) * e(C, delta)`, with four Miller loops and one final verify. |
 | V5 | A public input of 0 is skipped. It adds nothing to `vk_x` and saves about 130M CPU. |
-| V6 | With 7 or more non-zero inputs the module uses the multi-scalar multiplication builtin. This needs Aiken 1.1.24 or later. |
+| V6 | Curve points never pass through `Option`, lists, tuples, or records. The module computes `vk_x` with a plain loop, not with the multi-scalar builtin. |
 
 Rule V1 matters most. Several community verifiers reduce inputs modulo `r` without a range check.
 Without V1 an attacker could reuse a note by presenting its nullifier hash plus `r`.
+A test on 2026-10-06 confirmed it: without the range check, the input `x + r` verified as valid.
+
+Rule V6 is a cost rule, measured with Aiken 1.1.24.
+Aiken stores a curve point inside a data structure as compressed bytes.
+Each wrap costs one extra compress and uncompress: about 57M CPU for a G1 point and 79M for a G2 point.
+The multi-scalar builtin needs a list of points, so it was slower than the loop in every case measured.
+Return failure with `fail` or a `Bool`, not with `Option<G1Element>`.
 
 ### 6.5 Pool validator
 
@@ -438,7 +507,7 @@ Let `m` be `flush`.
 - I1. `1 <= m + k <= INSERT_BATCH` and `m <= length(queue)`.
 - I2. If `k > 0`, deposits are not paused.
 - I3. Each deposit datum parses, and `0 < precommitment < r`.
-- I4. Each deposit amount `gross` satisfies `min_deposit <= gross <= max_deposit`.
+- I4. Each deposit amount `gross` satisfies `min_deposit <= gross <= max_deposit`. In an ADA pool, `gross` is the lovelace in the deposit UTXO. Any other token in a deposit UTXO goes to the cranker.
 - I5. `fee = gross * deposit_fee_bps / 10000`. In an ADA pool the credited value is `v = gross - fee - crank_fee`. In a token pool it is `v = gross - fee`, and the cranker keeps the deposit's ADA. `v` must be positive.
 - I6. `label` follows section 4.4 and is not 0.
 - I7. Slots are the first `m` queue entries as notes `(0, 0, commitment)`, then the deposits as `(v, label, precommitment)`, then empty slots.
@@ -610,6 +679,8 @@ Sync privacy (FR-S3): the SDK downloads leaves in pages and never asks about one
 | `POST /v1/settle` | Takes proof, public inputs, and intent. Builds, submits, and tracks the settle. |
 | `GET /v1/settle/:id` | Status and transaction hash. |
 
+Section 8.8 gives the request and response shapes.
+
 Behavior:
 
 - The relayer keeps a local copy of the pool state and chains transactions. One relayer can advance the pool several times per block.
@@ -648,11 +719,116 @@ Behavior:
 | x402 | `@x402/cardano` 2.28.x | The official package. It uses Evolution SDK inside. |
 | Proving | snarkjs 0.7.x, circom 2.2.x | Standard tools with BLS12-381 support. |
 | Chain data | Blockfrost, with Koios as fallback | Both serve mainnet. The x402 reference facilitator needs Blockfrost for confirmation depth. |
-| Contracts | Aiken 1.1.24 or later | Needed for the multi-scalar multiplication builtins. |
+| Contracts | Aiken 1.1.24 or later | The latest release. It knows the protocol version 11 cost models. |
 | Nullifier set | `aiken-lang/merkle-patricia-forestry` 2.1.0 | Proven library. License MPL-2.0. |
 
 The first M0 task confirms the transaction library with a spike that builds one Settle.
-The Merkle Patricia Forestry package targets stdlib v2. The same task confirms the stdlib pin.
+
+Pin `aiken-lang/stdlib` v4.0.0, the default for Aiken 1.1.24.
+The trie library declares stdlib v2, but it compiled and passed with v2.2.1, v3.1.0, and v4.0.0 under Aiken 1.1.24 (measured on 2026-10-06).
+Point conversion uses `@noble/curves` 2.4.0. [TEST-VECTORS.md](./TEST-VECTORS.md) section 9 pins the byte rules.
+
+### 8.7 Note lifecycle in the SDK
+
+| State | Meaning | Next state |
+|---|---|---|
+| `created` | Secrets are derived. The deposit is not on-chain yet. | `deposited` |
+| `deposited` | The deposit UTXO is confirmed and waits for Insert. | `inserted`, or `refunded` |
+| `inserted` | The commitment is in the tree. The label waits for ASP approval. | `spendable` |
+| `queued` | A change note waits in the queue. Its label is already approved. | `spendable` |
+| `spendable` | The commitment is under a root in the history, and the label is in the current ASP tree. | `spent`, or `exited` |
+| `spent` | The nullifier hash is on-chain. | none |
+| `refunded` | The depositor took the deposit back before Insert. | none |
+| `exited` | The depositor used ragequit. | none |
+
+The SDK learns the credited value and the label of a deposit from the Insert transaction that absorbs it.
+
+### 8.8 API contracts
+
+All amounts and field elements travel as decimal strings. All hashes and points travel as lowercase hex.
+
+Relayer:
+
+```text
+GET /v1/pool
+  200: { "poolId": hex56, "asset": "lovelace" | "policy.nameHex",
+         "roots": [dec], "size": number, "queue": [dec],
+         "nullifierRoot": hex64, "feesAccrued": dec, "aspRoot": dec,
+         "config": { "depositsPaused": bool, "minDeposit": dec, "maxDeposit": dec,
+                     "poolCap": dec, "depositFeeBps": number, "settleFeeBps": number,
+                     "crankFee": dec },
+         "tip": { "slot": number, "hash": hex64 } }
+
+POST /v1/quote
+  body: { "payouts": [ { "address": bech32, "amount": dec, "datumHash": hex64 | null } ] }
+  200:  { "quoteId": string, "poolId": hex56, "withdrawn": dec, "protocolFee": dec,
+          "relayerFee": dec, "relayerKeyHash": hex56, "validUntil": number }
+
+POST /v1/settle
+  body: { "quoteId": string,
+          "proof": { "a": hex96, "b": hex192, "c": hex96 },
+          "publicInputs": { "newCommitment": dec, "nullifierHash": dec, "withdrawn": dec,
+                            "stateRoot": dec, "aspRoot": dec, "context": dec },
+          "intent": { "poolId": hex56, "payouts": [ ... as in quote ... ],
+                      "relayer": hex56 | null, "validUntil": number } }
+  202:  { "id": string, "status": "submitted", "txHash": hex64 }
+
+GET /v1/settle/:id
+  200: { "id": string, "status": "submitted" | "confirmed" | "failed",
+         "txHash": hex64, "confirmations": number, "error": string | null }
+```
+
+Indexer:
+
+```text
+GET /v1/leaves?from=<index>&limit=<n>
+  200: { "from": number, "leaves": [dec], "size": number, "root": dec }
+
+GET /v1/asp/leaves?from=<index>&limit=<n>
+  200: { "from": number, "leaves": [dec], "root": dec }      a removed label is "0"
+
+GET /v1/deposits?fromSlot=<slot>
+  200: [ { "txId": hex64, "index": number, "gross": dec, "precommitment": dec,
+           "refundKeyHash": hex56, "status": "pending" | "absorbed" | "refunded",
+           "value": dec | null, "label": dec | null, "leafIndex": number | null } ]
+
+GET /v1/nullifiers?from=<position>&limit=<n>
+  200: { "from": number, "nullifiers": [dec] }
+```
+
+Errors use one shape: `{ "error": { "code": string, "message": string } }`.
+
+| Code | Meaning |
+|---|---|
+| `stale_root` | The state root is no longer in the history. Prove again. |
+| `stale_asp_root` | The ASP root changed. Prove again. |
+| `nullifier_spent` | The note is already spent. |
+| `queue_full` | The queue is full. Retry after the next Insert. |
+| `quote_expired` | The quote passed its `validUntil`. |
+| `invalid_proof` | The proof failed the relayer's local check. |
+| `intent_mismatch` | The intent does not match the quote or the public inputs. |
+| `internal` | Any other failure. |
+
+The relayer verifies every proof locally before it builds a transaction.
+
+### 8.9 Repository layout for the code
+
+```text
+circuits/        circom sources, circuit tests, build and setup scripts
+contracts/       one Aiken project: lib/zbase/* modules and validators/*
+packages/crypto  field helpers, Poseidon255 wrappers, notes, trees, encodings, point compression
+packages/txlib   transaction builders for every transaction in section 7
+packages/sdk     @zbase-cardano/core: notes, sync, prover, settle, x402 signer
+services/indexer chain follower and read API
+services/relayer quote, settle, chaining
+services/crank   insert prover and submitter
+services/asp     approval tool and root poster
+ops/             ceremony, deploy, and monitor scripts
+artifacts/       manifest of circuit, key, and script hashes
+docs/            this documentation
+```
+
+[PLAN-M0.md](./PLAN-M0.md) maps each folder to a work package.
 
 ## 9. x402 integration
 
@@ -691,7 +867,7 @@ sequenceDiagram
 
 Steps:
 
-1. The SDK computes the exact fee of the second transaction. Cardano fees are deterministic.
+1. The SDK computes the exact fee of the second transaction. Cardano fees are deterministic. It adds a small fixed buffer, 2,000 lovelace by default.
 2. Leg 1 is a Settle that pays `price + leg-2 fee` to a fresh key address `K`.
 3. Leg 2 spends that one UTXO, pays `price` to the seller, and leaves the rest as the fee. It has one input and one output.
 4. The SDK returns leg 2 through its `ClientCardanoSigner`. The nonce is the `K` UTXO.
@@ -768,6 +944,8 @@ The live cost model gives 130.4M per input. Measurements agree:
 
 Each public input costs about 1.3% of the transaction budget. Circuits keep them few.
 
+A spike verifier that wrapped points in `Option` measured 2.40B CPU with 2 inputs. Rule V6 in section 6.4 avoids that extra cost.
+
 ### 10.3 Estimates per transaction
 
 All rows are estimates. M0 replaces them with measured values.
@@ -776,7 +954,7 @@ All rows are estimates. M0 replaces them with measured values.
 |---|---|---|---|---|
 | Deposit | none | none | none | 0.17 to 0.20 ADA |
 | Insert, 4 notes | 7 | about 2.9B | 29% | 0.60 to 0.70 ADA |
-| Insert, 4 deposits | 15 | about 3.6B to 4.0B | 36% to 40% | 0.70 to 0.85 ADA |
+| Insert, 4 deposits | 15 | about 4.1B | 41% | 0.75 to 0.90 ADA |
 | Settle | 6 | about 2.9B | 29% | 0.65 to 0.80 ADA |
 | Ragequit | 4 | about 2.6B | 26% | 0.60 to 0.75 ADA |
 | Stealth leg 2 | none | none | none | 0.17 to 0.20 ADA |
@@ -830,6 +1008,7 @@ CAUTION: a pool whose setup had one contributor can be drained by that person. N
 - **Malformed deposits.** They are lost (section 6.6).
 - **Rollbacks.** Cardano finality is probabilistic. The indexer and relayer handle rollbacks and rebuild.
 - **Seed loss.** The system is non-custodial. A lost seed means lost notes.
+- **No merge or split.** A spend takes one note and makes one change note. Combining small notes needs a payout to yourself and a new deposit.
 - **Young libraries.** No Aiken proof library is audited. We keep our verifier small and test it against the rules in 6.4.
 
 ### 12.3 Audit checklist
@@ -838,7 +1017,7 @@ CAUTION: a pool whose setup had one contributor can be drained by that person. N
 2. The Poseidon parameter set and its match between circom and TypeScript.
 3. Verifier rules V1 to V6.
 4. Every validator rule in section 6, one failing test per rule.
-5. Byte-exact parity of `serialise_data` and blake2b inputs between chain and SDK.
+5. Byte-exact parity of the label and intent encodings, and of payout datum hashes, between chain and SDK.
 6. Use of the Merkle Patricia Forestry library, including key encoding.
 7. Value accounting for each redeemer, and invariants INV-1 to INV-10.
 8. Datum continuity, foreign tokens, double satisfaction, and time handling.
@@ -889,8 +1068,10 @@ Local checks still run first, because they are free and fast.
 | Hash vectors | Poseidon255 matches between circom and TypeScript. |
 | Validator tests with `aiken check` | Each rule passes and fails as specified, with real proofs as fixtures. |
 | Budget tests | Each redeemer stays under its CPU and memory target. |
-| Serialization vectors | Context and label bytes match between Aiken and the SDK. |
+| Encoding vectors | Context and label bytes match between Aiken and the SDK. |
 | Transaction builder tests | Each transaction balances and evaluates. |
+
+[TEST-PLAN.md](./TEST-PLAN.md) lists every test with its ID and the rule it covers.
 
 ### 15.2 M0 mainnet runbook
 
@@ -898,23 +1079,7 @@ CAUTION: mainnet funds are real, and deployed scripts cannot be changed. Keep th
 
 CAUTION: evaluate every transaction through the provider before you submit it. A failing script transaction that reaches a block costs the collateral.
 
-1. Freeze the three circuits and tag the commit.
-2. Run phase 2 for each circuit with three contributors, and publish the manifest.
-3. Build the validators with the keys, and record every script hash.
-4. Fund the operator wallet with 300 ADA.
-5. Publish the reference scripts. About 50 to 80 ADA stays in those UTXOs until the operator spends them (estimate).
-6. Submit Init. The seed UTXO is spent once, so a mistake here means a new deployment.
-7. Deposit 10 ADA from test wallet A.
-8. Run Insert, and confirm the note and its label match the SDK.
-9. Approve the label with an ASP update.
-10. Settle 3 ADA to a one-time key, then pay a test seller that runs the stock x402 server and facilitator.
-11. Settle again from the change note.
-12. Deposit 10 ADA from wallet B, leave it unapproved, and ragequit it.
-13. Deposit 5 ADA from wallet C, and refund it before Insert.
-14. Pause deposits, confirm in evaluation that Insert rejects a deposit, then unpause.
-15. Run the negative suite in evaluation only. Never submit a failing transaction.
-16. Record units, sizes, and fees for every transaction in `docs/measurements.md`.
-17. Run the canary for 7 days with the solvency monitor on.
+[RUNBOOK-M0.md](./RUNBOOK-M0.md) holds the step-by-step runbook. [CEREMONY.md](./CEREMONY.md) holds the setup ceremony.
 
 ### 15.3 Solvency monitor
 
@@ -940,13 +1105,13 @@ x402 on Cardano defaults to USDM. Masumi names USDCx on mainnet.
 
 ## 17. Items to verify during M0
 
-| # | Item | How |
+| # | Item | How, or status |
 |---|---|---|
 | 1 | Mesh builds a Settle with reference inputs, inline datums, collateral, and a validity bound | First-task spike |
-| 2 | Merkle Patricia Forestry 2.1.0 compiles with the pinned Aiken and stdlib | Same spike |
-| 3 | A snarkjs BLS12-381 proof verifies on-chain after point conversion, including G2 byte order | Known-answer test |
-| 4 | `serialise_data` parity between Aiken and the SDK | Shared vectors |
-| 5 | Poseidon255 parity between circom and TypeScript | Shared vectors |
+| 2 | Merkle Patricia Forestry 2.1.0 compiles with the pinned Aiken and stdlib | Verified on 2026-10-06 with Aiken 1.1.24 and stdlib v2.2.1, v3.1.0, v4.0.0 |
+| 3 | A snarkjs BLS12-381 proof verifies on-chain after point conversion, including G2 byte order | Verified on 2026-10-06 in an Aiken test. Vectors are in TEST-VECTORS section 9. A mainnet transaction is still to do |
+| 4 | Label and context encodings match between Aiken and the SDK. Payout datum hashes match too | Vectors in TEST-VECTORS.md, plus a datum hash vector in M1 |
+| 5 | Poseidon255 parity between circom and TypeScript | Verified on 2026-10-06. Vectors are in TEST-VECTORS sections 2 to 5 |
 | 6 | The powers of tau file: source, format, hash | `snarkjs powersoftau verify` |
 | 7 | Real units and fees for every transaction | Runbook step 16 |
 | 8 | Stealth leg 2 passes the TypeScript and the Java facilitator | Mainnet test with both |
@@ -975,6 +1140,10 @@ x402 on Cardano defaults to USDM. Masumi names USDCx on mainnet.
 | Foundation pool test, two spends at depth 3 | 30,661,577,061 CPU, 89,169,983 memory | Same package, `t_state_transition_two_escapes_depth3` |
 | Nullifier insert into a small trie | 9,726,776 CPU, 31,609 memory | Semaphore test `insert_nullifier` |
 | Live limits | Section 10.1 | `api.koios.rest/api/v1/epoch_params` |
+| snarkjs proof verified in Aiken 1.1.24, 2 public inputs | 2,402,366,517 CPU, 81,457 memory | Spike in `docs/research/spikes/groth16-pipeline` |
+| Same proof with input `x + r` and no range check | Verifies as valid | Same spike, control test |
+| Wrapping a curve point in `Option` | 57M extra CPU for G1, 79M for G2 | `docs/research/2026-10-06-measurements.md` section 4.2 |
+| Poseidon255 parity, circom against TypeScript | 26 of 26 checks pass | Spike in `docs/research/spikes/poseidon-vectors` |
 
 The Foundation pool test exceeds the transaction limits by about 3 times on CPU and 5 times on memory.
 That measurement is the reason for decision D3.
@@ -1034,8 +1203,8 @@ That measurement is the reason for decision D3.
 | `nullifierHashes` mapping | Merkle Patricia Forestry root in the pool datum |
 | Root history of 64 | Root history of 16 |
 | Withdraw proof with 8 public signals | Spend proof with 6. The two depth signals are gone |
-| `context = keccak256(withdrawal, scope)` | `context = blake2b_256(serialise_data(intent))`, 31 bytes |
-| `label = keccak256(scope, nonce)` | `label = blake2b_256(out_ref, refund key, pool id)`, 31 bytes |
+| `context = keccak256(withdrawal, scope)` | `context` is blake2b_256 over fixed intent bytes, first 31 bytes |
+| `label = keccak256(scope, nonce)` | `label` is blake2b_256 over pool ID, deposit reference, and refund key, first 31 bytes |
 | `depositors` mapping for ragequit | The refund key is bound into the label |
 | Ragequit proof plus on-chain leaf lookup | Ragequit proof with tree membership inside |
 | `Entrypoint.relay` with fee split | Settle. The protocol fee accrues in the pool. The rest goes to the submitter |
@@ -1056,3 +1225,11 @@ That measurement is the reason for decision D3.
 6. The notes used invented `@x402/cardano` names. The real integration point is `ClientCardanoSigner` and the `PAYMENT-SIGNATURE` header.
 7. The notes gave two different commitment formulas. The formula is `H3(value, label, H2(nullifier, secret))`.
 8. The notes claimed a first for privacy on Cardano. Seedelf and Lovejoin are live on mainnet. The claim must stay narrow: compliant, any-amount, and x402-native.
+
+## Revision history
+
+| Version | Date | Change |
+|---|---|---|
+| 0.1 | 2026-10-06 | First draft. |
+| 0.1.1 | 2026-10-06 | Corrected the Poseidon builtin registry claim. |
+| 1.0 | 2026-10-06 | Owner approved. Label and context now use explicit byte encodings instead of `serialise_data`. Added encoding conventions, key derivation strings, note lifecycle, API contracts, and code layout. Moved the runbook to its own file. |

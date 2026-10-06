@@ -1,0 +1,381 @@
+{
+  "seed": 3573051226,
+  "summary": {
+    "total": 33,
+    "passed": 33,
+    "failed": 0,
+    "kind": {
+      "unit": 33,
+      "property": 0
+    }
+  },
+  "modules": [
+    {
+      "name": "f5/groth16_batch",
+      "summary": {
+        "total": 7,
+        "passed": 7,
+        "failed": 0,
+        "kind": {
+          "unit": 7,
+          "property": 0
+        }
+      },
+      "tests": [
+        {
+          "title": "t_single_verify_still_works",
+          "status": "pass",
+          "on_failure": "fail_immediately",
+          "execution_units": {
+            "mem": 45891,
+            "cpu": 2139202479
+          }
+        },
+        {
+          "title": "t_batch_one_valid_proof",
+          "status": "pass",
+          "on_failure": "fail_immediately",
+          "execution_units": {
+            "mem": 96717,
+            "cpu": 2231850128
+          }
+        },
+        {
+          "title": "t_batch_one_valid_proof_wrong_input",
+          "status": "pass",
+          "on_failure": "fail_immediately",
+          "execution_units": {
+            "mem": 97218,
+            "cpu": 2232006177
+          }
+        },
+        {
+          "title": "t_batch_two_proofs_rejects_tampered_c",
+          "status": "pass",
+          "on_failure": "fail_immediately",
+          "execution_units": {
+            "mem": 157507,
+            "cpu": 3179388324
+          }
+        },
+        {
+          "title": "t_batch_two_proofs_rejects_tampered_factor_at_head",
+          "status": "pass",
+          "on_failure": "fail_immediately",
+          "execution_units": {
+            "mem": 157507,
+            "cpu": 3179388324
+          }
+        },
+        {
+          "title": "t_batch_empty_is_rejected",
+          "status": "pass",
+          "on_failure": "fail_immediately",
+          "execution_units": {
+            "mem": 9153,
+            "cpu": 54725647
+          }
+        },
+        {
+          "title": "t_batch_length_mismatch_is_rejected",
+          "status": "pass",
+          "on_failure": "fail_immediately",
+          "execution_units": {
+            "mem": 15686,
+            "cpu": 56475299
+          }
+        }
+      ]
+    },
+    {
+      "name": "f5/merkle",
+      "summary": {
+        "total": 10,
+        "passed": 10,
+        "failed": 0,
+        "kind": {
+          "unit": 10,
+          "property": 0
+        }
+      },
+      "tests": [
+        {
+          "title": "t_default_h1",
+          "status": "pass",
+          "on_failure": "fail_immediately",
+          "execution_units": {
+            "mem": 3697132,
+            "cpu": 1271557067
+          }
+        },
+        {
+          "title": "t_defaults_depth2",
+          "status": "pass",
+          "on_failure": "fail_immediately",
+          "execution_units": {
+            "mem": 14795079,
+            "cpu": 5090401563
+          }
+        },
+        {
+          "title": "t_default_root_depth2",
+          "status": "pass",
+          "on_failure": "fail_immediately",
+          "execution_units": {
+            "mem": 7403989,
+            "cpu": 2546149557
+          }
+        },
+        {
+          "title": "t_path_dirs",
+          "status": "pass",
+          "on_failure": "fail_immediately",
+          "execution_units": {
+            "mem": 72195,
+            "cpu": 28616497
+          }
+        },
+        {
+          "title": "t_reconstruct_leaf_only",
+          "status": "pass",
+          "on_failure": "fail_immediately",
+          "execution_units": {
+            "mem": 10353,
+            "cpu": 2414678
+          }
+        },
+        {
+          "title": "t_golden_reconstruct_old_root_index3",
+          "status": "pass",
+          "on_failure": "fail_immediately",
+          "execution_units": {
+            "mem": 7427413,
+            "cpu": 2552997064
+          }
+        },
+        {
+          "title": "t_golden_insert_11_at_index3",
+          "status": "pass",
+          "on_failure": "fail_immediately",
+          "execution_units": {
+            "mem": 14853023,
+            "cpu": 5107013167
+          }
+        },
+        {
+          "title": "t_insert_rejects_tampered_path",
+          "status": "pass",
+          "on_failure": "fail_immediately",
+          "execution_units": {
+            "mem": 7429615,
+            "cpu": 2554363642
+          }
+        },
+        {
+          "title": "t_insert_rejects_wrong_index",
+          "status": "pass",
+          "on_failure": "fail_immediately",
+          "execution_units": {
+            "mem": 7429615,
+            "cpu": 2554432377
+          }
+        },
+        {
+          "title": "t_golden_depth3_insert_13_at_index4",
+          "status": "pass",
+          "on_failure": "fail_immediately",
+          "execution_units": {
+            "mem": 37094409,
+            "cpu": 12755860435
+          }
+        }
+      ]
+    },
+    {
+      "name": "f5/note",
+      "summary": {
+        "total": 6,
+        "passed": 6,
+        "failed": 0,
+        "kind": {
+          "unit": 6,
+          "property": 0
+        }
+      },
+      "tests": [
+        {
+          "title": "t_golden_nullifier_hash_42",
+          "status": "pass",
+          "on_failure": "fail_immediately",
+          "execution_units": {
+            "mem": 3696828,
+            "cpu": 1271423219
+          }
+        },
+        {
+          "title": "t_golden_nullifier_hash_7",
+          "status": "pass",
+          "on_failure": "fail_immediately",
+          "execution_units": {
+            "mem": 3696828,
+            "cpu": 1271423219
+          }
+        },
+        {
+          "title": "t_golden_note_commitment_42_100_7",
+          "status": "pass",
+          "on_failure": "fail_immediately",
+          "execution_units": {
+            "mem": 7392863,
+            "cpu": 2542920762
+          }
+        },
+        {
+          "title": "t_golden_note_commitment_7_200_8",
+          "status": "pass",
+          "on_failure": "fail_immediately",
+          "execution_units": {
+            "mem": 7392863,
+            "cpu": 2542920762
+          }
+        },
+        {
+          "title": "t_note_commitment_distinguishes_blinding",
+          "status": "pass",
+          "on_failure": "fail_immediately",
+          "execution_units": {
+            "mem": 14783826,
+            "cpu": 5085575466
+          }
+        },
+        {
+          "title": "t_note_commitment_distinguishes_nullifier",
+          "status": "pass",
+          "on_failure": "fail_immediately",
+          "execution_units": {
+            "mem": 14783826,
+            "cpu": 5085575466
+          }
+        }
+      ]
+    },
+    {
+      "name": "f5/pool",
+      "summary": {
+        "total": 6,
+        "passed": 6,
+        "failed": 0,
+        "kind": {
+          "unit": 6,
+          "property": 0
+        }
+      },
+      "tests": [
+        {
+          "title": "t_state_transition_two_escapes_depth3",
+          "status": "pass",
+          "on_failure": "fail_immediately",
+          "execution_units": {
+            "mem": 89169983,
+            "cpu": 30661577061
+          }
+        },
+        {
+          "title": "t_transition_rejects_double_spend",
+          "status": "pass",
+          "on_failure": "fail_immediately",
+          "execution_units": {
+            "mem": 24860,
+            "cpu": 7352550
+          }
+        },
+        {
+          "title": "t_transition_rejects_duplicate_nullifier_in_batch",
+          "status": "pass",
+          "on_failure": "fail_immediately",
+          "execution_units": {
+            "mem": 44590643,
+            "cpu": 15332763968
+          }
+        },
+        {
+          "title": "t_transition_rejects_tampered_second_path",
+          "status": "pass",
+          "on_failure": "fail_immediately",
+          "execution_units": {
+            "mem": 33431213,
+            "cpu": 11495474623
+          }
+        },
+        {
+          "title": "t_value_rule_preserves_principal",
+          "status": "pass",
+          "on_failure": "fail_immediately",
+          "execution_units": {
+            "mem": 1802,
+            "cpu": 424198
+          }
+        },
+        {
+          "title": "t_check_batch_rejects_empty",
+          "status": "pass",
+          "on_failure": "fail_immediately",
+          "execution_units": {
+            "mem": 12552,
+            "cpu": 56148529
+          }
+        }
+      ]
+    },
+    {
+      "name": "f5/poseidon",
+      "summary": {
+        "total": 4,
+        "passed": 4,
+        "failed": 0,
+        "kind": {
+          "unit": 4,
+          "property": 0
+        }
+      },
+      "tests": [
+        {
+          "title": "poseidon_hashes_zero_zero",
+          "status": "pass",
+          "on_failure": "fail_immediately",
+          "execution_units": {
+            "mem": 3697132,
+            "cpu": 1271557067
+          }
+        },
+        {
+          "title": "poseidon_hashes_one_two",
+          "status": "pass",
+          "on_failure": "fail_immediately",
+          "execution_units": {
+            "mem": 3696424,
+            "cpu": 1271273371
+          }
+        },
+        {
+          "title": "poseidon_reduces_inputs_mod_p",
+          "status": "pass",
+          "on_failure": "fail_immediately",
+          "execution_units": {
+            "mem": 7392763,
+            "cpu": 2542973497
+          }
+        },
+        {
+          "title": "poseidon_is_not_additive",
+          "status": "pass",
+          "on_failure": "fail_immediately",
+          "execution_units": {
+            "mem": 7393264,
+            "cpu": 2542992076
+          }
+        }
+      ]
+    }
+  ]
+}

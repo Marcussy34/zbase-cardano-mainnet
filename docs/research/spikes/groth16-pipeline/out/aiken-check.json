@@ -1,0 +1,166 @@
+{
+  "seed": 3556923528,
+  "summary": {
+    "total": 15,
+    "passed": 15,
+    "failed": 0,
+    "kind": {
+      "unit": 15,
+      "property": 0
+    }
+  },
+  "modules": [
+    {
+      "name": "spike/groth16_test",
+      "summary": {
+        "total": 15,
+        "passed": 15,
+        "failed": 0,
+        "kind": {
+          "unit": 15,
+          "property": 0
+        }
+      },
+      "tests": [
+        {
+          "title": "valid_proof_1",
+          "status": "pass",
+          "on_failure": "fail_immediately",
+          "execution_units": {
+            "mem": 81457,
+            "cpu": 2402366517
+          }
+        },
+        {
+          "title": "valid_proof_2",
+          "status": "pass",
+          "on_failure": "fail_immediately",
+          "execution_units": {
+            "mem": 80403,
+            "cpu": 2271854186
+          }
+        },
+        {
+          "title": "tampered_proof_fails",
+          "status": "pass",
+          "on_failure": "fail_immediately",
+          "execution_units": {
+            "mem": 86642,
+            "cpu": 2404114076
+          }
+        },
+        {
+          "title": "wrong_public_input_fails",
+          "status": "pass",
+          "on_failure": "fail_immediately",
+          "execution_units": {
+            "mem": 83822,
+            "cpu": 2402955290
+          }
+        },
+        {
+          "title": "aliased_input_fails",
+          "status": "pass",
+          "on_failure": "fail_immediately",
+          "execution_units": {
+            "mem": 11966,
+            "cpu": 2648658
+          }
+        },
+        {
+          "title": "aliased_input_control_without_v1",
+          "status": "pass",
+          "on_failure": "fail_immediately",
+          "execution_units": {
+            "mem": 70924,
+            "cpu": 2399561250
+          }
+        },
+        {
+          "title": "msm_path_matches",
+          "status": "pass",
+          "on_failure": "fail_immediately",
+          "execution_units": {
+            "mem": 526911,
+            "cpu": 12252343657
+          }
+        },
+        {
+          "title": "valid_proof_1_msm",
+          "status": "pass",
+          "on_failure": "fail_immediately",
+          "execution_units": {
+            "mem": 111819,
+            "cpu": 2819520567
+          }
+        },
+        {
+          "title": "valid_proof_2_msm",
+          "status": "pass",
+          "on_failure": "fail_immediately",
+          "execution_units": {
+            "mem": 102529,
+            "cpu": 2683395546
+          }
+        },
+        {
+          "title": "infinity_proof_point_fails",
+          "status": "pass",
+          "on_failure": "fail_immediately",
+          "execution_units": {
+            "mem": 48125,
+            "cpu": 329570061
+          }
+        },
+        {
+          "title": "wrong_length_proof_point_fails",
+          "status": "pass",
+          "on_failure": "fail_immediately",
+          "execution_units": {
+            "mem": 70279,
+            "cpu": 475725306
+          }
+        },
+        {
+          "title": "invalid_point_bytes_error",
+          "status": "pass",
+          "on_failure": "succeed_eventually",
+          "execution_units": {
+            "mem": 41976,
+            "cpu": 381171269
+          },
+          "traces": [
+            "blst error BLST_POINT_NOT_IN_GROUP"
+          ]
+        },
+        {
+          "title": "input_count_mismatch_fails",
+          "status": "pass",
+          "on_failure": "fail_immediately",
+          "execution_units": {
+            "mem": 27310,
+            "cpu": 190583420
+          }
+        },
+        {
+          "title": "msm_reduces_scalars_mod_r",
+          "status": "pass",
+          "on_failure": "fail_immediately",
+          "execution_units": {
+            "mem": 28455,
+            "cpu": 865897283
+          }
+        },
+        {
+          "title": "msm_ignores_extra_elements",
+          "status": "pass",
+          "on_failure": "fail_immediately",
+          "execution_units": {
+            "mem": 28763,
+            "cpu": 1000192810
+          }
+        }
+      ]
+    }
+  ]
+}

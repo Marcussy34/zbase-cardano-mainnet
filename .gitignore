@@ -20,3 +20,6 @@ coverage/
 .serena/
 .firecrawl/
 .codebase-memory/
+
+# spike tool downloads
+docs/research/spikes/**/tools/

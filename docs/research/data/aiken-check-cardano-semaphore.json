@@ -1,0 +1,406 @@
+{
+  "seed": 1605295271,
+  "summary": {
+    "total": 32,
+    "passed": 31,
+    "failed": 1,
+    "kind": {
+      "unit": 32,
+      "property": 0
+    }
+  },
+  "modules": [
+    {
+      "name": "tests/group_test",
+      "summary": {
+        "total": 7,
+        "passed": 7,
+        "failed": 0,
+        "kind": {
+          "unit": 7,
+          "property": 0
+        }
+      },
+      "tests": [
+        {
+          "title": "mint_create_group_1",
+          "status": "pass",
+          "on_failure": "fail_immediately",
+          "execution_units": {
+            "mem": 83669,
+            "cpu": 28216980
+          }
+        },
+        {
+          "title": "mint_wrong_minted_value",
+          "status": "pass",
+          "on_failure": "succeed_eventually",
+          "execution_units": {
+            "mem": 71392,
+            "cpu": 23162166
+          }
+        },
+        {
+          "title": "mint_sent_to_wrong_address",
+          "status": "pass",
+          "on_failure": "succeed_eventually",
+          "execution_units": {
+            "mem": 63895,
+            "cpu": 21509609
+          },
+          "traces": [
+            "the validator crashed / exited prematurely",
+            "expect [output_to_script] = list.filter(outputs, fn (o) { o.address.payment_credential == own_script_credential })"
+          ]
+        },
+        {
+          "title": "spend_update_group_1",
+          "status": "pass",
+          "on_failure": "fail_immediately",
+          "execution_units": {
+            "mem": 135500,
+            "cpu": 43335844
+          }
+        },
+        {
+          "title": "spend_malicious_pkh",
+          "status": "pass",
+          "on_failure": "succeed_eventually",
+          "execution_units": {
+            "mem": 127447,
+            "cpu": 39291211
+          }
+        },
+        {
+          "title": "spend_wrong_address",
+          "status": "pass",
+          "on_failure": "succeed_eventually",
+          "execution_units": {
+            "mem": 106850,
+            "cpu": 35434211
+          },
+          "traces": [
+            "the validator crashed / exited prematurely",
+            "expect [output_to_script] = list.filter(outputs, fn (o) { o.address == this_script_address })"
+          ]
+        },
+        {
+          "title": "spend_value_not_conserved",
+          "status": "pass",
+          "on_failure": "succeed_eventually",
+          "execution_units": {
+            "mem": 117928,
+            "cpu": 37996407
+          }
+        }
+      ]
+    },
+    {
+      "name": "tests/mpf_proofs",
+      "summary": {
+        "total": 1,
+        "passed": 1,
+        "failed": 0,
+        "kind": {
+          "unit": 1,
+          "property": 0
+        }
+      },
+      "tests": [
+        {
+          "title": "insert_nullifier",
+          "status": "pass",
+          "on_failure": "succeed_eventually",
+          "execution_units": {
+            "mem": 31609,
+            "cpu": 9726776
+          }
+        }
+      ]
+    },
+    {
+      "name": "tests/semaphore_test",
+      "summary": {
+        "total": 16,
+        "passed": 15,
+        "failed": 1,
+        "kind": {
+          "unit": 16,
+          "property": 0
+        }
+      },
+      "tests": [
+        {
+          "title": "i_serialised",
+          "status": "pass",
+          "on_failure": "succeed_eventually",
+          "execution_units": {
+            "mem": 200,
+            "cpu": 16100
+          }
+        },
+        {
+          "title": "mint_create_semaphore_token_1",
+          "status": "pass",
+          "on_failure": "fail_immediately",
+          "execution_units": {
+            "mem": 211049,
+            "cpu": 64560928
+          }
+        },
+        {
+          "title": "mint_wrong_value",
+          "status": "pass",
+          "on_failure": "succeed_eventually",
+          "execution_units": {
+            "mem": 204765,
+            "cpu": 62343038
+          }
+        },
+        {
+          "title": "mint_wrong_address",
+          "status": "pass",
+          "on_failure": "succeed_eventually",
+          "execution_units": {
+            "mem": 106273,
+            "cpu": 33208847
+          },
+          "traces": [
+            "the validator crashed / exited prematurely",
+            "expect [output_to_script] =\n          list.filter(\n            outputs,\n            fn(o) { o.address.payment_credential == own_script_credential },\n          )"
+          ]
+        },
+        {
+          "title": "mint_group_root_tamper",
+          "status": "pass",
+          "on_failure": "succeed_eventually",
+          "execution_units": {
+            "mem": 211049,
+            "cpu": 64560928
+          }
+        },
+        {
+          "title": "mint_no_datum",
+          "status": "pass",
+          "on_failure": "succeed_eventually",
+          "execution_units": {
+            "mem": 127047,
+            "cpu": 39186601
+          },
+          "traces": [
+            "the validator crashed / exited prematurely",
+            "expect InlineDatum(out_datum) = output_to_script.datum"
+          ]
+        },
+        {
+          "title": "mint_mpf_root_wrong_setup",
+          "status": "pass",
+          "on_failure": "succeed_eventually",
+          "execution_units": {
+            "mem": 207559,
+            "cpu": 63292833
+          }
+        },
+        {
+          "title": "snark_1",
+          "status": "pass",
+          "on_failure": "fail_immediately",
+          "execution_units": {
+            "mem": 45781,
+            "cpu": 2399758405
+          }
+        },
+        {
+          "title": "spend_signal_semaphore_1",
+          "status": "fail",
+          "on_failure": "fail_immediately",
+          "execution_units": {
+            "mem": 148648,
+            "cpu": 50481464
+          },
+          "traces": [
+            "the validator crashed / exited prematurely",
+            "expect Some(snark_vkey_ref_input) =\n          find_input(reference_inputs, dat.vkey_ref_input)"
+          ]
+        },
+        {
+          "title": "spend_value_not_sent_back",
+          "status": "pass",
+          "on_failure": "succeed_eventually",
+          "execution_units": {
+            "mem": 84850,
+            "cpu": 26861442
+          },
+          "traces": [
+            "the validator crashed / exited prematurely",
+            "expect [output_to_script] =\n          list.filter(outputs, fn(o) { o.address == this_script_address })"
+          ]
+        },
+        {
+          "title": "spend_datum_not_preserved_1",
+          "status": "pass",
+          "on_failure": "succeed_eventually",
+          "execution_units": {
+            "mem": 128005,
+            "cpu": 44366529
+          },
+          "traces": [
+            "the validator crashed / exited prematurely",
+            "expect Some(snark_vkey_ref_input) =\n          find_input(reference_inputs, dat.vkey_ref_input)"
+          ]
+        },
+        {
+          "title": "spend_datum_not_preserved_2",
+          "status": "pass",
+          "on_failure": "succeed_eventually",
+          "execution_units": {
+            "mem": 128263,
+            "cpu": 45006870
+          },
+          "traces": [
+            "the validator crashed / exited prematurely",
+            "expect Some(snark_vkey_ref_input) =\n          find_input(reference_inputs, dat.vkey_ref_input)"
+          ]
+        },
+        {
+          "title": "spend_vkey_field_with_incorrect_value",
+          "status": "pass",
+          "on_failure": "succeed_eventually",
+          "execution_units": {
+            "mem": 149355,
+            "cpu": 51786279
+          },
+          "traces": [
+            "the validator crashed / exited prematurely",
+            "expect Some(snark_vkey_ref_input) =\n          find_input(reference_inputs, dat.vkey_ref_input)"
+          ]
+        },
+        {
+          "title": "spend_incorrect_zk_proof",
+          "status": "pass",
+          "on_failure": "succeed_eventually",
+          "execution_units": {
+            "mem": 148648,
+            "cpu": 50481464
+          },
+          "traces": [
+            "the validator crashed / exited prematurely",
+            "expect Some(snark_vkey_ref_input) =\n          find_input(reference_inputs, dat.vkey_ref_input)"
+          ]
+        },
+        {
+          "title": "spend_nullifier_already_inserted",
+          "status": "pass",
+          "on_failure": "succeed_eventually",
+          "execution_units": {
+            "mem": 148648,
+            "cpu": 50481464
+          },
+          "traces": [
+            "the validator crashed / exited prematurely",
+            "expect Some(snark_vkey_ref_input) =\n          find_input(reference_inputs, dat.vkey_ref_input)"
+          ]
+        },
+        {
+          "title": "spend_tampered_message",
+          "status": "pass",
+          "on_failure": "succeed_eventually",
+          "execution_units": {
+            "mem": 148648,
+            "cpu": 50481464
+          },
+          "traces": [
+            "the validator crashed / exited prematurely",
+            "expect Some(snark_vkey_ref_input) =\n          find_input(reference_inputs, dat.vkey_ref_input)"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "tests/test_utilities",
+      "summary": {
+        "total": 8,
+        "passed": 8,
+        "failed": 0,
+        "kind": {
+          "unit": 8,
+          "property": 0
+        }
+      },
+      "tests": [
+        {
+          "title": "check_policy_1",
+          "status": "pass",
+          "on_failure": "fail_immediately",
+          "execution_units": {
+            "mem": 48897,
+            "cpu": 12879157
+          }
+        },
+        {
+          "title": "check_policy_2",
+          "status": "pass",
+          "on_failure": "fail_immediately",
+          "execution_units": {
+            "mem": 48897,
+            "cpu": 12879157
+          }
+        },
+        {
+          "title": "check_policy_3",
+          "status": "pass",
+          "on_failure": "fail_immediately",
+          "execution_units": {
+            "mem": 42005,
+            "cpu": 10997707
+          }
+        },
+        {
+          "title": "check_policy_4",
+          "status": "pass",
+          "on_failure": "fail_immediately",
+          "execution_units": {
+            "mem": 93684,
+            "cpu": 25377436
+          }
+        },
+        {
+          "title": "check_policy_5",
+          "status": "pass",
+          "on_failure": "fail_immediately",
+          "execution_units": {
+            "mem": 165960,
+            "cpu": 46095299
+          }
+        },
+        {
+          "title": "check_policy_6",
+          "status": "pass",
+          "on_failure": "succeed_eventually",
+          "execution_units": {
+            "mem": 167524,
+            "cpu": 46549956
+          }
+        },
+        {
+          "title": "check_policy_7",
+          "status": "pass",
+          "on_failure": "succeed_eventually",
+          "execution_units": {
+            "mem": 45898,
+            "cpu": 12151849
+          }
+        },
+        {
+          "title": "check_policy_8",
+          "status": "pass",
+          "on_failure": "succeed_eventually",
+          "execution_units": {
+            "mem": 49660,
+            "cpu": 13129765
+          }
+        }
+      ]
+    }
+  ]
+}

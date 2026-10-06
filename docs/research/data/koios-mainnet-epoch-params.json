@@ -1,0 +1,22 @@
+{
+  "epoch_no": 659,
+  "protocol_major": 11,
+  "protocol_minor": 0,
+  "max_tx_ex_mem": 16500000,
+  "max_tx_ex_steps": 10000000000,
+  "max_block_ex_mem": 72000000,
+  "max_block_ex_steps": 20000000000,
+  "max_tx_size": 16384,
+  "max_block_size": 90112,
+  "max_val_size": 5000,
+  "min_fee_a": 44,
+  "min_fee_b": 155381,
+  "price_mem": 0.0577,
+  "price_step": 7.21e-05,
+  "coins_per_utxo_size": "4310",
+  "collateral_percent": 150,
+  "max_collateral_inputs": 3,
+  "min_fee_ref_script_cost_per_byte": 15,
+  "_source": "https://api.koios.rest/api/v1/epoch_params?limit=1",
+  "_fetched": "2026-10-06"
+}

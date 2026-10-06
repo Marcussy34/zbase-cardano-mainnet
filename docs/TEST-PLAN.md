@@ -1,0 +1,242 @@
+# zBase Cardano: Test Plan
+
+| Field | Value |
+|---|---|
+| Status | v1.0, 2026-10-06 |
+| Covers | Release M0 (mainnet canary) |
+| Companions | [SPEC.md](./SPEC.md), [TEST-VECTORS.md](./TEST-VECTORS.md), [PLAN-M0.md](./PLAN-M0.md), [RUNBOOK-M0.md](./RUNBOOK-M0.md) |
+
+Every rule in the Spec has at least one test that passes when the rule holds and one that fails when it is broken.
+Test IDs are stable. Use them in test names, commit messages, and reviews.
+
+## 1. Rules for writing these tests
+
+- Write the failing test first. Watch it fail. Then write the code.
+- A negative test must fail for the stated reason. Check the reason, not only the failure.
+- Validator tests use real proofs as fixtures. A mocked verifier hides real bugs.
+- Each negative validator test changes one thing from a passing transaction.
+- Never weaken a test to make it pass. Fix the code or fix the Spec.
+
+## 2. Layers
+
+| Layer | Tool | Runs where | Network |
+|---|---|---|---|
+| Crypto library | Node test runner | `packages/crypto` | None |
+| Circuits | circom, snarkjs, Node test runner | `circuits` | None |
+| Validators | `aiken check` | `contracts` | None |
+| Transaction builders | Node test runner, provider evaluation | `packages/txlib` | Mainnet read only |
+| Services and SDK | Node test runner | `services/*`, `packages/sdk` | None, with a fake chain |
+| End to end | The runbook | Mainnet | Mainnet, capped funds |
+
+## 3. Crypto library (`CRY`)
+
+| ID | Test | Source of truth |
+|---|---|---|
+| CRY-01 | `h1`, `h2`, `h3` match the known answers | TEST-VECTORS section 2 |
+| CRY-02 | `ZERO_HASHES[0..32]` match, and `ZERO_HASHES[32]` is the empty root | TEST-VECTORS section 3 |
+| CRY-03 | The note example gives the listed precommitment, commitment, and nullifier hash | TEST-VECTORS section 4 |
+| CRY-04 | Tree roots and paths match for the one-leaf and two-leaf examples | TEST-VECTORS section 5 |
+| CRY-05 | `labelFor` matches both label vectors | TEST-VECTORS section 6 |
+| CRY-06 | `intentBytes` and `contextFor` match both context vectors | TEST-VECTORS section 7 |
+| CRY-07 | `nullifierKey` gives 32 big-endian bytes for both vectors | TEST-VECTORS section 8 |
+| CRY-08 | `proofToCardano` and `vkToCardano` give the listed compressed bytes | TEST-VECTORS section 9 |
+| CRY-09 | Key derivation is deterministic, and different indexes give different secrets | SPEC 4.7 |
+| CRY-10 | Every encoder rejects out-of-range input: amount of 2^64, index of 2^32, wrong hash length, pointer address | SPEC 4.8 |
+
+## 4. Circuits (`CIR`)
+
+One positive test per circuit, then one negative test per constraint. Numbers follow SPEC section 5.
+
+| ID | Circuit | Test |
+|---|---|---|
+| CIR-P01 | all | Poseidon255 in circom equals the TypeScript library on the shared vectors |
+| CIR-O01 | all | The generated public signal order file matches SPEC 5.1, 5.2, 5.3 |
+| CIR-S00 | spend | A valid partial spend and a valid full spend both prove and verify |
+| CIR-S01 | spend | A wrong `existingValue`, `label`, or secret breaks the commitment and fails |
+| CIR-S02 | spend | A wrong state path or a wrong `stateRoot` fails |
+| CIR-S03 | spend | A label that is not in the ASP tree fails |
+| CIR-S04 | spend | `label = 0` fails, even with a path to an empty ASP leaf |
+| CIR-S05 | spend | A `nullifierHash` that does not match the nullifier fails |
+| CIR-S06 | spend | `withdrawnValue` above `existingValue` fails |
+| CIR-S07 | spend | A value of 2^64 or more fails the range check |
+| CIR-S08 | spend | A `newCommitment` with a wrong remaining value or label fails |
+| CIR-S09 | spend | `newNullifier` equal to `existingNullifier` fails |
+| CIR-S10 | spend | The same witness with a different `context` gives a proof that fails under the first context |
+| CIR-I00 | insert | Valid batches prove: 1 note, 4 notes, 1 deposit, 4 deposits, 2 notes then 2 deposits |
+| CIR-I01 | insert | A gap in the used slots fails. An empty slot 0 fails |
+| CIR-I02 | insert | An empty slot with a non-zero `v` or `l` fails |
+| CIR-I03 | insert | A note slot with a non-zero `v` fails |
+| CIR-I04 | insert | A deposit `v` of 2^64 or more fails |
+| CIR-I05 | insert | A deposit leaf that is not `H3(v, l, x)` gives a different root, so the claimed `newRoot` fails |
+| CIR-I06 | insert | A path whose slot is not empty under the running root fails |
+| CIR-I07 | insert | A wrong `startIndex` fails |
+| CIR-I08 | insert | A wrong `newRoot` fails |
+| CIR-R00 | ragequit | A valid proof verifies |
+| CIR-R01 | ragequit | A wrong `value` or `label` fails |
+| CIR-R02 | ragequit | A wrong path or root fails |
+| CIR-R03 | ragequit | A wrong `nullifierHash` fails |
+
+## 5. Verifier module (`VER`)
+
+| ID | Rule | Test |
+|---|---|---|
+| VER-00 | V4 | Both proofs from TEST-VECTORS section 9 verify |
+| VER-01 | V1 | A public input of `x + r` is rejected. A negative input is rejected |
+| VER-02 | V2 | A point of the wrong length, a non-canonical point, and the point at infinity are each rejected |
+| VER-03 | V3 | One input too few and one input too many are each rejected |
+| VER-04 | V4 | A tampered proof and a wrong public input are each rejected |
+| VER-05 | V5 | A proof with a zero public input verifies, and the zero input costs no scalar multiplication |
+| VER-06 | V6 | Verifying the 2-input vector costs at most 2.2B CPU. This fails when a curve point passes through an `Option` or a list |
+
+## 6. On-chain encodings (`ENC`)
+
+| ID | Test |
+|---|---|
+| ENC-01 | `label` in Aiken matches both label vectors |
+| ENC-02 | `context` in Aiken matches both context vectors |
+| ENC-03 | `nullifier_key` in Aiken matches both vectors |
+| ENC-04 | `context` fails on a payout address with a pointer stake credential |
+| ENC-05 | `context` fails on an amount of 2^64 or more and on a datum hash that is not 32 bytes |
+
+## 7. Pool validator (`POOL`)
+
+Each ID is `POOL-` plus the rule number from SPEC 6.5. Each row is one negative test unless marked.
+
+| ID | Test |
+|---|---|
+| POOL-I0 | Positive: Insert of notes, of deposits, and of a mix all pass |
+| POOL-S0 | Positive: a partial settle, a full settle, and a settle with four payouts all pass |
+| POOL-R0 | Positive: a ragequit of a deposit note and of a change note both pass |
+| POOL-C0 | Positive: CollectFees of part and of all accrued fees pass |
+| POOL-P1 | The validator's own input lacks the pool NFT |
+| POOL-P2 | Output 0 has another address, or lacks the NFT |
+| POOL-P3 | The continuing output carries a foreign token |
+| POOL-P4 | The continuing datum differs in any one field |
+| POOL-P5 | The config reference input is missing, or carries a fake NFT |
+| POOL-I1 | Zero slots, five slots, or `flush` above the queue length |
+| POOL-I2 | A deposit is absorbed while deposits are paused |
+| POOL-I3 | A deposit has a bad datum, a precommitment of 0, or a precommitment of `r` |
+| POOL-I4 | A deposit is below the minimum or above the maximum |
+| POOL-I5 | The credited value is wrong by 1 lovelace |
+| POOL-I6 | A label is computed from a wrong reference, refund key, or pool ID |
+| POOL-I7 | Slots are in the wrong order, or a note sits after a deposit |
+| POOL-I8 | The old root or the size passed to the proof is wrong |
+| POOL-I9 | The proof is invalid |
+| POOL-I10 | The new datum drops a wrong number of queue entries, or the root history exceeds 16 |
+| POOL-I11 | The pool balance grows by more or less than the credited sum |
+| POOL-I12 | The pool cap is exceeded |
+| POOL-S1 | A deposit input is present |
+| POOL-S2 | The state root is not in the history |
+| POOL-S3 | The ASP reference input is missing, fake, or holds another root |
+| POOL-S4 | `withdrawn` is 0 or 2^64, or `new_commitment` is 0, or an input is `x + r` |
+| POOL-S5 | The pool ID in the intent is wrong, or the payout list is empty or has five entries |
+| POOL-S6 | The context is computed from a different intent |
+| POOL-S7 | The proof is invalid |
+| POOL-S8 | The nullifier hash is already in the set, or the nullifier proof is wrong |
+| POOL-S9 | The queue is full, or the new commitment is not appended |
+| POOL-S10 | A payout goes to another address, pays 1 lovelace less or more, has a wrong datum, or carries a reference script |
+| POOL-S11 | Payouts plus the protocol fee exceed `withdrawn` |
+| POOL-S12 | The pool balance falls by a wrong amount, or `fees_accrued` is wrong |
+| POOL-S13 | The validity bound is missing or later than `valid_until` |
+| POOL-S14 | A relayer is named but did not sign |
+| POOL-S15 | `roots` or `size` changes |
+| POOL-R1 | A deposit input is present |
+| POOL-R2 | The state root is not in the history |
+| POOL-R3 | The refund key did not sign, or the label comes from another reference |
+| POOL-R4 | `value` is 0 or 2^64 |
+| POOL-R5 | The proof is invalid |
+| POOL-R6 | The nullifier hash is already in the set |
+| POOL-R7 | The pool balance falls by more than `value` |
+| POOL-R8 | Any other datum field changes |
+| POOL-C1 | A deposit input is present |
+| POOL-C2 | `amount` is 0 or above `fees_accrued` |
+| POOL-C3 | The treasury output is missing or too small |
+| POOL-C4 | The pool balance or `fees_accrued` falls by a wrong amount |
+
+## 8. Other validators
+
+| ID | Test |
+|---|---|
+| DEP-01 | Absorb fails when no input holds the pool NFT |
+| DEP-02 | Refund fails without the refund key signature, and passes with it |
+| DEP-03 | A deposit cannot be spent in a transaction that runs Settle, Ragequit, or CollectFees |
+| CFG-01 | A config update fails below the admin threshold |
+| CFG-02 | A config update fails when a fee or the crank fee exceeds its hard cap |
+| CFG-03 | A config update fails when the NFT leaves the config address |
+| ASP-01 | An ASP update fails below the operator threshold |
+| ASP-02 | An ASP update fails with a root of `r` or more |
+| ASP-03 | An ASP update fails when the NFT leaves the ASP address |
+| NFT-01 | Minting fails when the seed UTXO is not spent |
+| NFT-02 | Minting fails unless exactly the three NFTs are minted, one of each |
+
+## 9. Budgets (`BUD`)
+
+Each test asserts an upper bound on CPU and memory for a realistic worst case.
+
+| ID | Transaction | CPU bound | Memory bound |
+|---|---|---|---|
+| BUD-01 | Settle with 4 payouts, queue at 7, trie proof for one million entries | 3.5B | 2.5M |
+| BUD-02 | Insert with 4 deposits | 4.5B | 2.5M |
+| BUD-03 | Insert with 4 notes | 3.3B | 1.5M |
+| BUD-04 | Ragequit | 3.2B | 2.5M |
+
+If a bound cannot be met, change the Spec estimate first, then the bound.
+
+## 10. Transaction builders (`TX`)
+
+| ID | Test |
+|---|---|
+| TX-01 | Init builds, balances, and creates the three UTXOs with the genesis datums |
+| TX-02 | Deposit builds a plain payment with the inline `DepositDatum` |
+| TX-03 | Refund builds and needs only the refund key |
+| TX-04 | Insert builds for notes, for deposits, and for a mix, and evaluates within budget |
+| TX-05 | Settle builds with 1 and 4 payouts, sets the validity bound, and evaluates within budget |
+| TX-06 | Ragequit builds and requires the refund key signature |
+| TX-07 | CollectFees, config update, and ASP update build and evaluate |
+| TX-08 | No pool transaction contains a mint, a withdrawal, or a certificate |
+| TX-09 | The stealth leg-2 payment has one input, one output, and a fee equal to input minus price |
+
+## 11. Services and SDK
+
+| ID | Test |
+|---|---|
+| IDX-01 | The indexer rebuilds leaves, labels, nullifiers, and pool state from recorded chain data |
+| IDX-02 | Leaf order equals insertion order, and the rebuilt root equals the on-chain root |
+| IDX-03 | A rollback removes the rolled-back entries and restores the previous state |
+| CRK-01 | The crank triggers on the conditions in SPEC 8.3 |
+| CRK-02 | The crank builds a correct batch of queued notes, then deposits |
+| CRK-03 | The crank skips deposits that Insert would reject |
+| REL-01 | A quote covers payouts, the protocol fee, and the relayer fee |
+| REL-02 | A settle with a valid proof is built and submitted |
+| REL-03 | A settle with an invalid proof or a mismatched intent is refused before building |
+| REL-04 | A stale state root or ASP root returns the matching error code |
+| REL-05 | When another party spends the pool UTXO first, the relayer rebuilds and submits again |
+| REL-06 | Two settles chain inside one block window |
+| SDK-01 | All notes are recovered from the seed plus indexer data |
+| SDK-02 | Sync downloads leaves in pages and never sends a commitment to the server |
+| SDK-03 | `settlePrivately` proves locally and never sends a secret |
+| SDK-04 | The stealth signer returns a valid x402 payload whose nonce is the one-time UTXO |
+| SDK-05 | The SDK refuses to prove when the approved set is under the threshold |
+| SDK-06 | The SDK proves again after `stale_root` or `stale_asp_root` |
+| SDK-07 | The SDK rejects a payout below the minimum ADA and a pointer address before proving |
+| SDK-08 | The SDK spends the larger note when two notes share a nullifier |
+| MON-01 | The solvency monitor raises an alert when a fake discrepancy is injected |
+
+## 12. End to end on mainnet (`E2E`)
+
+`E2E-01` to `E2E-17` are the steps of [RUNBOOK-M0.md](./RUNBOOK-M0.md), in order. Each step lists its pass check there.
+
+## 13. Invariant coverage
+
+| Invariant | Tests |
+|---|---|
+| INV-1 Solvency | POOL-I11, POOL-S12, POOL-R7, POOL-C4, MON-01 |
+| INV-2 No double spend | POOL-S8, POOL-R6, VER-01, ENC-03 |
+| INV-3 Tree integrity | POOL-I8, POOL-I9, POOL-S15, CIR-I06, CIR-I07, CIR-I08 |
+| INV-4 Value binding | POOL-I5, CIR-I05 |
+| INV-5 Spend validity | CIR-S01 to CIR-S09, POOL-S7 |
+| INV-6 Intent binding | POOL-S6, POOL-S10, CIR-S10, ENC-02 |
+| INV-7 Exit liveness | POOL-R0, E2E-12, CRK-01 |
+| INV-8 Isolation | DEP-01, DEP-03, POOL-P3 |
+| INV-9 Immutability | Review of deployed script hashes against the manifest |
+| INV-10 Bounded admin | CFG-01, CFG-02, CFG-03, POOL-I2 |

@@ -1,0 +1,11 @@
+{
+  "name": "spike-pipeline",
+  "private": true,
+  "type": "module",
+  "description": "Throwaway spike: circom (BLS12-381) -> snarkjs Groth16 -> Zcash compressed points -> Aiken Plutus V3 verifier",
+  "dependencies": {
+    "@noble/curves": "2.4.0",
+    "circom2": "0.2.23",
+    "snarkjs": "0.7.6"
+  }
+}

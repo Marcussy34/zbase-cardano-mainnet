@@ -1,0 +1,29 @@
+# Part 4 of the spike: does aiken-lang/merkle-patricia-forestry v2.1.0 build
+# with Aiken v1.1.24, and which aiken-lang/stdlib version does it need?
+# scripts/mpf_matrix.sh copies this project and swaps the stdlib version
+# (v2.2.1, v3.1.0, v4.0.0). All three passed with Aiken v1.1.24; v2.2.1 is
+# kept here because it is the version MPF v2.1.0 itself resolves (its
+# aiken.lock pins stdlib "v2", the same commit as v2.2.1).
+name = "spike/mpf"
+version = "0.0.0"
+compiler = "v1.1.24"
+plutus = "v3"
+license = "Apache-2.0"
+description = "Throwaway spike: MPF v2.1.0 + BLS12-381 builtins compatibility check"
+
+[repository]
+user = "spike"
+project = "mpf"
+platform = "github"
+
+[[dependencies]]
+name = "aiken-lang/stdlib"
+version = "v2.2.1"
+source = "github"
+
+[[dependencies]]
+name = "aiken-lang/merkle-patricia-forestry"
+version = "v2.1.0"
+source = "github"
+
+[config]
