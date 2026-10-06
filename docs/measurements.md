@@ -113,8 +113,11 @@ So one private payment in stealth mode cost 0.849327 ADA in network fees for its
 ### The demo through the node and the stock x402 seller
 
 On 2026-10-06 the node (`npm run node -w ops`), the example seller with the stock x402 server and facilitator, and the demo (`npm run demo -w ops`) ran as three processes against Preprod.
-The demo ran twice with the same note store. Both runs ended with HTTP 200 and the weather body.
+The demo ran four times with the same note store. All four runs ended with HTTP 200 and the weather body.
 The agent paid through the stock x402 client with the SDK's stealth signer. The stock facilitator checked and submitted the second leg.
+The first and second run, between 15:44 and 15:57 UTC, used the first version of the node.
+The third run, at 18:00 UTC, used the hardened SDK and the first node that skips work while nothing changes.
+The fourth run, at 19:23 UTC, used the final code with the two latency fixes that section 4 describes.
 
 | Transaction, first run | CPU steps | Memory units | Size in bytes | Fee in ADA | Transaction hash |
 |---|---|---|---|---|---|
@@ -136,7 +139,32 @@ The agent paid through the stock x402 client with the SDK's stealth signer. The 
 | Insert, 1 note | 2,899,686,358 | 826,161 | 1,025 | 0.647147 | `26c06f86d6d4b41d8a91b60d1b484ff360a9901d6e0e9a26362770d6e1d8a1c3` |
 | Ragequit | 2,890,173,640 | 789,871 | 1,454 | 0.663244 | `051fd479d1a35b6310cfc5314de9d5323add552f097f845ea7f3ee7c750308d3` |
 
-Transactions grow by a few bytes as the pool ages, because the proof of a new nullifier gets longer with every spent note.
+| Transaction, third run | CPU steps | Memory units | Size in bytes | Fee in ADA | Transaction hash |
+|---|---|---|---|---|---|
+| Deposit | none | none | 349 | 0.170781 | `b262a1f060b453a514f83cf54f959d85a5b877c47e2f9d7a63ce53d2cb835140` |
+| Insert, 1 deposit | 3,247,424,320 | 999,310 | 1,148 | 0.695392 | `62edd14aa40b41a8037344f1b05c2d629bb90ef5dddea26e1882af7d6ef055bd` |
+| ASP update | 61,407,529 | 178,537 | 599 | 0.215321 | `f23b63ea87c93b93313c783eea9f8551cf28e9961a6ff6de80c20f61e1fd25ee` |
+| Settle, 1 payout to a one-time address | 3,286,928,863 | 1,094,884 | 1,665 | 0.718733 | `e62a60a14378487166372dfa6efdc482569fe027b6541e92341a0026481f2a31` |
+| Stealth leg 2, submitted by the stock facilitator | none | none | 202 | 0.165961 | `fb8f464241acae0d4832b16b05956f1f7d43231250f09db7025eda692ba0e90d` |
+| Insert, 1 note | 2,904,420,859 | 840,813 | 1,095 | 0.651414 | `c1594dbabed5182ce55244235503baab17b82f21f983858acf033a043ab8049a` |
+| Ragequit | 2,867,060,184 | 710,680 | 1,457 | 0.657140 | `660285f1a4163703d3d2d43b248069c3b46311f4189ad2f9573e91558e497bc1` |
+
+| Transaction, fourth run | CPU steps | Memory units | Size in bytes | Fee in ADA | Transaction hash |
+|---|---|---|---|---|---|
+| Deposit | none | none | 349 | 0.170781 | `e4b11f9e9d49263391cd49571694daaa09b2a3e7e975553aa936bd6009b9e6fb` |
+| Insert, 1 deposit | 3,252,158,821 | 1,013,962 | 1,218 | 0.699659 | `e3f62b9280b0b049e41b9198bf57467876044b0bff9d649f88dde0b2eb2ad825` |
+| ASP update | 61,407,529 | 178,537 | 599 | 0.215321 | `627a689b9679212e4cf30e56025d4b441075be1fd8cfe2b4fc844bd93e1f02cd` |
+| Settle, 1 payout to a one-time address | 3,256,686,535 | 997,145 | 1,662 | 0.710781 | `fd2fd50d0979af7b04a99b0893342c5bb6ac52c8934e8470a20bb6786c722bf8` |
+| Stealth leg 2, submitted by the stock facilitator | none | none | 202 | 0.165961 | `39f629f21208881635660ee62d972f2c2d91da2eadebca7d2c42aabb11df13b0` |
+| Insert, 1 note | 2,909,155,361 | 855,465 | 1,165 | 0.655681 | `5093b3d3c8bca861c2cfa35f0ecdaf1be7c494bce20245f05154c4532d31e52f` |
+| Ragequit | 2,887,421,393 | 788,990 | 1,666 | 0.672322 | `eaa3659b37a0534151e7131e809c86811dce7046e572dcbbd4301c4bcbbc7034` |
+
+Pool transactions change in size as the pool ages, for two reasons.
+Each Insert adds one root of 35 bytes to the root history in the pool datum, until the history holds its 16 roots.
+A run makes two Inserts, so each kind of pool transaction is about 70 bytes larger in the next run.
+A full history makes a pool transaction 525 bytes larger than in a new pool. The size alone then adds 0.0231 ADA to its fee.
+The proof for a new nullifier also changes with the place of that nullifier in the trie.
+It made a Settle or a Ragequit up to 139 bytes larger or smaller from one run to the next.
 
 ### Admin transactions on Preprod
 
@@ -154,7 +182,7 @@ The sweep returned 73.55015 ADA to the operator. Its fee is higher than a plain 
 
 | Flow | Time from request to one confirmation |
 |---|---|
-| Stealth payment, one-time key funded on demand | 116.0 s and 110.2 s on Preprod, two runs |
+| Stealth payment, one-time key funded on demand | 116.0 s, 110.2 s, 68.8 s and 78.2 s on Preprod, four runs |
 | Stealth payment, one-time key funded ahead | not built in M0 |
 
 The time runs from the request to the seller until the seller answers HTTP 200.
@@ -162,20 +190,53 @@ It covers the proof, the settlement by the relayer, one confirmation of the firs
 
 ### The demo on Preprod, step by step
 
-Both runs of the demo command from section 3. Times are in seconds.
+The four runs of the demo command from section 3. Times are in seconds.
 
-| Step | First run | Second run |
-|---|---|---|
-| Deposit submitted | 3.6 | 2.9 |
-| Note spendable, from the start | 119.0 | 163.7 |
-| First leg confirmed, from the payment request | 28.9 | 26.9 |
-| Seller answered HTTP 200, from the payment request | 116.0 | 110.2 |
-| Change note spendable, after the seller answered | 0.0 | 6.1 |
-| Exit submitted, after the change was spendable | 9.0 | 9.0 |
-| Exit confirmed, after the change was spendable | 19.5 | 75.0 |
-| Whole demo | 254.5 | 355.0 |
+| Step | First run | Second run | Third run | Fourth run |
+|---|---|---|---|---|
+| Deposit submitted | 3.6 | 2.9 | 3.0 | 2.8 |
+| Note spendable, from the start | 119.0 | 163.7 | 231.0 | 91.1 |
+| First leg confirmed, from the payment request | 28.9 | 26.9 | 30.1 | 40.3 |
+| Seller answered HTTP 200, from the payment request | 116.0 | 110.2 | 68.8 | 78.2 |
+| Change note spendable, after the seller answered | 0.0 | 6.1 | 54.8 | 15.3 |
+| Exit submitted, after the change was spendable | 9.0 | 9.0 | 8.5 | 10.4 |
+| Exit confirmed, after the change was spendable | 19.5 | 75.0 | 41.6 | 21.0 |
+| Whole demo | 254.5 | 355.0 | 396.2 | 205.5 |
 
 Waiting for blocks dominates every step. The longest single wait, 75 seconds for the exit of the second run, was one slow block.
+
+The third run was slow up to the spendable note. Two things in the node of that run caused it.
+The crank repeated an idle step only after 60 seconds, so it submitted the Insert 98 seconds after the block of the deposit.
+The indexer read each new block once. Right after the block of the association update, the provider still served the old association output.
+The next block came 67 seconds later, so the note became spendable 82 seconds after the block of the update.
+The final code repeats an idle step after 20 seconds. While the pool is active, its indexer reads each new block a second time 5 seconds later.
+In the fourth run the crank submitted the Insert 33 seconds after the block of the deposit.
+The note became spendable 13 seconds after the block of the association update.
+
+In the first and second run the payment to the seller entered the second block after the Settle. In the third and fourth run it entered the next block.
+Four runs are too few to say whether the code or the block times made that difference.
+
+### Provider requests of the node
+
+In the third and fourth run the node counted its HTTP requests to Blockfrost. The pool had about 20 transactions.
+
+| What | Requests |
+|---|---|
+| Start of the node with a history of 13 pool transactions | 28 |
+| Start of the node with a history of 17 pool transactions | 33 |
+| Round that finds no new block | 1 |
+| Round after a new block | 8 |
+| One minute in which the node submitted nothing, seven samples | 12 to 27 |
+| Each of the first three minutes of the fourth run | 74, 96 and 43 |
+| Third run: 11.5 minutes of node time with one demo | 392 |
+| Fourth run: 4 minutes of node time with one demo | 282 |
+
+A round comes every 10 seconds, and Preprod makes about three blocks a minute.
+That gives 27 requests a minute for a node that submits nothing, or about 1,600 an hour.
+The seven measured minutes average 19 requests, or about 1,100 an hour, because they had fewer blocks.
+For two minutes after a change, the second read of each new block adds 7 requests per block.
+A read of the history costs one more request for every 100 transactions at the pool address and at the deposit address.
+The demo and the seller's facilitator make their own requests. This count does not include them.
 
 ### Step timings on Preprod
 
