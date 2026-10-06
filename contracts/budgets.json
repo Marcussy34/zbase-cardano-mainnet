@@ -1,0 +1,9 @@
+{
+  "zbase/groth16_test": {
+    "ver_06_two_inputs_within_budget": { "cpu": 2200000000, "mem": 109000 },
+    "ver_05_zero_input_is_skipped": { "cpu": 2050000000, "mem": 107000 },
+    "ver_02_infinity_a_is_rejected": { "cpu": 50000000, "mem": 55000 },
+    "ver_02_infinity_b_is_rejected": { "cpu": 50000000, "mem": 60000 },
+    "ver_02_infinity_c_is_rejected": { "cpu": 50000000, "mem": 64000 }
+  }
+}
