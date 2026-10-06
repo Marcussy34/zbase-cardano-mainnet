@@ -4,3 +4,4 @@ export * from "./note.js";
 export * from "./tree.js";
 export * from "./encoding.js";
 export * from "./keys.js";
+export * from "./points.js";
