@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | v1.0, 2026-10-06 |
-| Machine-readable files | [vectors/poseidon-vectors.json](./vectors/poseidon-vectors.json), [vectors/encoding-vectors.json](./vectors/encoding-vectors.json), [vectors/groth16-vectors.json](./vectors/groth16-vectors.json) |
+| Machine-readable files | [vectors/poseidon-vectors.json](./vectors/poseidon-vectors.json), [vectors/encoding-vectors.json](./vectors/encoding-vectors.json), [vectors/groth16-vectors.json](./vectors/groth16-vectors.json), [vectors/key-vectors.json](./vectors/key-vectors.json) |
 | Companions | [SPEC.md](./SPEC.md) section 4, [TEST-PLAN.md](./TEST-PLAN.md) |
 
 These are known answers. An implementation is correct only if it reproduces them.
@@ -249,3 +249,24 @@ Conversion rules that these vectors pin down:
 - snarkjs writes each G2 coordinate as `[c0, c1]`. The compressed bytes hold `c1` first, then `c0`.
 - The first byte carries three flags: `0x80` for compressed, `0x40` for infinity, `0x20` when `y` is the larger root.
 - snarkjs sets `gamma_g2` to the G2 generator.
+
+## 10. Key derivation vectors
+
+Rule: SPEC section 4.7. HKDF-SHA256 with an empty salt. The input key is the 32-byte seed.
+The info strings are `zbase/nullifier/v1/`, `zbase/secret/v1/`, and `zbase/onetime/v1/`, each followed by the decimal index.
+A nullifier or a secret is 64 bytes of output, read as a big-endian integer, reduced modulo `r`.
+A one-time key is 32 bytes of output, used as an Ed25519 seed.
+
+These values come from [vectors/key_vectors.py](./vectors/key_vectors.py), which uses only the Python standard library.
+Its HKDF routine reproduces test case 3 of RFC 5869.
+
+| Seed | Index | Nullifier | Secret | One-time key |
+|---|---|---|---|---|
+| `00 01 .. 1f` | 0 | `14391043067692074412586658420080349164126809997758596167217800007797688669120` | `10375221433913277262174784074171205316288215560119152466069032861610293812447` | `8e284fd456dd13b7629a03f9a8123a7fef387c44f3d704e682804312e4f4fb2e` |
+| `00 01 .. 1f` | 1 | `35931441777274333814863439629533899364398429093367585322144756909639961837229` | `21151036778341791466007550569153885400388355765719242971570154020371145071913` | `a4f23471cc830d3b5a6e1d1cfff614d7b7cf49a22f4db44f0057612d26e5f7fd` |
+| `00 01 .. 1f` | 7 | `29396838820702395726390753790032949540920744418527591928988441728737835377686` | `34192128705084193127090280650323416174964310406204371734318401041280917165401` | `4bfce8d6f8875871ca6afd24e2c0812e901aa8bb2237faebe3bb18d330cf48fd` |
+| `00 01 .. 1f` | 1000000 | `48998121637077206370603384849037098024417129641025581438028331929102272627733` | `2462432543447509139979325226018737831633611881407426775049731979955446787` | `e75dba63dd90f04b16d8d603fe67ab1cf5d0fdf3557cde9b504940d9b6e7a5fc` |
+| `ff` repeated 32 times | 0 | `22441167478558092201687590694764956674144452126139413771695735864812990097903` | `4672215965147797811024261976185765811942247929062286174545814856252975815469` | `cbbbd1486a976f1c1db88373309a6a5afc445e2e89523f52283370b8ec4df24b` |
+| `ff` repeated 32 times | 1 | `139218386604425899505416112178612121416022281429498675298169426981490928666` | `11701226553630790855047985239586798241447664555388465989724830376339672274800` | `65eab5d8eb31516b3f189b3a997e1a937f93ad8130756f691459f461414203eb` |
+| `ff` repeated 32 times | 7 | `47771265726845812991797325920777381772140146260917972377062034047603112752717` | `11095195764929257896311887618900084237455184372423727319024255451691637556438` | `d8567f86c012da1e861cbdfeab1d7472d31e369858cdc7a22780d4255fd81563` |
+| `ff` repeated 32 times | 1000000 | `48147525845285384218972323544812172898088943330923025385946161885437130473371` | `42739191630595779207265282381416501618949495138147993057473379448798491718573` | `b1ed12def3dfb29e199fcf39378759f1b6ac91403700403420500eceae610f65` |
