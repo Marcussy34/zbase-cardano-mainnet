@@ -497,7 +497,7 @@ Rules that apply to every redeemer:
 
 - P1. The validator's own input holds the pool NFT.
 - P2. Output 0 is the continuing pool output. It has the same address and holds the pool NFT.
-- P3. The continuing output holds only ADA, the pool NFT, and the pool asset. No other token.
+- P3. The continuing output holds only ADA, the pool NFT, and the pool asset. No other token. It carries no reference script, so nobody can park a large script on the pool UTXO and make the next spender pay its fee.
 - P4. The continuing output has an inline `PoolDatum` equal to the datum the rules below compute.
 - P5. The config UTXO is present as a reference input, identified by the config NFT.
 
@@ -1236,3 +1236,4 @@ That measurement is the reason for decision D3.
 | 0.1.1 | 2026-10-06 | Corrected the Poseidon builtin registry claim. |
 | 1.0 | 2026-10-06 | Owner approved. Label and context now use explicit byte encodings instead of `serialise_data`. Added encoding conventions, key derivation strings, note lifecycle, API contracts, and code layout. Moved the runbook to its own file. |
 | 1.0.1 | 2026-10-06 | Recorded the result of the transaction library spike: Mesh 1.9.1 is confirmed (sections 8.6 and 17). |
+| 1.0.2 | 2026-10-06 | Rule P3 also forbids a reference script on the continuing pool output. |
