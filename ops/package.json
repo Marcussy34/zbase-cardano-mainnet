@@ -1,0 +1,17 @@
+{
+  "name": "@zbase-cardano/ops",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": { "./*": "./src/*.ts" },
+  "scripts": {
+    "test": "node --import tsx --test \"test/**/*.test.ts\"",
+    "typecheck": "tsc --noEmit -p .",
+    "setup": "node --env-file=../.env --import tsx src/setup.ts",
+    "deploy": "node --env-file=../.env --import tsx src/deploy.ts"
+  },
+  "dependencies": {
+    "@zbase-cardano/crypto": "*",
+    "@zbase-cardano/txlib": "*"
+  }
+}
