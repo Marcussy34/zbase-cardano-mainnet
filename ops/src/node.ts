@@ -25,13 +25,15 @@ export interface NodeOptions {
   spendVkey: SnarkjsVk;
   ports?: { indexer?: number; relayer?: number };
   intervalMs?: number;
+  idleRetryMs?: number;
+  now?: () => number;
   aspStorePath?: string;
   log?: (line: string) => void;
 }
 export interface ZbaseNode {
   indexer: Indexer; crank: Crank; asp: AspService; relayer: Relayer;
   urls: { indexer: string; relayer: string };
-  /** Sync, crank, sync, ASP, sync. Failed steps are logged. Concurrent callers share one round. */
+  /** Sync, run pending work, and sync after changes. Concurrent callers share one round. */
   tick(): Promise<void>;
   close(): Promise<void>;
 }
@@ -49,6 +51,8 @@ const message = (error: unknown): string => error instanceof Error ? error.messa
 
 export async function startNode(o: NodeOptions): Promise<ZbaseNode> {
   const intervalMs = o.intervalMs ?? 10_000;
+  const idleRetryMs = o.idleRetryMs ?? 60_000;
+  const now = o.now ?? Date.now;
   if (!Number.isSafeInteger(intervalMs) || intervalMs < 0 || intervalMs > 2_147_483_647) {
     throw new RangeError('intervalMs must be a nonnegative timer interval');
   }
@@ -78,6 +82,17 @@ export async function startNode(o: NodeOptions): Promise<ZbaseNode> {
   let running: Promise<void> | undefined;
   let closing: Promise<void> | undefined;
   let timer: ReturnType<typeof setTimeout> | undefined;
+  const idle = new Map<string, { fingerprint: string; at: number }>();
+
+  async function step(name: 'crank' | 'asp', snapshot: unknown[], run: () => Promise<boolean>): Promise<void> {
+    const fingerprint = createHash('sha256').update(JSON.stringify(snapshot,
+      (_key, value) => typeof value === 'bigint' ? value.toString() : value)).digest('hex');
+    const previous = idle.get(name);
+    if (previous?.fingerprint === fingerprint && now() - previous.at < idleRetryMs) return;
+    // Only a completed no-op delays retries. Failures and progress clear the old delay.
+    idle.delete(name);
+    if (!await run()) idle.set(name, { fingerprint, at: now() });
+  }
 
   function tick(): Promise<void> {
     if (closed) return Promise.resolve();
@@ -91,16 +106,35 @@ export async function startNode(o: NodeOptions): Promise<ZbaseNode> {
         } catch (error) { log(`indexer: ${message(error)}`); }
       }
       await sync();
+      if (indexer.syncedAt === undefined) return;
       try {
-        const result = await crank.tick();
-        if (result) events.push(`insert ${result.txId} (${result.deposits} deposits, ${result.notes} notes)`);
+        const pool = await indexer.getPool();
+        const pending = (await indexer.getDeposits()).filter(d => d.status === 'pending');
+        if (pool.queue.length > 0 || pending.length > 0) {
+          await step('crank', [pool.roots, pool.queue, pool.config, pending], async () => {
+            const result = await crank.tick();
+            if (result) {
+              events.push(`insert ${result.txId} (${result.deposits} deposits, ${result.notes} notes)`);
+              await sync();
+            }
+            return result !== null;
+          });
+        }
       } catch (error) { log(`crank: ${message(error)}`); }
-      await sync();
       try {
-        const result = await asp.tick();
-        if (result.txId) events.push(`asp ${result.txId} (${result.approved} approvals)`);
+        const approved = asp.leaves();
+        const pool = await indexer.getPool();
+        const deposits = await indexer.getDeposits();
+        if (deposits.some(d => d.status === 'absorbed' && d.label !== null && !approved.includes(d.label))
+          || !isDeepStrictEqual(asp.leaves(pool.aspRoot), approved)) {
+          await step('asp', [pool.aspRoot, deposits.filter(d => d.status === 'absorbed').map(d => d.label), approved], async () => {
+            const result = await asp.tick();
+            if (result.txId) events.push(`asp ${result.txId} (${result.approved} approvals)`);
+            if (result.txId || result.approved > 0) await sync();
+            return result.txId !== null || result.approved > 0;
+          });
+        }
       } catch (error) { log(`asp: ${message(error)}`); }
-      await sync();
       if (events.length > 0) log(`round: ${events.join('; ')}`);
     })().finally(() => { running = undefined; });
     return running;
@@ -153,6 +187,16 @@ export async function deploymentArtifacts(deployment: Deployment, root = fileURL
 }
 
 async function main(): Promise<void> {
+  const integer = (name: string, fallback: number): number => {
+    const value = process.env[name];
+    if (value === undefined) return fallback;
+    if (!/^[0-9]+$/.test(value) || !Number.isSafeInteger(Number(value))) {
+      throw new Error(`${name} must be a nonnegative safe integer`);
+    }
+    return Number(value);
+  };
+  const intervalMs = integer('ZBASE_INTERVAL_MS', 10_000);
+  const ports = { indexer: integer('ZBASE_INDEXER_PORT', 4010), relayer: integer('ZBASE_RELAYER_PORT', 4011) };
   const settings = readSettings();
   const root = fileURLToPath(new URL('../../', import.meta.url));
   const deployment = JSON.parse(await readFile(join(root, `deployments/${settings.network}.json`), 'utf8')) as Deployment;
@@ -164,7 +208,7 @@ async function main(): Promise<void> {
   const log = redactedLog(console.log, [settings.blockfrostProjectId, Buffer.from(settings.operatorSeed).toString('hex'),
     ...Object.values(seeds).map(seed => Buffer.from(seed).toString('hex'))]);
   if (settings.network === 'mainnet') log('CAUTION: the node spends real ADA. Submitted transactions cannot be undone.');
-  const node = await startNode({ ctx: { provider, deployment }, history: provider, seeds,
+  const node = await startNode({ ctx: { provider, deployment }, history: provider, seeds, intervalMs, ports,
     insertArtifacts: await keys.load('insert'), spendVkey: keys.spendVkey,
     aspStorePath: join(root, `deployments/${settings.network}/asp-store.json`), log });
   log(`Indexer ${node.urls.indexer}; relayer ${node.urls.relayer}`);
