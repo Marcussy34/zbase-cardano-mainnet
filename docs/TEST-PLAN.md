@@ -40,7 +40,7 @@ Test IDs are stable. Use them in test names, commit messages, and reviews.
 | CRY-06 | `intentBytes` and `contextFor` match both context vectors | TEST-VECTORS section 7 |
 | CRY-07 | `nullifierKey` gives 32 big-endian bytes for both vectors | TEST-VECTORS section 8 |
 | CRY-08 | `proofToCardano` and `vkToCardano` give the listed compressed bytes | TEST-VECTORS section 9 |
-| CRY-09 | Key derivation is deterministic, and different indexes give different secrets | SPEC 4.7 |
+| CRY-09 | Key derivation matches the known answers, is deterministic, and different indexes give different secrets | SPEC 4.7, TEST-VECTORS section 10 |
 | CRY-10 | Every encoder rejects out-of-range input: amount of 2^64, index of 2^32, wrong hash length, pointer address | SPEC 4.8 |
 
 ## 4. Circuits (`CIR`)
