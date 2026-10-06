@@ -8,12 +8,14 @@
   "workspaces": ["packages/*", "services/*", "circuits", "ops", "examples/*"],
   "scripts": {
     "test": "npm test --workspaces --if-present",
-    "typecheck": "npm run typecheck --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present && tsc --noEmit -p contracts/fixtures",
     "check:contracts": "cd contracts && aiken check",
     "build:contracts": "cd contracts && aiken build",
     "build:circuits": "bash circuits/scripts/build.sh",
     "setup:dev": "node circuits/scripts/setup-dev.mjs",
     "check:budgets": "node contracts/scripts/check-budgets.mjs",
+    "fixtures": "node --import tsx contracts/fixtures/gen.ts",
+    "check:fixtures": "node --import tsx contracts/fixtures/gen.ts --check",
     "test:smoke": "node --import tsx --test scripts/smoke.test.ts"
   },
   "devDependencies": {
