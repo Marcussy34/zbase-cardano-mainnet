@@ -8,7 +8,7 @@ export async function buildRagequit(ctx: ChainContext, a: {
   payer: Payer; pool: PoolState; proof: CardanoProof;
   nullifierHash: bigint; value: bigint; stateRoot: bigint;
   depositRef: UtxoRef; refundKeyHash: string; nullifierProof: string; newNullifierRoot: string;
-  payTo: string;
+  payTo: string; invalidHereafter?: number;
 }): Promise<BuiltTx> {
   const { network, scripts, refScripts, asset } = ctx.deployment;
   if (asset.policy !== '' || asset.name !== '') throw new Error('M0 exits support ADA only');
@@ -25,6 +25,7 @@ export async function buildRagequit(ctx: ChainContext, a: {
     .txOut(utxo.address, utxoToMesh({ ...utxo, value: { ...utxo.value, lovelace: utxo.value.lovelace - a.value } }).output.amount)
     .txOutInlineDatumValue(encodePoolDatum({ ...datum, nullifierRoot: a.newNullifierRoot }), 'CBOR')
     .txOut(a.payTo, [{ unit: 'lovelace', quantity: String(a.value) }]);
+  if (a.invalidHereafter !== undefined) builder.invalidHereafter(a.invalidHereafter);
   const references = await ctx.provider.getUtxos([refScripts.pool]);
   return complete({ provider: ctx.provider, network }, builder, { payer: a.payer, extraUtxos: [utxo, config.utxo, ...references] });
 }
