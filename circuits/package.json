@@ -1,0 +1,15 @@
+{
+  "name": "@zbase-cardano/circuits",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --import tsx --test \"test/**/*.test.ts\"",
+    "typecheck": "tsc --noEmit -p ."
+  },
+  "dependencies": {
+    "@zbase-cardano/crypto": "*",
+    "snarkjs": "0.7.6",
+    "circom2": "0.2.23",
+    "poseidon-bls12381-circom": "1.0.0"
+  }
+}
