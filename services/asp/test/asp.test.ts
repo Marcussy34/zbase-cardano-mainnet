@@ -1,14 +1,14 @@
 import assert from 'node:assert/strict';
 import { after, test } from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
   MerkleTree, NETWORKS, deriveNoteSecrets, insertWitness, precommitment, spendWitness, type Note,
 } from '@zbase-cardano/crypto';
 import { devKeysPresent, loadDevArtifacts, prove, shutdown } from '@zbase-cardano/prover';
 import {
-  buildDeposit, buildInsert, enterpriseAddress, keyHash, planInsert, readAsp, readConfig, readDeposits, readPool,
+  buildDeposit, buildInsert, decodeTx, enterpriseAddress, keyHash, planInsert, readAsp, readConfig, readDeposits, readPool,
 } from '@zbase-cardano/txlib';
 import { startDevnet } from '@zbase-cardano/txlib/testing/devnet';
 import { Indexer } from '@zbase-cardano/indexer';
@@ -17,6 +17,106 @@ import { AspService } from '../src/index.js';
 const repoRoot = fileURLToPath(new URL('../../../', import.meta.url));
 const hex = (bytes: Uint8Array): string => Buffer.from(bytes).toString('hex');
 after(shutdown);
+
+test('ASP-01, IDX-01: confirmed leaves stay available through submission and restart', async t => {
+  const { chain, ctx, keys } = await startDevnet();
+  const build = fileURLToPath(new URL('../build/', import.meta.url));
+  mkdirSync(build, { recursive: true });
+  const directory = mkdtempSync(join(build, 'asp-live-test-'));
+  t.after(() => rmSync(directory, { recursive: true }));
+  const storePath = join(directory, 'labels.json');
+  // A version 1 store has no published list. Its pending approval must preserve genesis.
+  writeFileSync(storePath, JSON.stringify({ version: 1, poolId: ctx.deployment.poolId, leaves: ['11'], removed: [] }));
+  let service: AspService;
+  const indexer = new Indexer({ ctx, history: chain, aspLeaves: root => service.leaves(root) });
+  const options = { ctx, indexer, payerSeed: keys.operator, operatorSeeds: [keys.asp], storePath };
+  service = new AspService(options);
+  await indexer.sync();
+  assert.deepEqual((await indexer.getAspLeaves(0, 10)).leaves, []);
+  assert.deepEqual(service.leaves(), [11n]);
+  assert.deepEqual(service.leaves(123n), []);
+  assert.ok((await service.tick()).txId);
+  await indexer.sync();
+  assert.deepEqual((await indexer.getAspLeaves(0, 10)).leaves, []);
+  chain.mineBlock();
+  await indexer.sync();
+  assert.deepEqual((await indexer.getAspLeaves(0, 10)).leaves, [11n]);
+  const publishedRoot = (await indexer.getPool()).aspRoot;
+  assert.deepEqual(await service.tick(), { approved: 0, txId: null });
+  assert.deepEqual(JSON.parse(readFileSync(storePath, 'utf8')).published, ['11']);
+  service.remove(11n);
+  assert.ok((await service.tick()).txId);
+  await indexer.sync();
+  assert.deepEqual((await indexer.getAspLeaves(0, 10)).leaves, [11n]);
+  service = new AspService(options);
+  assert.deepEqual(service.leaves(), [0n]);
+  assert.deepEqual(service.leaves(publishedRoot), [11n]);
+  const copy = service.leaves(publishedRoot);
+  copy[0] = 99n;
+  assert.deepEqual(service.leaves(publishedRoot), [11n]);
+  await indexer.sync();
+  assert.deepEqual((await indexer.getAspLeaves(0, 10)).leaves, [11n]);
+  chain.mineBlock();
+  await indexer.sync();
+  assert.deepEqual((await indexer.getAspLeaves(0, 10)).leaves, [0n]);
+  await service.tick();
+  service = new AspService(options);
+  assert.deepEqual(service.leaves((await indexer.getPool()).aspRoot), [0n]);
+});
+
+test('ASP-01: unchanged approved and published lists reuse cached roots', async t => {
+  const { chain, ctx, keys } = await startDevnet();
+  const indexer = new Indexer({ ctx, history: chain });
+  await indexer.sync();
+  const service = new AspService({ ctx, indexer, payerSeed: keys.operator, operatorSeeds: [keys.asp] });
+  const root = (await readAsp(ctx)).datum.root;
+  const hashes = t.mock.method(MerkleTree, 'fromLeaves');
+  for (let i = 0; i < 3; i += 1) {
+    assert.deepEqual(service.leaves(root), []);
+    assert.deepEqual(await service.tick(), { approved: 0, txId: null });
+  }
+  service.remove(99n);
+  assert.deepEqual(service.leaves(root), []);
+  assert.equal(hashes.mock.callCount(), 0);
+});
+
+test('ASP-01, TX-07: a dropped submission is retried only after its deadline', async t => {
+  const { chain, ctx, keys } = await startDevnet();
+  const build = fileURLToPath(new URL('../build/', import.meta.url));
+  mkdirSync(build, { recursive: true });
+  const directory = mkdtempSync(join(build, 'asp-retry-test-'));
+  t.after(() => rmSync(directory, { recursive: true }));
+  const storePath = join(directory, 'labels.json');
+  writeFileSync(storePath, JSON.stringify({ version: 1, poolId: ctx.deployment.poolId, leaves: ['11'], removed: [] }));
+  const indexer = new Indexer({ ctx, history: chain });
+  await indexer.sync();
+  const submit = chain.submit.bind(chain);
+  let submissions = 0;
+  t.mock.method(chain, 'submit', async (cbor: string) => {
+    submissions += 1;
+    return submissions === 1 ? decodeTx(cbor).txId : submit(cbor);
+  });
+  let now = 1_000;
+  const service = new AspService({ ctx, indexer, payerSeed: keys.operator, operatorSeeds: [keys.asp],
+    storePath, retryAfterMs: 100, now: () => now });
+  const first = await service.tick();
+  assert.ok(first.txId);
+  assert.equal(chain.transaction(first.txId), undefined);
+  for (const elapsed of [0, 50, 99]) {
+    now = 1_000 + elapsed;
+    assert.deepEqual(await service.tick(), { approved: 0, txId: null });
+  }
+  assert.equal(submissions, 1);
+  now = 1_100;
+  const retry = await service.tick();
+  assert.ok(retry.txId);
+  assert.equal(submissions, 2);
+  assert.equal(chain.transaction(retry.txId)?.block, null);
+  chain.mineBlock();
+  assert.equal((await readAsp(ctx)).datum.root, MerkleTree.fromLeaves([11n]).root);
+  assert.deepEqual(await service.tick(), { approved: 0, txId: null });
+  assert.equal(submissions, 2);
+});
 
 test('ASP-01, TX-07: automatic approval, denial, removal, and persistence', {
   timeout: 900_000,
@@ -40,7 +140,7 @@ test('ASP-01, TX-07: automatic approval, denial, removal, and persistence', {
   await run(await buildInsert(ctx, { payer: payer(keys.crank), pool, plan, proof: proof.cardano,
     newRoot: witness.newRoot }), [keys.crank]);
   let service: AspService;
-  const indexer = new Indexer({ ctx, history: chain, aspLeaves: () => service?.leaves() ?? [] });
+  const indexer = new Indexer({ ctx, history: chain, aspLeaves: root => service?.leaves(root) ?? [] });
   await indexer.sync();
   const labels = plan.credited.map(credit => credit.label);
   const options = { ctx, indexer, payerSeed: keys.operator, operatorSeeds: [keys.asp] };
@@ -59,11 +159,13 @@ test('ASP-01, TX-07: automatic approval, denial, removal, and persistence', {
     // Confirmation is explicit. A second tick must not double-spend the old ASP UTXO.
     assert.notEqual((await readAsp(ctx)).datum.root, MerkleTree.fromLeaves(labels).root);
     assert.deepEqual(await service.tick(), { approved: 0, txId: null });
+    await indexer.sync();
+    assert.deepEqual((await indexer.getAspLeaves(0, 10)).leaves, []);
     chain.mineBlock();
     assert.equal((await readAsp(ctx)).datum.root, MerkleTree.fromLeaves(labels).root);
-    assert.deepEqual(await service.tick(), { approved: 0, txId: null });
     await indexer.sync();
     assert.deepEqual((await indexer.getAspLeaves(0, 10)).leaves, labels);
+    assert.deepEqual(await service.tick(), { approved: 0, txId: null });
   });
 
   await t.test('ASP-01: a denied deposit is omitted', async () => {

@@ -13,23 +13,23 @@ import {
 interface Options {
   ctx: ChainContext;
   history: ChainHistory;
-  aspLeaves?: () => bigint[] | Promise<bigint[]>;
+  aspLeaves?: (root: bigint) => bigint[] | Promise<bigint[]>;
 }
 interface Snapshot {
   tree: MerkleTree;
   spent: bigint[];
   deposits: Map<string, { view: DepositView; observedSlot: number }>;
-  transactions: Map<string, TxView>;
   poolRef?: UtxoRef;
   datum?: PoolDatum;
   poolCursor?: string;
   depositCursor?: string;
   pool?: PoolView;
   aspLeaves: bigint[];
+  aspLeavesMatch: boolean;
 }
 const refKey = (ref: UtxoRef): string => `${ref.txId}#${ref.index}`;
 const sameRef = (a: UtxoRef, b: UtxoRef): boolean => a.txId === b.txId && a.index === b.index;
-const fresh = (): Snapshot => ({ tree: MerkleTree.empty(), spent: [], deposits: new Map(), transactions: new Map(), aspLeaves: [] });
+const fresh = (): Snapshot => ({ tree: MerkleTree.empty(), spent: [], deposits: new Map(), aspLeaves: [], aspLeavesMatch: false });
 
 function page(from: number, limit: number): number {
   if (!Number.isSafeInteger(from) || from < 0 || !Number.isSafeInteger(limit) || limit < 1) {
@@ -41,6 +41,8 @@ function page(from: number, limit: number): number {
 /** Replays confirmed history into a snapshot. Failed reads never publish a partial tree. */
 export class Indexer implements IndexerApi {
   private readonly options: Options;
+  // Transaction contents stay valid across failed syncs and rollbacks. Inclusion belongs to the snapshot.
+  private readonly transactions = new Map<string, TxView>();
   private state = fresh();
   private syncing?: Promise<number>;
 
@@ -52,17 +54,17 @@ export class Indexer implements IndexerApi {
     return this.syncing;
   }
 
-  private async transaction(state: Snapshot, txId: string): Promise<TxView> {
-    const cached = state.transactions.get(txId);
+  private async transaction(txId: string): Promise<TxView> {
+    const cached = this.transactions.get(txId);
     if (cached) return cached;
     const tx = decodeTx(await this.options.history.getTransactionCbor(txId));
     if (tx.txId !== txId) throw new Error('History returned a different transaction ID');
-    state.transactions.set(txId, tx);
+    this.transactions.set(txId, tx);
     return tx;
   }
 
-  private async output(state: Snapshot, ref: UtxoRef): Promise<TxOutputView> {
-    const output = (await this.transaction(state, ref.txId)).outputs[ref.index];
+  private async output(ref: UtxoRef): Promise<TxOutputView> {
+    const output = (await this.transaction(ref.txId)).outputs[ref.index];
     if (!output) throw new Error(`Missing historical output ${refKey(ref)}`);
     return output;
   }
@@ -86,11 +88,11 @@ export class Indexer implements IndexerApi {
     return view;
   }
 
-  private async insertConfig(state: Snapshot, tx: TxView): Promise<ConfigDatum> {
+  private async insertConfig(tx: TxView): Promise<ConfigDatum> {
     const { poolId, scripts } = this.options.ctx.deployment;
     const nft = poolId + Buffer.from('config').toString('hex');
     for (const ref of tx.referenceInputs) {
-      const output = await this.output(state, ref);
+      const output = await this.output(ref);
       if (output.address === scripts.config.address && output.value.assets[nft] === 1n && output.inlineDatum !== null) {
         // Replays must use the config that governed this Insert, including old fee rates.
         return decodeConfigDatum(output.inlineDatum);
@@ -120,12 +122,12 @@ export class Indexer implements IndexerApi {
       if (action.kind === 'Insert') {
         if (action.flush < 0 || action.flush > previous.queue.length) throw new Error('Invalid Insert flush count');
         for (const leaf of previous.queue.slice(0, action.flush)) state.tree.append(leaf);
-        const config = await this.insertConfig(state, tx);
+        const config = await this.insertConfig(tx);
         // Only script inputs can be deposits. Fee inputs may originate outside address history.
         const scriptInputs = new Set(tx.redeemers.filter(r => r.tag === 'spend').map(r => r.index));
         for (const [index, ref] of tx.inputs.entries()) {
           if (index === inputIndex || !scriptInputs.has(index)) continue;
-          const depositOutput = await this.output(state, ref);
+          const depositOutput = await this.output(ref);
           if (depositOutput.address !== deployment.scripts.deposit.address) continue;
           const deposit = this.rememberDeposit(state, ref, depositOutput, slot);
           if (!deposit) throw new Error('Absorbed deposit has an invalid datum');
@@ -153,12 +155,26 @@ export class Indexer implements IndexerApi {
     return true;
   }
 
+  private async refreshAsp(state: Snapshot, root: bigint): Promise<void> {
+    const leaves = [...await (this.options.aspLeaves?.(root) ?? [])];
+    const unchanged = root === this.state.pool?.aspRoot && leaves.length === this.state.aspLeaves.length
+      && leaves.every((leaf, index) => leaf === this.state.aspLeaves[index]);
+    state.aspLeavesMatch = unchanged ? this.state.aspLeavesMatch : MerkleTree.fromLeaves(leaves).root === root;
+    state.aspLeaves = leaves;
+  }
+
   private async refresh(): Promise<number> {
     const { ctx, history } = this.options;
     const { scripts, asset, poolId } = ctx.deployment;
     const tip = await ctx.provider.getTip();
+    if (tip.blockHash === this.state.pool?.tip.hash) {
+      const state = { ...this.state };
+      await this.refreshAsp(state, this.state.pool.aspRoot);
+      this.state = state;
+      return 0;
+    }
     let state: Snapshot = { ...this.state, tree: this.state.tree.clone(), spent: [...this.state.spent],
-      deposits: structuredClone(this.state.deposits), transactions: new Map(this.state.transactions) };
+      deposits: structuredClone(this.state.deposits) };
     const lists = await Promise.allSettled([
       history.getTransactionsAt(scripts.pool.address, state.poolCursor),
       history.getTransactionsAt(scripts.deposit.address, state.depositCursor),
@@ -183,7 +199,7 @@ export class Indexer implements IndexerApi {
     }
     // Replay deposit creation and refunds even if both happened between polls.
     for (const record of depositRecords) {
-      const tx = await this.transaction(state, record.txId);
+      const tx = await this.transaction(record.txId);
       for (const ref of tx.inputs) {
         const deposit = state.deposits.get(refKey(ref));
         if (deposit && deposit.view.status === 'pending') {
@@ -196,13 +212,14 @@ export class Indexer implements IndexerApi {
     }
     let applied = 0;
     for (const record of poolRecords) {
-      const tx = await this.transaction(state, record.txId);
+      const tx = await this.transaction(record.txId);
       if (await this.apply(state, tx, tip.slot)) applied += 1;
       state.poolCursor = tx.txId;
     }
-    const [pool, config, asp, pending, leaves] = await Promise.all([
-      readPool(ctx), readConfig(ctx), readAsp(ctx), readDeposits(ctx), this.options.aspLeaves?.() ?? [],
+    const [pool, config, asp, pending] = await Promise.all([
+      readPool(ctx), readConfig(ctx), readAsp(ctx), readDeposits(ctx),
     ]);
+    await this.refreshAsp(state, asp.datum.root);
     const endTip = await ctx.provider.getTip();
     if (!state.poolRef || !sameRef(pool.utxo.ref, state.poolRef)) throw new Error('Pool history has not reached the current pool UTXO');
     if (tip.blockHash !== endTip.blockHash) throw new Error('Chain tip changed during sync; retry on the next poll');
@@ -221,7 +238,6 @@ export class Indexer implements IndexerApi {
       config: { depositsPaused, minDeposit, maxDeposit, poolCap, depositFeeBps, settleFeeBps, crankFee },
       tip: { slot: endTip.slot, hash: endTip.blockHash },
     };
-    state.aspLeaves = [...leaves];
     this.state = state;
     return applied;
   }
@@ -242,7 +258,7 @@ export class Indexer implements IndexerApi {
   async getAspLeaves(from: number, limit: number): Promise<AspLeavesPage> {
     const count = page(from, limit);
     const pool = this.ready();
-    if (MerkleTree.fromLeaves(this.state.aspLeaves).root !== pool.aspRoot) {
+    if (!this.state.aspLeavesMatch) {
       throw new ApiError('stale_asp_root', 'Approved leaves do not match the confirmed ASP root');
     }
     return { from, leaves: this.state.aspLeaves.slice(from, from + count), root: pool.aspRoot };
@@ -263,13 +279,26 @@ export class Indexer implements IndexerApi {
 }
 
 /** Poll only after the previous sync finishes so slow providers do not accumulate requests. */
-export async function serveIndexer(indexer: Indexer, a: { port: number; syncMs?: number }): Promise<{ url: string; close(): Promise<void> }> {
+export async function serveIndexer(indexer: Indexer, a: {
+  port: number; syncMs?: number; maxStaleMs?: number; onError?: (error: unknown) => void;
+}): Promise<{ url: string; close(): Promise<void> }> {
   const syncMs = a.syncMs ?? 5_000;
+  const maxStaleMs = a.maxStaleMs ?? 120_000;
+  const onError = a.onError ?? (() => {});
   if (!Number.isSafeInteger(syncMs) || syncMs < 1 || syncMs > 2_147_483_647) throw new RangeError('syncMs must be a positive timer interval');
-  await indexer.sync();
-  let failure: unknown;
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    try {
+      await indexer.sync();
+      break;
+    } catch (error) {
+      onError(error);
+      if (attempt === 4) throw error;
+      await new Promise(resolve => setTimeout(resolve, syncMs));
+    }
+  }
+  let lastSuccess = Date.now();
   const server = await serveJson(indexerRoutes(indexer).map(route => ({ ...route, handle: request => {
-    if (failure) throw new ApiError('internal', 'Indexer sync failed; waiting for the next successful poll');
+    if (Date.now() - lastSuccess > maxStaleMs) throw new ApiError('internal', 'Indexer snapshot is too old', 503);
     return route.handle(request);
   } })), a.port);
   let closed = false;
@@ -277,7 +306,7 @@ export async function serveIndexer(indexer: Indexer, a: { port: number; syncMs?:
   let timer: ReturnType<typeof setTimeout>;
   const schedule = () => {
     timer = setTimeout(() => {
-      running = indexer.sync().then(() => { failure = undefined; }, error => { failure = error; })
+      running = indexer.sync().then(() => { lastSuccess = Date.now(); }, onError)
         .finally(() => { if (!closed) schedule(); });
     }, syncMs);
     timer.unref();
