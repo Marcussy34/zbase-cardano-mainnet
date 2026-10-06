@@ -158,6 +158,10 @@ export class FakeChain implements Provider, ChainHistory {
   }
 
   async evaluate(txCbor: string, additionalUtxos: Utxo[] = []): Promise<RedeemerUnits[]> {
+    // A live evaluator knows every confirmed output and refuses one that is sent again
+    // (Ogmios answers AdditionalUtxoOverlap). Extra inputs are for outputs that are not on chain yet.
+    const overlap = additionalUtxos.filter(utxo => this.confirmed.has(refKey(utxo.ref))).map(utxo => refKey(utxo.ref));
+    if (overlap.length > 0) throw new Error(`AdditionalUtxoOverlap: ${overlap.join(', ')}`);
     const view = decodeTx(txCbor);
     return simulate(txCbor, this.resolve(view, additionalUtxos), this.network);
   }

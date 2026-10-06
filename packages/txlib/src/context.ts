@@ -100,7 +100,15 @@ export async function complete(ctx: BuilderContext, builder: MeshTxBuilder, a: {
   builder.changeAddress(a.payer.address).selectUtxosFrom(available.sort((a, b) => refKey(a.ref).localeCompare(refKey(b.ref))).map(utxoToMesh));
   const draft = await builder.complete();
   const view = decodeTx(draft);
-  const additional = [...new Map([...payerUtxos, ...(a.extraUtxos ?? [])].map(u => [refKey(u.ref), u])).values()];
+  // The evaluator already knows every confirmed output, and a live one refuses to get it again.
+  // So send only the outputs this transaction uses that are not on chain yet (chained transactions).
+  const used = [...new Map([...view.inputs, ...view.referenceInputs, ...view.collateral].map(ref => [refKey(ref), ref])).values()];
+  const confirmed = new Map((await ctx.provider.getUtxos(used)).map(u => [refKey(u.ref), u]));
+  const supplied = new Map([...payerUtxos, ...(a.extraUtxos ?? [])].map(u => [refKey(u.ref), u]));
+  const additional = used.flatMap(ref => {
+    const utxo = confirmed.has(refKey(ref)) ? undefined : supplied.get(refKey(ref));
+    return utxo ? [utxo] : [];
+  });
   const measured = scripted ? await ctx.provider.evaluate(draft, additional) : [];
   if (measured.length !== view.redeemers.length || new Set(measured.map(u => `${u.tag}:${u.index}`)).size !== measured.length) {
     throw new Error('Provider returned an unexpected redeemer set');
@@ -123,7 +131,8 @@ export async function complete(ctx: BuilderContext, builder: MeshTxBuilder, a: {
     if (targets.length === 0) throw new Error(`Unsupported redeemer ${units.tag}:${units.index}`);
     for (const target of targets) target.exUnits = { mem: Number(mem), steps: Number(steps) };
   }
-  const resolved = new Map((await ctx.provider.getUtxos([...view.inputs, ...view.referenceInputs])).map(u => [refKey(u.ref), u]));
+  // Confirmed outputs come from the provider. Only outputs that are not on chain yet come from the caller.
+  const resolved = new Map(confirmed);
   for (const utxo of additional) resolved.set(refKey(utxo.ref), utxo);
   let refScriptBytes = 0;
   for (const ref of [...view.inputs, ...view.referenceInputs]) {
