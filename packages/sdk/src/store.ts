@@ -19,6 +19,8 @@ export interface NoteRecord {
   pending?: { kind: 'settle' | 'exit' | 'refund'; validUntil: number; changeNoteId: string | null };
   /** Seed recovery alone cannot recover the refund key chosen during preparation. */
   expectedRefundKeyHash?: string | null;
+  /** SDK deposits follow their exact output, even when someone copies the public datum. */
+  expectedOrigin?: { txId: string; index: number };
 }
 export interface StoreData { nextDepositIndex: number; nextChangeIndex: number; nextOneTimeIndex: number; notes: NoteRecord[] }
 export interface NoteStore { load(): Promise<StoreData | null>; save(data: StoreData): Promise<void> }
@@ -55,6 +57,7 @@ export function fileStore(path: string): NoteStore {
         notes: data.notes.map(n => ({ id: n.id, kind: n.kind, secretIndex: n.secretIndex, status: n.status,
           value: n.value, label: n.label, leafIndex: n.leafIndex, gross: n.gross, precommitment: n.precommitment,
           ...(n.expectedRefundKeyHash === undefined ? {} : { expectedRefundKeyHash: n.expectedRefundKeyHash }),
+          ...(n.expectedOrigin === undefined ? {} : { expectedOrigin: { txId: n.expectedOrigin.txId, index: n.expectedOrigin.index } }),
           ...(n.pending === undefined ? {} : { pending: { kind: n.pending.kind, validUntil: n.pending.validUntil,
             changeNoteId: n.pending.changeNoteId } }),
           origin: n.origin === null ? null : { txId: n.origin.txId, index: n.origin.index, refundKeyHash: n.origin.refundKeyHash } })),
