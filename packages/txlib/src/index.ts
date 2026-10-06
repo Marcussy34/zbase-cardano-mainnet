@@ -9,3 +9,8 @@ export * from './stealth.js';
 export * from './context.js';
 export * from './init.js';
 export * from './deposit.js';
+export * from './nullifiers.js';
+export * from './insert.js';
+export * from './settle.js';
+export * from './ragequit.js';
+export * from './admin.js';
