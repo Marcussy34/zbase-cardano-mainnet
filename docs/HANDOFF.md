@@ -122,6 +122,7 @@ The build made these choices where the plan was silent or wrong. Each one can be
 | The relayer fee is limited in the SDK, 2 ADA by default | The validator fixes only the protocol fee, and the proof fixes the withdrawn amount | A relayer that needs more is refused until the caller raises the limit |
 | The SDK settles its own tentative marks by deadline | A deadline needs no extra chain reads and cannot give a false answer when the indexer lags | A dropped transaction is noticed up to 12 minutes late |
 | The indexer reads a new block a second time only for two minutes after a change | A provider can serve old data right after a block, and a second read of every block would nearly double the requests of an idle node | Outside those two minutes, only the next block corrects a stale read |
+| The network key setup never replaces a complete set of proving keys | The key script makes new keys when Node.js, circom, snarkjs or a circuit changes, and a deployed pool cannot work with other keys | To make new keys, someone must move the key folder away by hand |
 | The first live run was on Preprod | The owner asked for it. All off-chain code takes a network setting | None. Mainnet uses the same code |
 
 ## 6. Hard rules

@@ -42,9 +42,12 @@ CAUTION: step 5 is a key setup by one party. Whoever runs it could forge proofs 
 
 Step 5 takes about 4 minutes. It writes the proving keys to `circuits/build/keys-preprod/` and the verification keys to `deployments/preprod/keys/`.
 
-CAUTION: back up the folder with the proving keys before step 6. Git ignores it, and a second setup run makes other keys that do not fit a deployed pool.
+CAUTION: back up the folder with the proving keys before step 6. Git ignores it, and no setup run can make the same keys again.
 Without the proving keys of a pool, nobody can insert, pay or exit, and the notes in that pool stay locked.
 A deposit that is not inserted yet can still be refunded, because a refund needs no proof.
+
+Step 5 never replaces a complete set of keys. If the folder already holds the three key files, the command keeps them and says so.
+To make keys for another pool, move the folder away first. Keep it for as long as the old pool holds funds.
 Step 6 submits four transactions and takes about 3.5 minutes. It writes the record `deployments/preprod.json`.
 A deployment costs about 245 test ADA. Of that, 160 goes to the role keys of the crank, the relayer, the association service and the test user, and 73.6 stays in the four reference script outputs.
 

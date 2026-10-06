@@ -23,6 +23,7 @@ Read [docs/HANDOFF.md](docs/HANDOFF.md) first.
 9. **Never commit secrets.** No seed phrases, signing keys, `.env` files, proving keys, or powers of tau files.
 10. **Scripts are immutable.** A change to a circuit or a validator after deploy means a new ceremony and a new pool.
 11. **Keep curve points out of data structures in Aiken.** No `Option`, list, tuple, or record of points. Each wrap adds a hidden compress and uncompress.
+12. **Never delete or remake `circuits/build/keys-<network>`.** It holds the proving keys of a deployed pool, and no setup can make them again. Without them the notes in that pool stay locked.
 
 ## How to work
 

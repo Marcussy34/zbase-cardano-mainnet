@@ -202,6 +202,30 @@ test('OPS-05: setup stages phase 1, publishes public files, and preserves existi
   } finally { await rm(root, { recursive: true, force: true }); }
 });
 
+test('OPS-06: setup never replaces a complete set of proving keys', async () => {
+  const build = join(repoRoot, 'ops/build');
+  await mkdir(build, { recursive: true });
+  const root = await mkdtemp(join(build, 'setup-keep-'));
+  try {
+    const paths = setupPaths(root, network);
+    await mkdir(paths.workDir, { recursive: true });
+    const publicFiles = ['spend_vkey.json', 'insert_vkey.json', 'ragequit_vkey.json', 'manifest.json'];
+    const provingKeys = ['spend.zkey', 'insert.zkey', 'ragequit.zkey'];
+    for (const file of ['pot16_final.ptau', ...publicFiles, ...provingKeys]) await writeFile(join(paths.workDir, file), `deployed ${file}`);
+    const logs: string[] = [];
+    // The real key script replaces every key when Node.js, circom, snarkjs or a circuit changed since the last run.
+    const run = async () => { for (const file of provingKeys) await writeFile(join(paths.workDir, file), 'replaced'); };
+    await runSetup({ repoRoot: root, network, run, log: line => logs.push(line) });
+    for (const file of provingKeys) assert.equal(await readFile(join(paths.workDir, file), 'utf8'), `deployed ${file}`);
+    for (const file of publicFiles) assert.equal(await readFile(join(paths.publishDir, file), 'utf8'), `deployed ${file}`);
+    assert.match(logs.join('\n'), /already exist/);
+    // One missing key means an interrupted first setup. No pool can depend on it yet, so the script runs and finishes it.
+    await rm(join(paths.workDir, 'ragequit.zkey'));
+    await runSetup({ repoRoot: root, network, run, log: line => logs.push(line) });
+    assert.equal(await readFile(join(paths.workDir, 'ragequit.zkey'), 'utf8'), 'replaced');
+  } finally { await rm(root, { recursive: true, force: true }); }
+});
+
 test('OPS-01: confirmation waits for output zero and times out on missing outputs', async () => {
   const chain = new FakeChain({ network });
   const id = 'ac'.repeat(32);
