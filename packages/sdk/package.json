@@ -1,0 +1,24 @@
+{
+  "name": "@zbase-cardano/core",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": { ".": "./src/index.ts", "./*": "./src/*.ts" },
+  "scripts": {
+    "test": "node --import tsx --test \"test/**/*.test.ts\"",
+    "typecheck": "tsc --noEmit -p ."
+  },
+  "dependencies": {
+    "@zbase-cardano/api": "*",
+    "@zbase-cardano/crypto": "*",
+    "@zbase-cardano/prover": "*",
+    "@zbase-cardano/txlib": "*",
+    "@x402/cardano": "2.28.0"
+  },
+  "devDependencies": {
+    "@zbase-cardano/indexer": "*",
+    "@zbase-cardano/asp": "*",
+    "@zbase-cardano/crank": "*",
+    "@zbase-cardano/relayer": "*"
+  }
+}
