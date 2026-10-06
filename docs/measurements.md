@@ -46,6 +46,21 @@ Script hashes depend on the deployment and are filled in after the live run.
 | ASP update | | | | | |
 | Config update | | | | | |
 
+### Transactions on Preprod
+
+The Preprod pool was deployed on 2026-10-06. Its record is [deployments/preprod.json](../deployments/preprod.json).
+
+| Transaction | CPU steps | Memory units | Size in bytes | Fee in ADA | Transaction hash |
+|---|---|---|---|---|---|
+| Plain x402 payment, no pool | none | none | 281 | 0.169021 | `a185ee503b7a43e9faf67ea112f3adc05ffe3df5825b4b8512ad8d6a2c839a76` |
+| Fund the role keys | none | none | 571 | 0.180549 | `b99438ad408efecccffc77e9cf866e4fd013ee165aa0fe0060fceda939a0ca42` |
+| Publish the pool script | none | none | 12,947 | 0.725093 | `a9b1c5863c47a4bbf40448914192f893be139901a7f9c34c095f1073c89d1215` |
+| Publish the deposit, config, and ASP scripts | none | none | 3,954 | 0.329401 | `0a57eac8b52fea26a1ebd71c82b34c0d1b91da824017a066a9389d45485dadbb` |
+| Init | 34,513,558 | 107,826 | 1,439 | 0.227451 | `db87709baae198b5de44a8115b8f2a931fe0ca4d94142943615b7ba142ac523f` |
+
+A deployment costs about 245 ADA: 160 ADA of role funding, 73.6 ADA locked in the four reference script outputs, 8.9 ADA in the three state outputs, and about 1.5 ADA of fees.
+The Init units are the evaluated units before the 10 percent margin.
+
 ## 4. End-to-end timings
 
 | Flow | Time from request to one confirmation |
