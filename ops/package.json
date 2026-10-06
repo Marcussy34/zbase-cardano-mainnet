@@ -10,7 +10,8 @@
     "setup": "node --env-file=../.env --import tsx src/setup.ts",
     "deploy": "node --env-file=../.env --import tsx src/deploy.ts",
     "node": "node --env-file=../.env --import tsx src/node.ts",
-    "demo": "node --env-file=../.env --import tsx src/demo.ts"
+    "demo": "node --env-file=../.env --import tsx src/demo.ts",
+    "admin": "node --env-file=../.env --import tsx src/admin.ts"
   },
   "dependencies": {
     "@zbase-cardano/api": "*",
