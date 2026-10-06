@@ -2,13 +2,13 @@ import { setTimeout as delay } from 'node:timers/promises';
 import type { ClientCardanoSigner } from '@x402/cardano';
 import { ApiError, type DepositView, type IndexerApi, type PayoutRequest, type RelayerApi, type SettleStatus } from '@zbase-cardano/api';
 import {
-  addressFromBech32, commitment, contextFor, deriveNoteSecrets, MerkleTree, nullifierHash, precommitment,
+  addressFromBech32, commitment, contextFor, deriveNoteSecrets, deriveOneTimeKey, MerkleTree, nullifierHash, precommitment,
   ragequitWitness, spendWitness, type Note, type SettleIntent,
 } from '@zbase-cardano/crypto';
 import { prove, type CircuitArtifacts } from '@zbase-cardano/prover';
 import {
-  buildDeposit, buildRagequit, buildRefund, encodeDepositDatum, enterpriseAddress, keyHash,
-  nullifierInsertion, readDeposits, readPool, signTx, slotToTime, type ChainContext,
+  buildDeposit, buildRagequit, buildRefund, buildStealthPayment, encodeDepositDatum, enterpriseAddress, keyHash,
+  nullifierInsertion, readDeposits, readPool, signTx, slotToTime, stealthFee, type ChainContext,
 } from '@zbase-cardano/txlib';
 import { memoryStore, type NoteRecord, type NoteStore, type StoreData } from './store.js';
 import { stealthSigner } from './x402.js';
@@ -43,6 +43,8 @@ export interface ZbaseCardano {
   waitForSettle(id: string): Promise<SettleStatus>;
   ragequit(a: ExitArgs): Promise<{ txId: string }>;
   refund(a: ExitArgs): Promise<{ txId: string }>;
+  /** Recovers the largest confirmed output when a one-time address holds several. Leaves the counter unchanged. */
+  recoverOneTimeFunds(a: { index: number; payTo: string }): Promise<{ txId: string; amount: bigint } | null>;
   /** maxPrice limits the seller's price in lovelace, before any funding fees. */
   x402Signer(a?: { mode?: 'stealth'; maxPrice?: bigint }): ClientCardanoSigner;
 }
@@ -312,21 +314,9 @@ export function createZbaseCardano(o: ZbaseOptions): ZbaseCardano {
         aspTree: MerkleTree.fromLeaves(approved), aspIndex: approved.indexOf(record.label!), withdrawn: quote.withdrawn,
         newNullifier: secrets.nullifier, newSecret: secrets.secret, context: contextFor(intent) });
       const proof = await prove(o.artifacts.spend, witness.input);
-      // Reserve each index before sending a proof, including attempts with uncertain responses.
-      await save({ ...data, nextChangeIndex: changeIndex + 1 });
-      let status: SettleStatus;
-      try {
-        status = await relayer.settle({ quoteId: quote.quoteId,
-          proof: { a: hex(proof.cardano.a), b: hex(proof.cardano.b), c: hex(proof.cardano.c) },
-          publicInputs: { newCommitment: witness.public.newCommitment, nullifierHash: witness.public.nullifierHash,
-            withdrawn: quote.withdrawn, stateRoot: witness.public.stateRoot, aspRoot: witness.public.aspRoot, context: witness.public.context },
-          intent: { poolId: quote.poolId, payouts, relayer: quote.relayerKeyHash, validUntil: quote.validUntil } });
-      } catch (error) {
-        if (attempt < 2 && error instanceof ApiError && ['stale_root', 'stale_asp_root', 'internal'].includes(error.code)) continue;
-        throw error;
-      }
-      if (status.status === 'failed') throw new Error(`Settle ${status.id} failed: ${status.error ?? 'unknown error'}`);
+      const previousNotes = data.notes;
       const next = structuredClone(data);
+      next.nextChangeIndex = changeIndex + 1;
       next.notes.find(n => n.id === record.id)!.status = 'spent';
       let changeNoteId: string | null = null;
       if (witness.changeNote.value > 0n) {
@@ -336,7 +326,28 @@ export function createZbaseCardano(o: ZbaseOptions): ZbaseCardano {
           precommitment: precommitment(secrets.nullifier, secrets.secret) });
       }
       next.notes.find(n => n.id === record.id)!.pending = { kind: 'settle', validUntil: quote.validUntil, changeNoteId };
+      // Save the change and reserve its index before a lost response can hide an accepted payment.
       await save(next);
+      let status: SettleStatus;
+      try {
+        status = await relayer.settle({ quoteId: quote.quoteId,
+          proof: { a: hex(proof.cardano.a), b: hex(proof.cardano.b), c: hex(proof.cardano.c) },
+          publicInputs: { newCommitment: witness.public.newCommitment, nullifierHash: witness.public.nullifierHash,
+            withdrawn: quote.withdrawn, stateRoot: witness.public.stateRoot, aspRoot: witness.public.aspRoot, context: witness.public.context },
+          intent: { poolId: quote.poolId, payouts, relayer: quote.relayerKeyHash, validUntil: quote.validUntil } });
+      } catch (error) {
+        if (!(error instanceof ApiError)) {
+          throw new Error(`Settlement outcome is unknown for note ${record.id}; sync before retrying`, { cause: error });
+        }
+        // A definite refusal releases the note, but never reuses a reserved change index.
+        await save({ ...data, notes: previousNotes });
+        if (attempt < 2 && ['stale_root', 'stale_asp_root', 'internal'].includes(error.code)) continue;
+        throw error;
+      }
+      if (status.status === 'failed') {
+        await save({ ...data, notes: previousNotes });
+        throw new Error(`Settle ${status.id} failed: ${status.error ?? 'unknown error'}`);
+      }
       return { id: status.id, txHash: status.txHash, noteId: record.id, changeNoteId, withdrawn: quote.withdrawn };
     }
     throw new Error('Private settlement exhausted its attempts');
@@ -398,10 +409,10 @@ export function createZbaseCardano(o: ZbaseOptions): ZbaseCardano {
         refundKeyHash: record.origin!.refundKeyHash, nullifierProof: trie.proofCbor, newNullifierRoot: trie.newRoot, payTo, invalidHereafter });
       const signed = signTx(tx.cbor, [a.refundSeed]);
       await ctx.provider.evaluate(signed);
-      const txId = await ctx.provider.submit(signed);
       await save({ ...data, notes: data.notes.map(n => n.id === record.id ? { ...n, status: 'exited',
         pending: { kind: 'exit', validUntil: slotToTime(invalidHereafter, ctx.deployment.network), changeNoteId: null } } : n) });
-      return { txId };
+      try { return { txId: await ctx.provider.submit(signed) }; }
+      catch (error) { throw new Error(`Exit outcome is unknown for note ${record.id}; sync before retrying`, { cause: error }); }
     }),
     refund: a => exclusive(async () => {
       await sync();
@@ -416,10 +427,27 @@ export function createZbaseCardano(o: ZbaseOptions): ZbaseCardano {
       const tx = await buildRefund(ctx, { payer: { address }, deposit, payTo, invalidHereafter });
       const signed = signTx(tx.cbor, [a.refundSeed]);
       await ctx.provider.evaluate(signed);
-      const txId = await ctx.provider.submit(signed);
       await save({ ...data, notes: data.notes.map(n => n.id === record.id ? { ...n, status: 'refunded',
         pending: { kind: 'refund', validUntil: slotToTime(invalidHereafter, ctx.deployment.network), changeNoteId: null } } : n) });
-      return { txId };
+      try { return { txId: await ctx.provider.submit(signed) }; }
+      catch (error) { throw new Error(`Refund outcome is unknown for note ${record.id}; sync before retrying`, { cause: error }); }
+    }),
+    recoverOneTimeFunds: a => exclusive(async () => {
+      const network = ctx.deployment.network;
+      addressFromBech32(a.payTo, network);
+      const key = deriveOneTimeKey(seed, a.index);
+      try {
+        const utxos = await ctx.provider.getUtxosAt(enterpriseAddress(key, network));
+        const [utxo] = utxos.sort((a, b) => a.value.lovelace > b.value.lovelace ? -1 : a.value.lovelace < b.value.lovelace ? 1 : 0);
+        if (!utxo) return null;
+        const context = { provider: ctx.provider, network };
+        // Quoting the full value is conservative: subtracting the fee cannot enlarge the output encoding.
+        const fee = await stealthFee(context, { payTo: a.payTo, price: utxo.value.lovelace });
+        const amount = utxo.value.lovelace - fee;
+        const tx = await buildStealthPayment(context, { oneTimeUtxo: utxo, oneTimeSeed: key, payTo: a.payTo, price: amount });
+        await ctx.provider.evaluate(tx.cbor);
+        return { txId: await ctx.provider.submit(tx.cbor), amount };
+      } finally { key.fill(0); }
     }),
     x402Signer(a) {
       if (a?.mode !== undefined && a.mode !== 'stealth') throw new Error('Only stealth mode is supported');
