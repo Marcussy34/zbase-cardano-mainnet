@@ -7,3 +7,4 @@ export * from "./keys.js";
 export * from "./points.js";
 export * from "./witness/spend.js";
 export * from "./witness/insert.js";
+export * from "./witness/ragequit.js";
