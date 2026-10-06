@@ -6,3 +6,4 @@ export * from "./encoding.js";
 export * from "./keys.js";
 export * from "./points.js";
 export * from "./witness/spend.js";
+export * from "./witness/insert.js";
