@@ -18,7 +18,7 @@ const repoRoot = fileURLToPath(new URL('../../../', import.meta.url));
 const hex = (bytes: Uint8Array): string => Buffer.from(bytes).toString('hex');
 after(shutdown);
 
-test('ASP-01, IDX-01: confirmed leaves stay available through submission and restart', async t => {
+test('ASP-01, IDX-01: current and previous confirmed leaves survive indexer lag and restart', async t => {
   const { chain, ctx, keys } = await startDevnet();
   const build = fileURLToPath(new URL('../build/', import.meta.url));
   mkdirSync(build, { recursive: true });
@@ -56,12 +56,28 @@ test('ASP-01, IDX-01: confirmed leaves stay available through submission and res
   assert.deepEqual(service.leaves(publishedRoot), [11n]);
   await indexer.sync();
   assert.deepEqual((await indexer.getAspLeaves(0, 10)).leaves, [11n]);
+  const oldTip = await chain.getTip();
   chain.mineBlock();
-  await indexer.sync();
-  assert.deepEqual((await indexer.getAspLeaves(0, 10)).leaves, [0n]);
   await service.tick();
-  service = new AspService(options);
-  assert.deepEqual(service.leaves((await indexer.getPool()).aspRoot), [0n]);
+  const currentRoot = (await readAsp(ctx)).datum.root;
+  // The ASP sees confirmation before the indexer's provider advances its tip.
+  const lag = t.mock.method(chain, 'getTip', async () => oldTip);
+  try {
+    for (let restart = 0; restart < 2; restart += 1) {
+      if (restart) service = new AspService(options);
+      await indexer.sync();
+      assert.deepEqual(await indexer.getAspLeaves(0, 10), { from: 0, leaves: [11n], root: publishedRoot });
+      assert.deepEqual(service.leaves(publishedRoot), [11n]);
+      assert.deepEqual(service.leaves(currentRoot), [0n]);
+      const copy = service.leaves(publishedRoot);
+      copy[0] = 99n;
+      assert.deepEqual(service.leaves(publishedRoot), [11n]);
+      assert.deepEqual(await service.tick(), { approved: 0, txId: null });
+    }
+  } finally { lag.mock.restore(); }
+  await indexer.sync();
+  assert.deepEqual(await indexer.getAspLeaves(0, 10), { from: 0, leaves: [0n], root: currentRoot });
+  assert.deepEqual(JSON.parse(readFileSync(storePath, 'utf8')).previous, ['11']);
 });
 
 test('ASP-01: unchanged approved and published lists reuse cached roots', async t => {
