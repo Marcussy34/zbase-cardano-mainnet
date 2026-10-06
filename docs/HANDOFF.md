@@ -54,7 +54,7 @@ The owner approved the design on 2026-10-06. SPEC section 2 lists each decision 
 | The trie library compiles with Aiken 1.1.24 | Verified | Same pipeline spike |
 | An input of `x + r` verifies when the range check is missing | Verified by a control test | Same pipeline spike |
 | Label and context encodings | Defined, with vectors from a reference script | TEST-VECTORS sections 6 and 7 |
-| The stock TypeScript x402 facilitator accepts the stealth payment | Verified on Preprod, two runs through the stock seller | measurements.md, section 3 |
+| The stock TypeScript x402 facilitator accepts the stealth payment | Verified on Preprod, four runs through the stock seller | measurements.md, section 3 |
 | Fees of about 1.0 to 1.2 ADA per private payment | Measured on Preprod: 0.85 ADA for the two legs, plus a share of one Insert | measurements.md, sections 3 and 5 |
 | Circuit sizes | Measured: spend 16,828, insert 62,950 and ragequit 8,423 constraints | measurements.md, section 1 |
 | Mesh can build the Settle transaction | Verified on Preprod. Two defects of Mesh 1.9.1 are worked around in `packages/txlib` | AGENTS.md, Cardano knowledge |
@@ -121,6 +121,7 @@ The build made these choices where the plan was silent or wrong. Each one can be
 | Tests that need a proving key skip without one | CI has no proving keys | A proving regression can reach main if nobody runs the tests locally |
 | The relayer fee is limited in the SDK, 2 ADA by default | The validator fixes only the protocol fee, and the proof fixes the withdrawn amount | A relayer that needs more is refused until the caller raises the limit |
 | The SDK settles its own tentative marks by deadline | A deadline needs no extra chain reads and cannot give a false answer when the indexer lags | A dropped transaction is noticed up to 12 minutes late |
+| The indexer reads a new block a second time only for two minutes after a change | A provider can serve old data right after a block, and a second read of every block would nearly double the requests of an idle node | Outside those two minutes, only the next block corrects a stale read |
 | The first live run was on Preprod | The owner asked for it. All off-chain code takes a network setting | None. Mainnet uses the same code |
 
 ## 6. Hard rules
