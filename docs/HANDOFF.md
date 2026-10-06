@@ -111,4 +111,4 @@ Ask the owner before you change any of these:
 - The plan is a work breakdown. It fixes interfaces and tests, not line-by-line code.
 - Estimates are marked as estimates. M0 replaces them with measurements.
 - The design is new. An external audit is required before the caps are lifted.
-- This repo has no license yet. zBase on Base uses Apache-2.0.
+- This repo uses the MIT license. zBase on Base uses Apache-2.0.
