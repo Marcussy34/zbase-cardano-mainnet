@@ -1,3 +1,4 @@
+import { isDeepStrictEqual } from 'node:util';
 import {
   ApiError, indexerRoutes, serveJson, type AspLeavesPage, type DepositView,
   type IndexerApi, type LeavesPage, type NullifiersPage, type PoolView,
@@ -14,6 +15,9 @@ interface Options {
   ctx: ChainContext;
   history: ChainHistory;
   aspLeaves?: (root: bigint) => bigint[] | Promise<bigint[]>;
+  settleMs?: number;
+  activeMs?: number;
+  now?: () => number;
 }
 interface Snapshot {
   tree: MerkleTree;
@@ -21,6 +25,7 @@ interface Snapshot {
   deposits: Map<string, { view: DepositView; observedSlot: number }>;
   poolRef?: UtxoRef;
   datum?: PoolDatum;
+  config?: ConfigDatum;
   poolCursor?: string;
   depositCursor?: string;
   pool?: PoolView;
@@ -40,21 +45,29 @@ function page(from: number, limit: number): number {
 
 /** Replays confirmed history into a snapshot. Failed reads never publish a partial tree. */
 export class Indexer implements IndexerApi {
-  private readonly options: Options;
+  private readonly options: Options & { settleMs: number; activeMs: number; now: () => number };
   // Transaction contents stay valid across failed syncs and rollbacks. Inclusion belongs to the snapshot.
   private readonly transactions = new Map<string, TxView>();
   private state = fresh();
   private syncing?: Promise<number>;
   private lastSyncedAt: number | undefined;
+  private activeUntil = 0;
+  private refreshedAt = 0;
+  private secondLook = false;
 
   get syncedAt(): number | undefined { return this.lastSyncedAt; }
 
-  constructor(a: Options) { this.options = a; }
+  constructor(a: Options) {
+    this.options = { ...a, settleMs: a.settleMs ?? 5_000, activeMs: a.activeMs ?? 120_000, now: a.now ?? Date.now };
+  }
+
+  /** Allow a second look while a submitted transaction catches up with the address index. */
+  expectChange(): void { this.activeUntil = this.options.now() + this.options.activeMs; }
 
   sync(): Promise<number> {
     if (this.syncing) return this.syncing;
     this.syncing = this.refresh().then(applied => {
-      this.lastSyncedAt = Date.now();
+      this.lastSyncedAt = this.options.now();
       return applied;
     }).finally(() => { this.syncing = undefined; });
     return this.syncing;
@@ -173,9 +186,11 @@ export class Indexer implements IndexerApi {
     const { ctx, history } = this.options;
     const { scripts, asset, poolId } = ctx.deployment;
     const tip = await ctx.provider.getTip();
-    if (tip.blockHash === this.state.pool?.tip.hash) {
+    const sameTip = tip.blockHash === this.state.pool?.tip.hash;
+    const now = this.options.now();
+    if (sameTip && (now >= this.activeUntil || this.secondLook || now - this.refreshedAt < this.options.settleMs)) {
       const state = { ...this.state };
-      await this.refreshAsp(state, this.state.pool.aspRoot);
+      await this.refreshAsp(state, this.state.pool!.aspRoot);
       this.state = state;
       return 0;
     }
@@ -244,7 +259,15 @@ export class Indexer implements IndexerApi {
       config: { depositsPaused, minDeposit, maxDeposit, poolCap, depositFeeBps, settleFeeBps, crankFee },
       tip: { slot: endTip.slot, hash: endTip.blockHash },
     };
+    state.config = config.datum;
+    // A new tip alone is not activity. Compare only the pool, approval, config and deposits.
+    if (!isDeepStrictEqual(state.poolRef, this.state.poolRef) || state.pool.aspRoot !== this.state.pool?.aspRoot
+      || !isDeepStrictEqual(state.config, this.state.config) || !isDeepStrictEqual(state.deposits, this.state.deposits)) {
+      this.expectChange();
+    }
     this.state = state;
+    this.refreshedAt = this.options.now();
+    this.secondLook = sameTip;
     return applied;
   }
 
