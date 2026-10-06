@@ -1,0 +1,22 @@
+{
+  "name": "@zbase-cardano/txlib",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./testing/*": "./src/testing/*.ts",
+    "./*": "./src/*.ts"
+  },
+  "scripts": {
+    "test": "node --import tsx --test \"test/**/*.test.ts\"",
+    "typecheck": "tsc --noEmit -p ."
+  },
+  "dependencies": {
+    "@zbase-cardano/crypto": "*",
+    "@meshsdk/core": "1.9.1",
+    "@meshsdk/core-cst": "1.9.1",
+    "@noble/curves": "2.4.0",
+    "@noble/hashes": "2.4.0"
+  }
+}
