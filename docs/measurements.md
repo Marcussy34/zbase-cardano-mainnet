@@ -76,9 +76,26 @@ The Preprod pool was deployed on 2026-10-06. Its record is [deployments/preprod.
 | Publish the pool script | none | none | 12,947 | 0.725093 | `a9b1c5863c47a4bbf40448914192f893be139901a7f9c34c095f1073c89d1215` |
 | Publish the deposit, config, and ASP scripts | none | none | 3,954 | 0.329401 | `0a57eac8b52fea26a1ebd71c82b34c0d1b91da824017a066a9389d45485dadbb` |
 | Init | 34,513,558 | 107,826 | 1,439 | 0.227451 | `db87709baae198b5de44a8115b8f2a931fe0ca4d94142943615b7ba142ac523f` |
+| Deposit | none | none | 349 | 0.170781 | `ea0c386124bc7a621850dbcc6604da672e9ea2f56244ea09d6582647e6a6380c` |
+| Refund | 9,549,351 | 30,049 | 477 | 0.186606 | `6cc784d3785f8a41b44119f0cbd9016b16125f10f81dce35d175a0e98a6c6e58` |
+| Insert, 1 deposit | 3,096,717,864 | 972,831 | 937 | 0.673714 | `8f6fa4b314995a5094a87ad5622fd2d85561d9305fdf946654cd8f567dfbc72f` |
+| ASP update | 64,242,754 | 182,820 | 599 | 0.215772 | `4411baa60102d65d4d267469fdc7d24751278c2af79cc72cc95c68335058d1ff` |
+| Settle, 1 payout to a one-time address | 3,224,181,642 | 887,490 | 1,242 | 0.683630 | `a65f39df751aa7843906799080d9520bbafb6a123e1730df354d9d06782632e4` |
+| Stealth leg 2, one-time address to the seller | none | none | 196 | 0.165697 | `6043b7ec6e7fe3d98082081878ca66352ec0506405e36f1f9d33bce321bc9246` |
+| Insert, 1 note | 2,887,382,131 | 792,574 | 884 | 0.638118 | `1e7c759350fef8ae0f4b74ce74eb34ad97057c7ac2b74c96ea25467fbfa571f0` |
+| Ragequit | 2,864,233,950 | 699,948 | 1,174 | 0.643865 | `31e91180001495a39c500c4c29aba3a8d0bbe54237365ff41a7880ca760ec763` |
 
 A deployment costs about 245 ADA: 160 ADA of role funding, 73.6 ADA locked in the four reference script outputs, 8.9 ADA in the three state outputs, and about 1.5 ADA of fees.
 The Init units are the evaluated units before the 10 percent margin.
+
+The rows from Deposit to Ragequit are one complete pool story, run on 2026-10-06 with the code of this repository.
+The indexer, the crank, the association set provider service and the relayer ran in one process against Blockfrost.
+The sizes, fees and units in those rows are the values that the chain recorded.
+A deposit of 10 ADA was credited as 9.7 ADA. A private payment of 2 ADA reached the seller from a one-time address.
+The change note of 6.534303 ADA then left the pool through Ragequit.
+For the same shape of transaction, the live units of Refund, Settle, Insert of 1 note and Ragequit are within 0.4 percent of the local test chain.
+The association update is 5 percent higher on Preprod.
+So one private payment in stealth mode cost 0.849327 ADA in network fees for its two legs, before the relayer fee of 1 ADA.
 
 ## 4. End-to-end timings
 
@@ -86,6 +103,25 @@ The Init units are the evaluated units before the 10 percent margin.
 |---|---|
 | Stealth payment, one-time key funded on demand | |
 | Stealth payment, one-time key funded ahead | |
+
+### Step timings on Preprod
+
+One sample each, from the pool story in section 3, run step by step on a laptop that was busy with other work.
+Preprod makes a block about every 20 seconds.
+
+| Step | Work before submission | Wait for one confirmation |
+|---|---|---|
+| Deposit | 1.8 s to build | 27.8 s |
+| Insert of 1 deposit by the crank | 14.3 s to read, prove, build and submit | 33.8 s |
+| Association update | 6.3 s to read, build and submit | 49.1 s |
+| Private settlement by the relayer | 1.9 s to prove, 7.0 s to verify, build and submit | 27.6 s |
+| Stealth leg 2 | under 1 s to build | 39.4 s |
+| Insert of 1 note by the crank | 19.3 s to read, prove, build and submit | 22.7 s |
+| Ragequit | 4.2 s to prove, 5.6 s to build | 33.1 s |
+
+From the block of the deposit to the block of the second stealth leg, 224 seconds passed.
+That covers the deposit, its insertion, its approval, the private settlement and the payment to the seller, each started by hand after the previous one confirmed.
+An indexer that starts cold replayed this history of five pool transactions in about 10 seconds.
 
 ## 5. Differences from the Spec estimates
 
