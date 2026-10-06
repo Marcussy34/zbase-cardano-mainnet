@@ -1,5 +1,7 @@
 import { NETWORKS, type Network } from '@zbase-cardano/crypto';
+import { PV11_COST_MODELS, type CostModels } from './cost-models.js';
 export type { Network } from '@zbase-cardano/crypto';
+export type { CostModels } from './cost-models.js';
 
 /** Transaction ID as 64 lowercase hex characters, and an output index. */
 export interface UtxoRef { txId: string; index: number }
@@ -18,6 +20,7 @@ export interface Utxo {
 export type RedeemerTag = 'spend' | 'mint' | 'cert' | 'reward' | 'vote' | 'propose';
 export interface RedeemerUnits { tag: RedeemerTag; index: number; mem: bigint; steps: bigint }
 export interface ProtocolParameters {
+  costModels: CostModels;
   minFeeA: bigint; minFeeB: bigint;
   priceMem: number; priceStep: number;
   maxTxSize: number; maxTxExMem: bigint; maxTxExSteps: bigint;
@@ -28,6 +31,7 @@ export interface ProtocolParameters {
 
 /** SPEC 10.1 mainnet values at epoch 659. Real providers fetch live values. */
 export const MAINNET_PARAMETERS: ProtocolParameters = {
+  costModels: PV11_COST_MODELS,
   minFeeA: 44n, minFeeB: 155381n,
   priceMem: 0.0577, priceStep: 0.0000721,
   maxTxSize: 16384, maxTxExMem: 16500000n, maxTxExSteps: 10000000000n,
