@@ -5,9 +5,9 @@ import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { ApiError, type DepositView, type ErrorCode, type IndexerApi, type RelayerApi, type SettleRequest } from '@zbase-cardano/api';
-import { commitment, deriveNoteSecrets, MerkleTree, NETWORKS, nullifierHash, precommitment, type Note } from '@zbase-cardano/crypto';
+import { commitment, deriveNoteSecrets, deriveOneTimeKey, MerkleTree, NETWORKS, nullifierHash, precommitment, type Note } from '@zbase-cardano/crypto';
 import { devKeysPresent, loadDevArtifacts, loadDevVkey, shutdown } from '@zbase-cardano/prover';
-import { buildDeposit, decodeDepositDatum, decodeTx, enterpriseAddress, keyHash, signTx, slotToTime, timeToSlot,
+import { buildDeposit, decodeDepositDatum, decodeTx, enterpriseAddress, keyHash, signTx, slotToTime, stealthFee, timeToSlot,
   type Provider } from '@zbase-cardano/txlib';
 import { startDevnet } from '@zbase-cardano/txlib/testing/devnet';
 import { Indexer } from '@zbase-cardano/indexer';
@@ -805,5 +805,287 @@ test('SDK-01, SDK-08: hardening sync uses confirmed data and stable deposit sele
     const payouts = [{ address: enterpriseAddress(new Uint8Array(32).fill(118), ctx.deployment.network), amount: 2_000_000n }];
     await assert.rejects(sdk.settlePrivately({ payouts }), /no spendable note/i);
     await assert.rejects(sdk.settlePrivately({ payouts, noteId: 'd0' }), /not spendable/i);
+  });
+});
+
+test('SDK-01, SDK-03, SDK-04: Round 2 preserves uncertain submissions and recovers one-time funds', {
+  timeout: 1_800_000,
+  skip: devKeysPresent(root) ? false : 'Development proving keys are absent: circuits/build/dev/manifest.json is required',
+}, async t => {
+  const { chain, ctx, keys } = await startDevnet();
+  const network = ctx.deployment.network;
+  chain.advanceSlots(NETWORKS[network].zeroSlot);
+  const walletSeed = keys.users[0]!;
+  const seller = enterpriseAddress(keys.users[1]!, network);
+  let asp: AspService;
+  const indexer = new Indexer({ ctx, history: chain, aspLeaves: () => asp.leaves() });
+  asp = new AspService({ ctx, indexer, payerSeed: keys.operator, operatorSeeds: [keys.asp] });
+  await indexer.sync();
+  const artifacts = { spend: await loadDevArtifacts('spend', root), ragequit: await loadDevArtifacts('ragequit', root) };
+  const crank = new Crank({ ctx, indexer, seed: keys.crank, artifacts: await loadDevArtifacts('insert', root) });
+  let now = (await chain.getTip()).time;
+  const makeRelayer = () => new Relayer({ ctx, indexer, seed: keys.relayer, vkey: artifacts.spend.vkey,
+    now: () => now, retryDelayMs: 1 });
+  async function advance() {
+    chain.mineBlock();
+    await indexer.sync();
+    await crank.tick();
+    chain.mineBlock();
+    await indexer.sync();
+    await asp.tick();
+    chain.mineBlock();
+    await indexer.sync();
+    now = (await chain.getTip()).time;
+  }
+  async function reach(time: number) {
+    chain.mineBlock(timeToSlot(time, network) - (await chain.getTip()).slot);
+    now = (await chain.getTip()).time;
+    await indexer.sync();
+  }
+  const options = { ctx, indexer, artifacts, poll: { intervalMs: 1, timeoutMs: 600_000, onPoll: advance } };
+  const payouts = [{ address: seller, amount: 2_000_000n }];
+
+  for (const accepted of [true, false]) {
+    await t.test(`SDK-03: an unknown settle outcome ${accepted ? 'confirms with its change' : 'expires and restores its note'}`, async () => {
+      const seed = new Uint8Array(32).fill(accepted ? 131 : 132);
+      const store = sdkModule.memoryStore();
+      const relayer = makeRelayer();
+      let calls = 0;
+      let atSubmit: sdkModule.StoreData | null = null;
+      const failure = new Error('Lost settlement answer');
+      const wrapper: RelayerApi = {
+        getPool: () => relayer.getPool(), quote: payouts => relayer.quote(payouts), getSettle: id => relayer.getSettle(id),
+        settle: async request => {
+          calls++;
+          atSubmit = await store.load();
+          if (accepted) await relayer.settle(request);
+          throw failure;
+        },
+      };
+      const sdk = sdkModule.createZbaseCardano({ ...options, seed, store, relayer: wrapper });
+      const deposited = await sdk.deposit({ amount: 12_000_000n, walletSeed });
+      await sdk.waitForNote(deposited.prepared.noteId);
+      await assert.rejects(sdk.settlePrivately({ payouts }), error => error instanceof Error
+        && /outcome is unknown.*note d0/i.test(error.message) && error.cause === failure);
+      assert.equal(calls, 1);
+      const saved = (await store.load())!;
+      assert.deepEqual(atSubmit, saved);
+      const original = saved.notes.find(n => n.id === 'd0')!;
+      assert.equal(original.status, 'spent');
+      assert.equal(original.pending?.kind, 'settle');
+      assert.equal(original.pending.changeNoteId, 'c0');
+      assert.equal(saved.notes.find(n => n.id === 'c0')!.value, 8_700_000n);
+      const resumed = sdkModule.createZbaseCardano({ ...options, seed, store, relayer: makeRelayer() });
+      if (accepted) {
+        chain.mineBlock();
+        await indexer.sync();
+        await resumed.sync();
+        assert.equal(resumed.listNotes().find(n => n.id === 'd0')!.status, 'spent');
+        assert.equal(resumed.listNotes().find(n => n.id === 'd0')!.pending, undefined);
+        assert.equal(resumed.listNotes().find(n => n.id === 'c0')!.status, 'queued');
+        assert.equal((await resumed.waitForNote('c0')).status, 'spendable');
+        assert.equal(resumed.balance().spendable, 8_700_000n);
+        const receipt = await resumed.settlePrivately({ payouts, noteId: 'c0' });
+        await advance();
+        assert.ok((await chain.getUtxosAt(seller)).some(u => u.ref.txId === receipt.txHash));
+      } else {
+        await resumed.sync();
+        assert.deepEqual(resumed.listNotes().find(n => n.id === 'd0'), original);
+        await reach(original.pending.validUntil + 120_000);
+        await resumed.sync();
+        assert.ok(resumed.listNotes().find(n => n.id === 'd0')!.pending);
+        await reach(original.pending.validUntil + 121_000);
+        await resumed.sync();
+        assert.equal(resumed.listNotes().length, 1);
+        assert.equal(resumed.listNotes()[0]!.pending, undefined);
+        assert.equal(resumed.listNotes()[0]!.status, 'spendable');
+        assert.equal(resumed.balance().spendable, 11_700_000n);
+      }
+    });
+  }
+
+  for (const retry of [false, true]) {
+    await t.test(`SDK-03: definite API refusals clean tentative records ${retry ? 'on every retry' : 'before throwing'}`, async () => {
+      const seed = new Uint8Array(32).fill(retry ? 133 : 134);
+      const store = sdkModule.memoryStore();
+      const relayer = makeRelayer();
+      const snapshots: sdkModule.StoreData[] = [];
+      const codes: ErrorCode[] = retry ? ['stale_root', 'stale_asp_root', 'internal'] : ['queue_full'];
+      const wrapper: RelayerApi = {
+        getPool: () => relayer.getPool(), quote: payouts => relayer.quote(payouts), getSettle: id => relayer.getSettle(id),
+        settle: async () => {
+          snapshots.push((await store.load())!);
+          throw new ApiError(codes[snapshots.length - 1]!, 'Definite refusal');
+        },
+      };
+      const sdk = sdkModule.createZbaseCardano({ ...options, seed, store, relayer: wrapper });
+      const deposited = await sdk.deposit({ amount: 12_000_000n, walletSeed });
+      await sdk.waitForNote(deposited.prepared.noteId);
+      await assert.rejects(sdk.settlePrivately({ payouts }), error => error instanceof ApiError && error.code === codes.at(-1));
+      assert.equal(snapshots.length, codes.length);
+      snapshots.forEach((snapshot, i) => {
+        assert.equal(snapshot.notes.length, 2);
+        assert.equal(snapshot.notes[0]!.pending?.changeNoteId, `c${i}`);
+        assert.equal(snapshot.notes[1]!.id, `c${i}`);
+      });
+      const saved = (await store.load())!;
+      assert.equal(saved.notes.length, 1);
+      assert.equal(saved.notes[0]!.pending, undefined);
+      assert.equal(saved.notes[0]!.status, 'spendable');
+      assert.equal(saved.nextChangeIndex, codes.length);
+    });
+  }
+
+  for (const kind of ['exit', 'refund'] as const) {
+    for (const accepted of [true, false]) {
+      await t.test(`SDK-01: an unknown ${kind} outcome ${accepted ? 'confirms after restart' : 'expires safely'}`, async () => {
+        const seed = new Uint8Array(32).fill((kind === 'exit' ? 135 : 137) + (accepted ? 0 : 1));
+        const store = sdkModule.memoryStore();
+        const relayer = makeRelayer();
+        const sdk = sdkModule.createZbaseCardano({ ...options, seed, store, relayer });
+        const deposited = await sdk.deposit({ amount: 12_000_000n, walletSeed });
+        if (kind === 'exit') await sdk.waitForNote(deposited.prepared.noteId);
+        else { chain.mineBlock(); await indexer.sync(); }
+        let atSubmit: sdkModule.StoreData | null = null;
+        let calls = 0;
+        const failure = new Error('Lost submission answer');
+        const provider: Provider = { ...droppingProvider(chain, []), submit: async cbor => {
+          calls++;
+          atSubmit = await store.load();
+          if (accepted) await chain.submit(cbor);
+          throw failure;
+        } };
+        const losing = sdkModule.createZbaseCardano({ ...options, ctx: { ...ctx, provider }, seed, store, relayer });
+        const args = { noteId: deposited.prepared.noteId, refundSeed: walletSeed };
+        await assert.rejects(kind === 'exit' ? losing.ragequit(args) : losing.refund(args), error => error instanceof Error
+          && /outcome is unknown.*note d0/i.test(error.message) && error.cause === failure);
+        assert.equal(calls, 1);
+        assert.deepEqual(atSubmit, await store.load());
+        const mark = losing.listNotes()[0]!;
+        assert.equal(mark.pending?.kind, kind);
+        const resumed = sdkModule.createZbaseCardano({ ...options, seed, store, relayer });
+        if (accepted) { chain.mineBlock(); await indexer.sync(); }
+        else {
+          await resumed.sync();
+          assert.deepEqual(resumed.listNotes()[0], mark);
+          await reach(mark.pending!.validUntil + 121_000);
+        }
+        await resumed.sync();
+        assert.equal(resumed.listNotes()[0]!.pending, undefined);
+        assert.equal(resumed.listNotes()[0]!.status, accepted ? kind === 'exit' ? 'exited' : 'refunded'
+          : kind === 'exit' ? 'spendable' : 'deposited');
+      });
+    }
+  }
+
+  await t.test('SDK-04: recover a funded one-time output when the seller leg was never submitted', async () => {
+    const seed = new Uint8Array(32).fill(139);
+    const store = sdkModule.memoryStore();
+    const sdk = sdkModule.createZbaseCardano({ ...options, seed, store, relayer: makeRelayer() });
+    const deposited = await sdk.deposit({ amount: 12_000_000n, walletSeed });
+    await sdk.waitForNote(deposited.prepared.noteId);
+    const signer = sdk.x402Signer();
+    const address = signer.getAddress();
+    await signer.buildAndSignPaymentTransaction({ network: `cardano:${network}`, asset: 'lovelace',
+      payTo: seller, amount: '2000000', maxTimeoutSeconds: 300 });
+    const [funding] = await chain.getUtxosAt(address);
+    assert.ok(funding);
+    assert.equal(typeof sdk.recoverOneTimeFunds, 'function');
+    const before = (await store.load())!.nextOneTimeIndex;
+    const payTo = enterpriseAddress(new Uint8Array(32).fill(140), network);
+    const result = await sdk.recoverOneTimeFunds({ index: 0, payTo });
+    assert.ok(result);
+    chain.mineBlock();
+    const view = decodeTx(await chain.getTransactionCbor(result.txId));
+    assert.deepEqual(view.inputs, [funding.ref]);
+    assert.equal(view.outputs.length, 1);
+    assert.equal(view.outputs[0]!.address, payTo);
+    assert.equal(result.amount, funding.value.lovelace - view.fee);
+    assert.equal(view.outputs[0]!.value.lovelace, result.amount);
+    assert.deepEqual((await chain.getUtxosAt(payTo)).map(u => u.value.lovelace), [result.amount]);
+    assert.equal((await chain.getUtxosAt(address)).length, 0);
+    assert.equal(await sdk.recoverOneTimeFunds({ index: 0, payTo }), null);
+    assert.equal((await store.load())!.nextOneTimeIndex, before);
+  });
+});
+
+test('SDK-04: Round 2 recovery checks destinations and selects the largest confirmed output', async t => {
+  const { chain, ctx, keys } = await startDevnet();
+  const network = ctx.deployment.network;
+  const seed = new Uint8Array(32).fill(141);
+  const store = sdkModule.memoryStore();
+  await store.save({ notes: [], nextDepositIndex: 0, nextChangeIndex: 0, nextOneTimeIndex: 9 });
+  const indexer = new Indexer({ ctx, history: chain });
+  const relayer = new Relayer({ ctx, indexer, seed: keys.relayer, vkey: await loadDevVkey('spend', root) });
+  const artifacts = { get spend(): never { throw new Error('Unexpected proving'); }, get ragequit(): never { throw new Error('Unexpected proving'); } };
+  let reads = 0;
+  let submitted = 0;
+  const evaluated: string[] = [];
+  let rejectEvaluation = false;
+  const evaluationError = new Error('Recovery evaluation failed');
+  const provider: Provider = { ...droppingProvider(chain, []),
+    getUtxosAt: address => { reads++; return chain.getUtxosAt(address); },
+    evaluate: async (cbor, additional) => {
+      if (rejectEvaluation) throw evaluationError;
+      const result = await chain.evaluate(cbor, additional);
+      evaluated.push(cbor);
+      return result;
+    },
+    submit: cbor => {
+      assert.ok(evaluated.includes(cbor), 'Recovery must evaluate before submitting');
+      submitted++;
+      return chain.submit(cbor);
+    },
+  };
+  const sdk = sdkModule.createZbaseCardano({ seed, store, ctx: { ...ctx, provider }, indexer, relayer, artifacts });
+  const payTo = enterpriseAddress(keys.users[0]!, network);
+  await t.test('SDK-04: a destination on another network fails before reading or submitting', async () => {
+    const wrong = enterpriseAddress(keys.users[0]!, 'mainnet');
+    await assert.rejects(async () => sdk.recoverOneTimeFunds({ index: 0, payTo: wrong }), /network/i);
+    assert.equal(reads, 0);
+    assert.equal(submitted, 0);
+  });
+  await t.test('SDK-04: invalid recovery indexes fail before reading or submitting', async () => {
+    for (const index of [-1, 0.5, Number.MAX_SAFE_INTEGER + 1, NaN]) {
+      await assert.rejects(async () => sdk.recoverOneTimeFunds({ index, payTo }), /index/i);
+    }
+    assert.equal(reads, 0);
+    assert.equal(submitted, 0);
+  });
+  await t.test('SDK-04: an empty one-time address returns null without changing its counter', async () => {
+    assert.equal(await sdk.recoverOneTimeFunds({ index: 0, payTo }), null);
+    assert.equal(submitted, 0);
+    assert.equal((await store.load())!.nextOneTimeIndex, 9);
+  });
+  const key = deriveOneTimeKey(seed, 3);
+  const address = enterpriseAddress(key, network);
+  key.fill(0);
+  const add = (lovelace: bigint) => chain.addUtxo({ address, value: { lovelace, assets: {} },
+    inlineDatum: null, datumHash: null, scriptRef: null });
+  const small = add(2_000_000n);
+  const large = add(5_000_000n);
+  await t.test('SDK-04: a failed evaluation never submits a recovery transaction', async () => {
+    rejectEvaluation = true;
+    try { await assert.rejects(async () => sdk.recoverOneTimeFunds({ index: 3, payTo }), error => error === evaluationError); }
+    finally { rejectEvaluation = false; }
+    assert.equal(submitted, 0);
+    assert.equal((await chain.getUtxosAt(address)).length, 2);
+  });
+  await t.test('SDK-04: recovery spends only the largest output and leaves the counter unchanged', async () => {
+    const fee = await stealthFee({ provider: chain, network }, { payTo, price: 5_000_000n });
+    const recovered = await sdk.recoverOneTimeFunds({ index: 3, payTo });
+    assert.ok(recovered);
+    chain.mineBlock();
+    const view = decodeTx(await chain.getTransactionCbor(recovered.txId));
+    assert.deepEqual(view.inputs, [large]);
+    assert.equal(view.outputs.length, 1);
+    assert.equal(recovered.amount, 5_000_000n - fee);
+    assert.equal(view.outputs[0]!.value.lovelace, recovered.amount);
+    assert.deepEqual((await chain.getUtxosAt(address)).map(u => u.ref), [small]);
+    assert.equal((await store.load())!.nextOneTimeIndex, 9);
+    await sdk.recoverOneTimeFunds({ index: 3, payTo });
+    chain.mineBlock();
+    assert.equal(await sdk.recoverOneTimeFunds({ index: 3, payTo }), null);
+    assert.equal((await store.load())!.nextOneTimeIndex, 9);
   });
 });
