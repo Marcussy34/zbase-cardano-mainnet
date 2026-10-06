@@ -21,7 +21,9 @@ export async function buildDeposit(ctx: ChainContext, a: { payer: Payer; amount:
   return complete({ provider: ctx.provider, network }, builder, { payer: a.payer });
 }
 
-export async function buildRefund(ctx: ChainContext, a: { payer: Payer; deposit: DepositUtxo; payTo: string }): Promise<BuiltTx> {
+export async function buildRefund(ctx: ChainContext, a: {
+  payer: Payer; deposit: DepositUtxo; payTo: string; invalidHereafter?: number;
+}): Promise<BuiltTx> {
   const { utxo, datum } = a.deposit;
   const actual = utxo.inlineDatum === null ? null : decodeDepositDatum(utxo.inlineDatum);
   if (utxo.address !== ctx.deployment.scripts.deposit.address || actual?.precommitment !== datum.precommitment
@@ -37,5 +39,6 @@ export async function buildRefund(ctx: ChainContext, a: { payer: Payer; deposit:
     .spendingTxInReference(ref.txId, ref.index, String(script.size), script.hash).txInInlineDatumPresent()
     .txInRedeemerValue(encodeDepositRedeemer('Refund'), 'CBOR').requiredSignerHash(datum.refund)
     .txOut(a.payTo, amount);
+  if (a.invalidHereafter !== undefined) builder.invalidHereafter(a.invalidHereafter);
   return complete({ provider: ctx.provider, network }, builder, { payer: a.payer, extraUtxos: [utxo] });
 }
