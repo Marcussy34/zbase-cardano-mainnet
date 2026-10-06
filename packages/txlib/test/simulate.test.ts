@@ -178,3 +178,10 @@ test('TX-05 cleanup: concurrent success and script failure leave no temporary di
   assert.deepEqual(results.map(result => result.status), ['fulfilled', 'fulfilled', 'rejected']);
   assert.deepEqual(await temporaryDirectories(), beforeDirectories);
 });
+
+test('TX-05 (shape): preprod evaluates the stub with a finite validity bound', async () => {
+  // The stub checks only that the upper bound is finite, so the existing bound works on both networks.
+  assert.deepEqual(await simulate(valid, resolved(), 'preprod'), [
+    { tag: 'spend', index: 1, mem: 235820n, steps: 91210662n },
+  ]);
+});

@@ -3,6 +3,7 @@ import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { promisify, stripVTControlCharacters } from 'node:util';
 import { CborWriter, toTxUnspentOutput, Transaction, TxCBOR } from '@meshsdk/core-cst';
+import { NETWORKS, type Network } from '@zbase-cardano/crypto';
 import { ScriptFailure, type Utxo, type RedeemerUnits, type RedeemerTag } from '../types.js';
 
 const execute = promisify(execFile);
@@ -19,11 +20,12 @@ function cborArray(items: string[]): string {
 }
 
 /**
- * Evaluates scripts with the pinned Aiken and mainnet slot settings.
+ * Evaluates scripts with the pinned Aiken and the selected network's slot settings.
  * resolved must include every spent, reference, and collateral input.
  * Script failures include Aiken's diagnostic lines; other problems throw Error.
  */
-export async function simulate(txCbor: string, resolved: Utxo[]): Promise<RedeemerUnits[]> {
+export async function simulate(txCbor: string, resolved: Utxo[], network: Network = 'mainnet'): Promise<RedeemerUnits[]> {
+  const { zeroTime, zeroSlot, slotLength } = NETWORKS[network];
   const tx = Transaction.fromCbor(TxCBOR(txCbor));
   const body = tx.body();
   const inputs = [
@@ -65,7 +67,7 @@ export async function simulate(txCbor: string, resolved: Utxo[]): Promise<Redeem
     try {
       ({ stdout } = await execute(binary, [
         'tx', 'simulate', `${temporary}/tx.hex`, `${temporary}/inputs.hex`, `${temporary}/outputs.hex`,
-        '--zero-time', '1596059091000', '--zero-slot', '4492800', '--slot-length', '1000',
+        '--zero-time', String(zeroTime), '--zero-slot', String(zeroSlot), '--slot-length', String(slotLength),
       ], { encoding: 'utf8', timeout: 30000, maxBuffer: 1024 * 1024 }));
     } catch (error) {
       const failure = error as Error & { stderr?: string; stdout?: string };

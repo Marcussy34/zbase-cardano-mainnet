@@ -1,3 +1,6 @@
+import { NETWORKS, type Network } from '@zbase-cardano/crypto';
+export type { Network } from '@zbase-cardano/crypto';
+
 /** Transaction ID as 64 lowercase hex characters, and an output index. */
 export interface UtxoRef { txId: string; index: number }
 /** Native tokens keyed by policy ID hex followed by asset name hex. Lovelace is separate. */
@@ -33,14 +36,26 @@ export const MAINNET_PARAMETERS: ProtocolParameters = {
   collateralPercent: 150, maxCollateralInputs: 3,
 };
 
-/** Converts mainnet slots to POSIX milliseconds. */
-export function slotToTime(slot: number): number {
-  return 1596059091000 + (slot - 4492800) * 1000;
+/** Preprod matches mainnet except for its transaction memory limit. */
+export const PREPROD_PARAMETERS: ProtocolParameters = {
+  ...MAINNET_PARAMETERS, maxTxExMem: 17500000n,
+};
+
+export const PARAMETERS: Readonly<Record<Network, ProtocolParameters>> = {
+  mainnet: MAINNET_PARAMETERS,
+  preprod: PREPROD_PARAMETERS,
+};
+
+/** Converts slots on the selected network to POSIX milliseconds. */
+export function slotToTime(slot: number, network: Network = 'mainnet'): number {
+  const { zeroTime, zeroSlot, slotLength } = NETWORKS[network];
+  return zeroTime + (slot - zeroSlot) * slotLength;
 }
 
-/** Floors POSIX milliseconds to the containing mainnet slot. */
-export function timeToSlot(timeMs: number): number {
-  return 4492800 + Math.floor((timeMs - 1596059091000) / 1000);
+/** Floors POSIX milliseconds to the containing slot on the selected network. */
+export function timeToSlot(timeMs: number, network: Network = 'mainnet'): number {
+  const { zeroTime, zeroSlot, slotLength } = NETWORKS[network];
+  return zeroSlot + Math.floor((timeMs - zeroTime) / slotLength);
 }
 
 export interface ChainTip { slot: number; time: number; blockHash: string }

@@ -1,6 +1,6 @@
 import { ed25519 } from '@noble/curves/ed25519.js';
 import { blake2b } from '@noble/hashes/blake2.js';
-import { addressToBech32 } from '@zbase-cardano/crypto';
+import { addressToBech32, type Network } from '@zbase-cardano/crypto';
 import {
   CborSet, Ed25519PublicKeyHex, Ed25519SignatureHex, Transaction, TxCBOR, VkeyWitness,
 } from '@meshsdk/core-cst';
@@ -18,8 +18,8 @@ export function keyHash(seed: Uint8Array): Uint8Array {
   return blake2b(publicKey(seed), { dkLen: 28 });
 }
 
-export function enterpriseAddress(seed: Uint8Array): string {
-  return addressToBech32({ payment: { kind: 'key', hash: keyHash(seed) }, stake: null });
+export function enterpriseAddress(seed: Uint8Array, network: Network = 'mainnet'): string {
+  return addressToBech32({ payment: { kind: 'key', hash: keyHash(seed) }, stake: null }, network);
 }
 
 /** Hashes the body bytes as encoded, including noncanonical encodings. */

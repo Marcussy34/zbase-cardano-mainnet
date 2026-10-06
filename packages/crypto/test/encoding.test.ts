@@ -285,3 +285,74 @@ for (const field of ["payment", "stake"] as const) {
     });
   });
 }
+
+for (const [type, paymentKind, stakeKind] of addressCases) {
+  test(`CRY-10 preprod address type ${type} matches raw bytes and round-trips`, () => {
+    const address: PayoutAddress = {
+      payment: credential(paymentKind, 0x44),
+      stake: stakeKind === null ? null : credential(stakeKind, 0x66),
+    };
+    const bytes = Uint8Array.from([
+      type << 4, ...address.payment.hash, ...(address.stake?.hash ?? []),
+    ]);
+    const encoded = bech32.encode("addr_test", bech32.toWords(bytes), false);
+    assert.deepEqual(addressFromBech32(encoded, "preprod"), address);
+    assert.equal(addressToBech32(address, "preprod"), encoded);
+    assert.match(encoded, /^addr_test1/);
+    assert.deepEqual(addressFromBech32(addressToBech32(address, "preprod"), "preprod"), address);
+  });
+
+  test(`CRY-06 address type ${type} has identical intent bytes and context on both networks`, () => {
+    const intent = contextInput();
+    const address: PayoutAddress = {
+      payment: credential(paymentKind, 0x44),
+      stake: stakeKind === null ? null : credential(stakeKind, 0x66),
+    };
+    intent.payouts[0]!.address = addressFromBech32(addressToBech32(address, "mainnet"), "mainnet");
+    const mainnetBytes = intentBytes(intent);
+    const mainnetContext = contextFor(intent);
+    intent.payouts[0]!.address = addressFromBech32(addressToBech32(address, "preprod"), "preprod");
+    assert.deepEqual(intentBytes(intent), mainnetBytes);
+    assert.equal(contextFor(intent), mainnetContext);
+  });
+}
+
+test("CRY-10 preprod rejects a mainnet address", () => {
+  assert.throws(() => addressFromBech32(rawAddress(0x61, 29), "preprod"), RangeError);
+});
+
+test("CRY-10 mainnet rejects a preprod address explicitly and by default", () => {
+  const address = rawAddress(0x60, 29, "addr_test");
+  assert.throws(() => addressFromBech32(address, "mainnet"), RangeError);
+  assert.throws(() => addressFromBech32(address), RangeError);
+});
+
+for (const [header, prefix] of [[0x60, "addr"], [0x61, "addr_test"], [0x62, "addr_test"], [0x60, "stake_test"]] as const) {
+  test(`CRY-10 preprod rejects header ${header} with prefix ${prefix}`, () => {
+    assert.throws(() => addressFromBech32(rawAddress(header, 29, prefix), "preprod"), RangeError);
+  });
+}
+
+for (const [type, length, name] of [
+  [4, 32, "key pointer"], [5, 32, "script pointer"],
+  [14, 29, "key reward"], [15, 29, "script reward"], [8, 29, "Byron"],
+  [9, 29, "reserved"],
+] as const) {
+  test(`CRY-10 preprod rejects ${name} type ${type}`, () => {
+    assert.throws(() => addressFromBech32(rawAddress(type << 4, length, "addr_test"), "preprod"), RangeError);
+  });
+}
+
+test("CRY-10 public network settings select the address, slot, and x402 conventions", async () => {
+  const { NETWORKS } = await import("../src/index.js");
+  assert.deepEqual(NETWORKS, {
+    mainnet: {
+      id: 1, addressPrefix: "addr", zeroTime: 1596059091000, zeroSlot: 4492800,
+      slotLength: 1000, x402: "cardano:mainnet",
+    },
+    preprod: {
+      id: 0, addressPrefix: "addr_test", zeroTime: 1655769600000, zeroSlot: 86400,
+      slotLength: 1000, x402: "cardano:preprod",
+    },
+  });
+});
