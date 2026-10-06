@@ -32,6 +32,140 @@ function droppingProvider(provider: Provider, dropped: string[]): Provider {
   };
 }
 
+async function reuseGuardHarness() {
+  const { chain, ctx, keys } = await startDevnet();
+  chain.advanceSlots(NETWORKS[ctx.deployment.network].zeroSlot);
+  let asp: AspService;
+  const indexer = new Indexer({ ctx, history: chain, aspLeaves: () => asp.leaves() });
+  asp = new AspService({ ctx, indexer, payerSeed: keys.operator, operatorSeeds: [keys.asp] });
+  await indexer.sync();
+  const artifacts = { spend: await loadDevArtifacts('spend', root), ragequit: await loadDevArtifacts('ragequit', root) };
+  const crank = new Crank({ ctx, indexer, seed: keys.crank, artifacts: await loadDevArtifacts('insert', root) });
+  let now = (await chain.getTip()).time;
+  const relayer = new Relayer({ ctx, indexer, seed: keys.relayer, vkey: artifacts.spend.vkey,
+    now: () => now, retryDelayMs: 1 });
+  async function confirm() {
+    chain.mineBlock();
+    await indexer.sync();
+    now = (await chain.getTip()).time;
+  }
+  async function advance() {
+    await confirm();
+    await crank.tick();
+    await confirm();
+    await asp.tick();
+    await confirm();
+  }
+  const options = { seed: new Uint8Array(32).fill(151), ctx, indexer, relayer, artifacts,
+    poll: { intervalMs: 1, timeoutMs: 600_000, onPoll: advance } };
+  return { chain, options, confirm, walletSeed: keys.users[0]!, seller: enterpriseAddress(keys.users[1]!, ctx.deployment.network) };
+}
+
+test('SDK-02: a deposit from an empty store never reuses a secret the pool has seen', {
+  timeout: 1_800_000,
+  skip: devKeysPresent(root) ? false : 'Development proving keys are absent: circuits/build/dev/manifest.json is required',
+}, async t => {
+  const { options, confirm, walletSeed } = await reuseGuardHarness();
+  const original = sdkModule.createZbaseCardano(options);
+  const first = await original.deposit({ amount: 12_000_000n, walletSeed });
+  const note = await original.waitForNote(first.prepared.noteId);
+  await original.ragequit({ noteId: note.id, refundSeed: walletSeed });
+  await confirm();
+  assert.ok((await options.indexer.getNullifiers(0, 1000)).nullifiers.includes(
+    nullifierHash(deriveNoteSecrets(options.seed, note.secretIndex).nullifier)));
+
+  const methods = ['getPool', 'getLeaves', 'getAspLeaves', 'getNullifiers', 'getDeposits'] as const;
+  const calls = methods.map(name => t.mock.method(options.indexer, name));
+  const store = sdkModule.memoryStore();
+  const recovered = sdkModule.createZbaseCardano({ ...options, store });
+  const second = await recovered.deposit({ amount: 12_000_000n, walletSeed });
+  t.diagnostic(`Indexer calls during deposit: ${calls.reduce((sum, call) => sum + call.mock.callCount(), 0)}`);
+  assert.notEqual(second.prepared.precommitment, first.prepared.precommitment);
+  assert.equal((await store.load())!.nextDepositIndex, 2);
+  assert.equal(calls[0]!.mock.callCount(), 1, 'Deposit must sync exactly once');
+  assert.equal(calls.reduce((sum, call) => sum + call.mock.callCount(), 0), 7);
+  assert.equal((await recovered.waitForNote(second.prepared.noteId)).status, 'spendable');
+});
+
+test('SDK-03: a change note from an empty store never reuses a spent secret', {
+  timeout: 1_800_000,
+  skip: devKeysPresent(root) ? false : 'Development proving keys are absent: circuits/build/dev/manifest.json is required',
+}, async () => {
+  const { options, confirm, walletSeed, seller } = await reuseGuardHarness();
+  const payouts = [{ address: seller, amount: 2_000_000n }];
+  const original = sdkModule.createZbaseCardano(options);
+  const first = await original.deposit({ amount: 12_000_000n, walletSeed });
+  await original.waitForNote(first.prepared.noteId);
+  const firstReceipt = await original.settlePrivately({ payouts });
+  assert.ok(firstReceipt.changeNoteId);
+  const firstChange = await original.waitForNote(firstReceipt.changeNoteId);
+  assert.equal(firstChange.secretIndex, 2 ** 20);
+  await original.ragequit({ noteId: firstChange.id, refundSeed: walletSeed });
+  await confirm();
+  assert.ok((await options.indexer.getNullifiers(0, 1000)).nullifiers.includes(
+    nullifierHash(deriveNoteSecrets(options.seed, firstChange.secretIndex).nullifier)));
+
+  const store = sdkModule.memoryStore();
+  const recovered = sdkModule.createZbaseCardano({ ...options, store });
+  await recovered.sync();
+  const second = await recovered.deposit({ amount: 12_000_000n, walletSeed });
+  await recovered.waitForNote(second.prepared.noteId);
+  const secondReceipt = await recovered.settlePrivately({ payouts });
+  assert.ok(secondReceipt.changeNoteId);
+  const secondChange = recovered.listNotes().find(n => n.id === secondReceipt.changeNoteId)!;
+  assert.notEqual(secondChange.precommitment, firstChange.precommitment);
+  assert.equal(secondChange.secretIndex, 2 ** 20 + 1);
+  assert.equal((await store.load())!.nextChangeIndex, 2);
+  assert.equal((await recovered.waitForNote(secondChange.id)).status, 'spendable');
+  await recovered.ragequit({ noteId: secondChange.id, refundSeed: walletSeed });
+  await confirm();
+  await recovered.sync();
+  const exited = recovered.listNotes().find(n => n.id === secondChange.id)!;
+  assert.equal(exited.status, 'exited');
+  assert.equal(exited.pending, undefined);
+});
+
+test('SDK-01: preparation after a sync skips a precommitment that is already on chain', {
+  timeout: 1_800_000,
+  skip: devKeysPresent(root) ? false : 'Development proving keys are absent: circuits/build/dev/manifest.json is required',
+}, async t => {
+  const { chain, options, confirm, walletSeed } = await reuseGuardHarness();
+  const refundKeyHash = hex(keyHash(walletSeed));
+  const store = sdkModule.memoryStore();
+  const original = sdkModule.createZbaseCardano({ ...options, store });
+  await original.prepareDeposit({ amount: 12_000_000n, refundKeyHash });
+  const backup = (await store.load())!;
+  assert.equal(backup.notes.length, 1);
+  assert.equal(backup.nextDepositIndex, 1);
+  const absorbed = await original.deposit({ amount: 12_000_000n, walletSeed });
+  await original.waitForNote(absorbed.prepared.noteId);
+  const refunded = await original.deposit({ amount: 12_000_000n, walletSeed });
+  await confirm();
+  await original.refund({ noteId: refunded.prepared.noteId, refundSeed: walletSeed });
+  await confirm();
+  const pending = await original.deposit({ amount: 12_000_000n, walletSeed });
+  await confirm();
+  const deposits = await options.indexer.getDeposits();
+  for (const [deposit, status] of [[absorbed, 'absorbed'], [refunded, 'refunded'], [pending, 'pending']] as const) {
+    assert.equal(deposits.find(d => d.txId === deposit.txId)!.status, status);
+  }
+
+  const restored = sdkModule.memoryStore();
+  await restored.save(backup);
+  const recovered = sdkModule.createZbaseCardano({ ...options, store: restored });
+  await recovered.sync();
+  const indexerMethods = ['getPool', 'getLeaves', 'getAspLeaves', 'getNullifiers', 'getDeposits'] as const;
+  const providerMethods = ['getTip', 'getProtocolParameters', 'getUtxos', 'getUtxosAt', 'evaluate', 'submit'] as const;
+  const calls = [...indexerMethods.map(name => t.mock.method(options.indexer, name)),
+    ...providerMethods.map(name => t.mock.method(chain, name))];
+  const prepared = await recovered.prepareDeposit({ amount: 12_000_000n, refundKeyHash });
+  assert.notEqual(prepared.precommitment, absorbed.prepared.precommitment);
+  assert.ok(deposits.every(d => d.precommitment !== prepared.precommitment));
+  assert.equal(prepared.noteId, 'd4');
+  assert.equal((await restored.load())!.nextDepositIndex, 5);
+  assert.equal(calls.reduce((sum, call) => sum + call.mock.callCount(), 0), 0);
+});
+
 test('SDK-01 through SDK-08: local agent story with real validators and proofs', {
   timeout: 1_800_000,
   skip: devKeysPresent(root) ? false : 'Development proving keys are absent: circuits/build/dev/manifest.json is required',

@@ -76,6 +76,7 @@ export function createZbaseCardano(o: ZbaseOptions): ZbaseCardano {
   let leaves: bigint[] = [];
   let approved: bigint[] = [];
   let spent: bigint[] = [];
+  let usedPrecommitments = new Set<bigint>();
   let approvalKnown = false;
   let settleFeeBps = 0;
 
@@ -129,11 +130,15 @@ export function createZbaseCardano(o: ZbaseOptions): ZbaseCardano {
   async function prepare(a: { amount: bigint; refundKeyHash: string }): Promise<PreparedDeposit> {
     if (typeof a.amount !== 'bigint' || a.amount <= 0n || a.amount >= 1n << 64n) throw new RangeError('Amount must fit a positive 64-bit value');
     if (!/^[0-9a-f]{56}$/.test(a.refundKeyHash)) throw new Error('Refund key hash must be 28 bytes of lowercase hex');
-    if (data.nextDepositIndex >= CHANGE_OFFSET) throw new Error('Deposit derivation indexes are exhausted');
-    const record = depositRecord(data.nextDepositIndex, a.amount);
+    let index = data.nextDepositIndex;
+    // Use the last sync snapshot so preparation stays offline even after a store restore.
+    while (index < CHANGE_OFFSET && (usedPrecommitments.has(precommitmentFor(index))
+      || spent.includes(nullifierHash(deriveNoteSecrets(seed, index).nullifier)))) index++;
+    if (index >= CHANGE_OFFSET) throw new Error('Deposit derivation indexes are exhausted');
+    const record = depositRecord(index, a.amount);
     record.expectedRefundKeyHash = a.refundKeyHash;
     const inlineDatum = encodeDepositDatum({ precommitment: record.precommitment, refund: a.refundKeyHash });
-    await save({ ...data, nextDepositIndex: data.nextDepositIndex + 1, notes: [...data.notes, record] });
+    await save({ ...data, nextDepositIndex: index + 1, notes: [...data.notes, record] });
     return { noteId: record.id, address: ctx.deployment.scripts.deposit.address, amount: a.amount,
       precommitment: record.precommitment, refundKeyHash: a.refundKeyHash, inlineDatum };
   }
@@ -266,6 +271,7 @@ export function createZbaseCardano(o: ZbaseOptions): ZbaseCardano {
     leaves = nextLeaves;
     approved = nextApproved;
     spent = nextSpent;
+    usedPrecommitments = new Set(byPrecommitment.keys());
     approvalKnown = known;
     settleFeeBps = pool.config.settleFeeBps;
   }
@@ -307,7 +313,9 @@ export function createZbaseCardano(o: ZbaseOptions): ZbaseCardano {
       const intent: SettleIntent = { poolId: Buffer.from(quote.poolId, 'hex'), relayer: Buffer.from(quote.relayerKeyHash, 'hex'),
         validUntil: BigInt(quote.validUntil), payouts: payouts.map(p => ({ address: addressFromBech32(p.address, ctx.deployment.network),
           amount: p.amount, datumHash: p.datumHash === null ? null : Buffer.from(p.datumHash, 'hex') })) };
-      const changeIndex = data.nextChangeIndex;
+      let changeIndex = data.nextChangeIndex;
+      // The spent set survives a lost store, including its change counter.
+      while (spent.includes(nullifierHash(deriveNoteSecrets(seed, CHANGE_OFFSET + changeIndex).nullifier))) changeIndex++;
       const secretIndex = CHANGE_OFFSET + changeIndex;
       const secrets = deriveNoteSecrets(seed, secretIndex);
       const witness = spendWitness({ note: privateNote(record), stateTree: MerkleTree.fromLeaves(leaves), stateIndex: record.leafIndex!,
@@ -361,6 +369,7 @@ export function createZbaseCardano(o: ZbaseOptions): ZbaseCardano {
     prepareDeposit: a => exclusive(() => prepare(a)),
     deposit: a => exclusive(async () => {
       const refundKeyHash = hex(keyHash(a.walletSeed));
+      await sync();
       const prepared = await prepare({ amount: a.amount, refundKeyHash });
       const tx = await buildDeposit(ctx, { payer: { address: enterpriseAddress(a.walletSeed, ctx.deployment.network) },
         amount: a.amount, precommitment: prepared.precommitment, refundKeyHash });
