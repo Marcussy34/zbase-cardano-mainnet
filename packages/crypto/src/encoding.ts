@@ -2,6 +2,7 @@ import { blake2b } from "@noble/hashes/blake2.js";
 import { concatBytes, utf8ToBytes } from "@noble/hashes/utils.js";
 import { bech32 } from "@scure/base";
 import { assertCanonical, bigIntToBytesBE, bytesToBigIntBE } from "./field.js";
+import { NETWORKS, type Network } from "./network.js";
 
 export const MAX_PAYOUTS = 4;
 
@@ -123,8 +124,8 @@ export function nullifierKey(nullifierHash: bigint): Uint8Array {
   return bigIntToBytesBE(assertCanonical(nullifierHash, "nullifierHash"), 32);
 }
 
-/** Mainnet Shelley addresses only. Rejects pointer, Byron, reward, and testnet addresses. */
-export function addressFromBech32(address: string): PayoutAddress {
+/** Shelley addresses on the selected network only. Rejects pointer, Byron, and reward addresses. */
+export function addressFromBech32(address: string, network: Network = "mainnet"): PayoutAddress {
   let decoded: ReturnType<typeof bech32.decodeToBytes>;
   try {
     decoded = bech32.decodeToBytes(address);
@@ -133,8 +134,9 @@ export function addressFromBech32(address: string): PayoutAddress {
   }
   const { prefix, bytes } = decoded;
   const header = bytes[0];
-  if (prefix !== "addr" || header === undefined || (header & 0x0f) !== 1) {
-    throw new RangeError("address must use the addr prefix and mainnet network tag 1");
+  const { id, addressPrefix } = NETWORKS[network];
+  if (prefix !== addressPrefix || header === undefined || (header & 0x0f) !== id) {
+    throw new RangeError(`address must use the ${addressPrefix} prefix and ${network} network tag ${id}`);
   }
   const type = header >> 4;
   if (type > 3 && type !== 6 && type !== 7) {
@@ -149,16 +151,17 @@ export function addressFromBech32(address: string): PayoutAddress {
   };
 }
 
-export function addressToBech32(address: PayoutAddress): string {
+export function addressToBech32(address: PayoutAddress, network: Network = "mainnet"): string {
+  const { id, addressPrefix } = NETWORKS[network];
   const payment = credentialKind(address.payment, "address.payment");
   const type = address.stake === null
     ? 6 + payment
     : payment + 2 * credentialKind(address.stake, "address.stake");
   const bytes = concatBytes(
-    Uint8Array.of((type << 4) | 1),
+    Uint8Array.of((type << 4) | id),
     address.payment.hash,
     address.stake?.hash ?? new Uint8Array(),
   );
   // Cardano base addresses exceed Bech32's default 90-character limit.
-  return bech32.encode("addr", bech32.toWords(bytes), false);
+  return bech32.encode(addressPrefix, bech32.toWords(bytes), false);
 }
