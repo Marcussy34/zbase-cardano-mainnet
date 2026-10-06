@@ -724,7 +724,7 @@ Behavior:
 | Contracts | Aiken 1.1.24 or later | The latest release. It knows the protocol version 11 cost models. |
 | Nullifier set | `aiken-lang/merkle-patricia-forestry` 2.1.0 | Proven library. License MPL-2.0. |
 
-The first M0 task confirms the transaction library with a spike that builds one Settle.
+A spike on 2026-10-06 confirmed Mesh 1.9.1. It builds, balances, evaluates, signs, and chains a Settle-shaped transaction with no network access. See [research/spikes/mesh-offline-settle](./research/spikes/mesh-offline-settle/REPORT.md).
 
 Pin `aiken-lang/stdlib` v4.0.0, the default for Aiken 1.1.24.
 The trie library declares stdlib v2, but it compiled and passed with v2.2.1, v3.1.0, and v4.0.0 under Aiken 1.1.24 (measured on 2026-10-06).
@@ -1109,7 +1109,7 @@ x402 on Cardano defaults to USDM. Masumi names USDCx on mainnet.
 
 | # | Item | How, or status |
 |---|---|---|
-| 1 | Mesh builds a Settle with reference inputs, inline datums, collateral, and a validity bound | First-task spike |
+| 1 | Mesh builds a Settle with reference inputs, inline datums, collateral, and a validity bound | Verified offline on 2026-10-06 with Mesh 1.9.1: 10 of 10 probes pass. Evaluation through a mainnet provider is still to do |
 | 2 | Merkle Patricia Forestry 2.1.0 compiles with the pinned Aiken and stdlib | Verified on 2026-10-06 with Aiken 1.1.24 and stdlib v2.2.1, v3.1.0, v4.0.0 |
 | 3 | A snarkjs BLS12-381 proof verifies on-chain after point conversion, including G2 byte order | Verified on 2026-10-06 in an Aiken test. Vectors are in TEST-VECTORS section 9. A mainnet transaction is still to do |
 | 4 | Label and context encodings match between Aiken and the SDK. Payout datum hashes match too | Vectors in TEST-VECTORS.md, plus a datum hash vector in M1 |
@@ -1235,3 +1235,4 @@ That measurement is the reason for decision D3.
 | 0.1 | 2026-10-06 | First draft. |
 | 0.1.1 | 2026-10-06 | Corrected the Poseidon builtin registry claim. |
 | 1.0 | 2026-10-06 | Owner approved. Label and context now use explicit byte encodings instead of `serialise_data`. Added encoding conventions, key derivation strings, note lifecycle, API contracts, and code layout. Moved the runbook to its own file. |
+| 1.0.1 | 2026-10-06 | Recorded the result of the transaction library spike: Mesh 1.9.1 is confirmed (sections 8.6 and 17). |
