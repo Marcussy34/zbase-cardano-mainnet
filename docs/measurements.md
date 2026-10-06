@@ -5,15 +5,16 @@ Measured values that are already known are in [research/2026-10-06-measurements.
 
 ## 1. Circuits
 
-| Circuit | Constraints | Setup power | Proving time, 4-core machine | Proving key size |
+| Circuit | Constraints | Setup power | Proving time | Proving key size |
 |---|---|---|---|---|
-| `spend` | 16,828 | 15 | | 14,285,885 bytes |
-| `insert` | 62,950 | 16 | | 47,067,202 bytes |
-| `ragequit` | 8,423 | 14 | | 7,141,180 bytes |
+| `spend` | 16,828 | 15 | 1.5 to 1.9 s | 14,285,885 bytes |
+| `insert` | 62,950 | 16 | 4.3 to 4.8 s | 47,067,202 bytes |
+| `ragequit` | 8,423 | 14 | 1.0 s | 7,141,180 bytes |
 
 The setup power is the smallest one that fits the circuit. snarkjs needs one row per constraint, one per public signal, and one more.
 One shared powers of tau file of power 16 serves all three circuits. Its size is 113,248,170 bytes.
-The proving key sizes are for the development keys. Proving times follow with the prover package.
+The proving key sizes are for the development keys.
+Proving times were measured on an Apple M2 Max with Node 24.10.0 and snarkjs 0.7.6, while other builds ran. Each time covers the witness, the proof, and a check of the proof.
 
 ## 2. Scripts
 
