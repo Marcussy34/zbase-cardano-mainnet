@@ -17,5 +17,8 @@
   },
   "zbase/pool/ragequit_test": {
     "bud_04_deposit_note": { "cpu": 3200000000, "mem": 2500000 }
+  },
+  "zbase/pool/settle_test": {
+    "bud_01_settle_five_level_trie": { "cpu": 3500000000, "mem": 2500000 }
   }
 }
