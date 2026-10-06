@@ -1,0 +1,10 @@
+name = "zbase/settle-spike"
+version = "0.0.0"
+compiler = "v1.1.24"
+plutus = "v3"
+description = "Offline transaction shape probe, never deploy"
+
+[[dependencies]]
+name = "aiken-lang/stdlib"
+version = "v4.0.0"
+source = "github"
