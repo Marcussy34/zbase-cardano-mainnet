@@ -1,0 +1,39 @@
+{
+  "version": "dev",
+  "phase1": {
+    "file": "pot16_final.ptau",
+    "sha256": "fa8ea466769cfa25127444bed9b5c734f6db554cdfe9a4290c832f3288a8eff7",
+    "power": 16
+  },
+  "circuits": {
+    "spend": {
+      "r1cs_sha256": "f7cbe870ef2fa3897cc61f62ea3382617c4b5f7539421aee7c7809b96dae31cf",
+      "wasm_sha256": "a1f286ff94c4d5b5c7c32ff973c75a77c8643e5337176b397a260ee61f720d08",
+      "constraints": 16828,
+      "power": 15,
+      "zkey_sha256": "3caff1b6ffe8f366210317e6c5132d12314e6af1b6a27e0c0e4c293da9ecd979",
+      "vkey_sha256": "7f5cfc699a3f0f2da9c94aeae5e659dcb39b657de6e82c55f73e0cf52ad0c9d5"
+    },
+    "insert": {
+      "r1cs_sha256": "c1fec5a85f5e84ce270cb327d0548f7a9bfeeb144067fa13494f86b41007c7ca",
+      "wasm_sha256": "4420ebaaf7fda693dff59595b73bdb97f9ae23492a84056c23a37a5b41d13e70",
+      "constraints": 62950,
+      "power": 16,
+      "zkey_sha256": "0a84f837d7063ef8bb9ccf5ec2a4856a1dbc43aa8f16613450006f163eb420b3",
+      "vkey_sha256": "4c379c67302c18be21ba76744b09ef0bb31b0245c280ce7e1b1b6bcec8d31de5"
+    },
+    "ragequit": {
+      "r1cs_sha256": "ec97e315ebf705e07913f7de0dec0c9fd79423fbfe1e5c73c48de580bffde91c",
+      "wasm_sha256": "403082ee909063fb48ada598a446a99b7225788fcdc08eac47d6c1fffd7ca236",
+      "constraints": 8423,
+      "power": 14,
+      "zkey_sha256": "7010ac13e1497b429f076f82e06b2fe0b5f918bd2463dc6012b6a98073a960f2",
+      "vkey_sha256": "d58f280697147857669ebf6e4981b5a0c8f8d7e077475b50c1a13ff6dcd65653"
+    }
+  },
+  "toolchain": {
+    "circom": "circom2 npm package 0.2.23\ncircom compiler 2.2.3",
+    "snarkjs": "0.7.6",
+    "node": "v24.10.0"
+  }
+}

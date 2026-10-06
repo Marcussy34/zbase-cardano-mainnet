@@ -726,6 +726,9 @@ Behavior:
 
 A spike on 2026-10-06 confirmed Mesh 1.9.1. It builds, balances, evaluates, signs, and chains a Settle-shaped transaction with no network access. See [research/spikes/mesh-offline-settle](./research/spikes/mesh-offline-settle/REPORT.md).
 
+One Mesh function must not be used. `applyParamsToScript` in Mesh 1.9.1 cuts every byte string over 64 bytes down to 64 bytes and reports no error (measured on 2026-10-06). That corrupts the 96-byte points of a verification key.
+Script parameters are applied with the Evolution SDK 0.5.17, which `@x402/cardano` already installs. A test requires its output to equal `aiken blueprint apply` byte for byte for all five scripts.
+
 Pin `aiken-lang/stdlib` v4.0.0, the default for Aiken 1.1.24.
 The trie library declares stdlib v2, but it compiled and passed with v2.2.1, v3.1.0, and v4.0.0 under Aiken 1.1.24 (measured on 2026-10-06).
 Point conversion uses `@noble/curves` 2.4.0. [TEST-VECTORS.md](./TEST-VECTORS.md) section 9 pins the byte rules.
@@ -783,6 +786,9 @@ GET /v1/settle/:id
 Indexer:
 
 ```text
+GET /v1/pool
+  200: the same shape as the relayer's GET /v1/pool
+
 GET /v1/leaves?from=<index>&limit=<n>
   200: { "from": number, "leaves": [dec], "size": number, "root": dec }
 
@@ -809,6 +815,8 @@ Errors use one shape: `{ "error": { "code": string, "message": string } }`.
 | `quote_expired` | The quote passed its `validUntil`. |
 | `invalid_proof` | The proof failed the relayer's local check. |
 | `intent_mismatch` | The intent does not match the quote or the public inputs. |
+| `not_found` | The quote, the settle, or the route is unknown. |
+| `bad_request` | The request is malformed. |
 | `internal` | Any other failure. |
 
 The relayer verifies every proof locally before it builds a transaction.
@@ -816,18 +824,23 @@ The relayer verifies every proof locally before it builds a transaction.
 ### 8.9 Repository layout for the code
 
 ```text
-circuits/        circom sources, circuit tests, build and setup scripts
-contracts/       one Aiken project: lib/zbase/* modules and validators/*
-packages/crypto  field helpers, Poseidon255 wrappers, notes, trees, encodings, point compression
-packages/txlib   transaction builders for every transaction in section 7
-packages/sdk     @zbase-cardano/core: notes, sync, prover, settle, x402 signer
-services/indexer chain follower and read API
-services/relayer quote, settle, chaining
-services/crank   insert prover and submitter
-services/asp     approval tool and root poster
-ops/             ceremony, deploy, and monitor scripts
-artifacts/       manifest of circuit, key, and script hashes
-docs/            this documentation
+circuits/          circom sources, circuit tests, build and key setup scripts
+contracts/         one Aiken project: lib/zbase/* modules and validators/*
+contracts/fixtures generator that turns scenarios with real proofs into Aiken test modules
+packages/crypto    field helpers, Poseidon255 wrappers, notes, trees, encodings, point compression, witness builders
+packages/prover    snarkjs wrapper: file hash checks, prove, verify, conversion for Cardano
+packages/txlib     chain provider, Blockfrost adapter, codecs, script loader, and the transaction builders of section 7
+packages/api       request and response types of section 8.8, JSON converters, HTTP clients and server
+packages/sdk       @zbase-cardano/core: notes, sync, settle, x402 signer
+services/indexer   chain follower and read API
+services/relayer   quote and settle
+services/crank     insert prover and submitter
+services/asp       approval tool and root poster
+ops/               role keys, live key setup, deploy, node runner, and demo
+examples/          a stock x402 seller and a plain buyer
+artifacts/         public signal order and the development verification keys
+deployments/       one record per deployed pool, with its verification keys
+docs/              this documentation
 ```
 
 [PLAN-M0.md](./PLAN-M0.md) maps each folder to a work package.
@@ -988,6 +1001,10 @@ Each setup yields new keys, new script hashes, and so a new pool. The M0 pool an
 
 CAUTION: a pool whose setup had one contributor can be drained by that person. Never take outside funds on such a pool.
 
+What the Preprod pool uses (2026-10-06): a setup with one contributor, made with snarkjs on one machine. Phase 1 is a local powers of tau run of power 16, not the community file. Phase 2 ran once per circuit into its own folder.
+That is acceptable on a test network only. A mainnet pool that takes outside funds still needs the community phase 1 file and several contributors, as listed above.
+Measured: a first full setup takes about 28 minutes, of which the phase 1 preparation is 15 to 19 minutes. With a verified phase 1 file, the three phase 2 runs take about 4 minutes.
+
 ## 12. Security
 
 ### 12.1 Threat model
@@ -1060,6 +1077,7 @@ We publish the number of approved deposits, the pool balance, and the settle cou
 ## 15. Testing and mainnet rollout
 
 The owner's decision: network testing happens on mainnet, with capped own funds.
+Update on 2026-10-06: the owner moved the first live run to Preprod, because a deployment locks about 250 ADA in role funds and reference scripts. Mainnet follows with the same code. Every off-chain component takes a network setting, `preprod` or `mainnet`.
 Local checks still run first, because they are free and fast.
 
 ### 15.1 Local checks before any transaction
@@ -1237,3 +1255,4 @@ That measurement is the reason for decision D3.
 | 1.0 | 2026-10-06 | Owner approved. Label and context now use explicit byte encodings instead of `serialise_data`. Added encoding conventions, key derivation strings, note lifecycle, API contracts, and code layout. Moved the runbook to its own file. |
 | 1.0.1 | 2026-10-06 | Recorded the result of the transaction library spike: Mesh 1.9.1 is confirmed (sections 8.6 and 17). |
 | 1.0.2 | 2026-10-06 | Rule P3 also forbids a reference script on the continuing pool output. |
+| 1.0.3 | 2026-10-06 | Build findings. The first live run is on Preprod, and all off-chain code takes a network setting (section 15). Script parameters use the Evolution SDK, because the Mesh function truncates long byte strings (8.6). The indexer serves `GET /v1/pool`, and two error codes were added (8.8). The code layout matches the repository (8.9). The Preprod pool uses a single-contributor setup (11). |
