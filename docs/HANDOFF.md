@@ -58,6 +58,7 @@ The owner approved the design on 2026-10-06. SPEC section 2 lists each decision 
 | Fees of about 1.0 to 1.2 ADA per private payment | Measured on Preprod: 0.85 ADA for the two legs, plus a share of one Insert | measurements.md, sections 3 and 5 |
 | Circuit sizes | Measured: spend 16,828, insert 62,950 and ragequit 8,423 constraints | measurements.md, section 1 |
 | Mesh can build the Settle transaction | Verified on Preprod. Two defects of Mesh 1.9.1 are worked around in `packages/txlib` | AGENTS.md, Cardano knowledge |
+| The port keeps the safety rules of zBase on Base | Checked on 2026-10-07 by the lead and by two independent reviewers, rule by rule against the Base contracts. They found no way to move value without a valid proof. They found weaknesses outside the validators. Five were fixed, and section 5 lists the others | research/2026-10-07-comparison-with-base.md |
 | The community powers of tau file is usable | Not verified | CEREMONY section 2 |
 
 The three circuits, the validators, the services and the SDK are written and run on Preprod.
@@ -102,6 +103,7 @@ What is left before the mainnet canary:
 2. A key setup with several parties, before anyone outside the team deposits. [CEREMONY.md](./CEREMONY.md) describes it. The setup command in this repository has one party.
 3. The proving keys of a pool are not in the repository. Publish them, for example as release files, so that other people can use the pool.
 4. The solvency monitor of the runbook is not built.
+5. The start state of the pool is not enforced on chain. Bind it before anyone outside the team deposits. One way is token names that carry the script hashes, with a minting policy that checks the first datums. That means a new pool.
 
 Known limits of M0, each a deliberate cut:
 
@@ -113,6 +115,14 @@ Known limits of M0, each a deliberate cut:
 - The indexer treats confirmed data as final. It does not wait for a number of blocks.
 - A deploy that stops midway has no resume command. Section 9 of the Preprod runbook says what to do.
 - `npm audit` reports findings in packages that the Cardano libraries pull in. None was reviewed.
+- The deployer writes the first pool datum, the first config and the first association datum. The token policy checks only the seed and the three names. The indexer checks the tree, the queue and the nullifier root of the first pool datum. It does not check the rest of the root history, the fee counter, or the bounds of the first config. A dishonest deployer could plant a second root, a fee balance or a negative fee rate, and take deposits later.
+- The agent's chain provider sees the deposit wallet, every one-time address and every seller payment of that agent. The demo shares one provider project with the node. An agent that wants privacy from its provider needs its own node.
+- A public exit of a change note reveals the payments of its deposit. The deposit minus the exit is the sum of the withdrawn amounts, and those are public.
+- The privacy defaults of SPEC 13.2 are not built. There is no warning on matching amounts, no waiting rule, and no lower limit on the approved set.
+- A stock x402 client that repeats a request after an unclear answer pays again. The SDK keeps no record of a payment per request.
+- Funds that stay at a one-time address after a failed second leg are not tracked. `recoverOneTimeFunds` moves them, and it pays any address the caller names.
+- The SDK keeps its notes in memory unless the caller passes a file store. A restart without a file store forgets unspent change notes.
+- Ragequit needs the config output as a reference input, and the root history holds 16 roots. An admin who updates the config in every block, or a flood of Inserts, can delay an exit or a payment. Neither can take funds.
 
 Your first day:
 
@@ -143,6 +153,9 @@ The build made these choices where the plan was silent or wrong. Each one can be
 | The SDK settles its own tentative marks by deadline | A deadline needs no extra chain reads and cannot give a false answer when the indexer lags | A dropped transaction is noticed up to 12 minutes late |
 | The indexer reads a new block a second time only for two minutes after a change | A provider can serve old data right after a block, and a second read of every block would nearly double the requests of an idle node | Outside those two minutes, only the next block corrects a stale read |
 | The SDK, not the chain, makes sure that no note secret is used twice | A rule on chain needs a second set in the pool datum, more script budget, and a new pool | A wallet that skips the SDK can lock its own deposit |
+| The SDK reads the fee rate and the chain tip from its own provider before it proves | The indexer and the relayer belong to an operator, who gains from a higher fee or a longer deadline | Two provider calls more for each payment |
+| Only a known refusal of the relayer releases a note, and the relayer answers `uncertain` once it has sent a transaction | A lost reply says nothing about the transaction, and a dropped record loses a change note | After an unclear answer the note stays reserved until the deadline of the quote plus two minutes |
+| A deposit made through the SDK is followed by its exact output | Its precommitment and refund key are public, so a copy could take its place | None. A deposit that another wallet builds keeps the older rule |
 | The network key setup never replaces a complete set of proving keys | The key script makes new keys when Node.js, circom, snarkjs or a circuit changes, and a deployed pool cannot work with other keys | To make new keys, someone must move the key folder away by hand |
 | The first live run was on Preprod | The owner asked for it. All off-chain code takes a network setting | None. Mainnet uses the same code |
 
