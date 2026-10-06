@@ -1,0 +1,33 @@
+{
+  "spend": [
+    "newCommitment",
+    "nullifierHash",
+    "withdrawnValue",
+    "stateRoot",
+    "aspRoot",
+    "context"
+  ],
+  "insert": [
+    "oldRoot",
+    "newRoot",
+    "startIndex",
+    "v0",
+    "l0",
+    "x0",
+    "v1",
+    "l1",
+    "x1",
+    "v2",
+    "l2",
+    "x2",
+    "v3",
+    "l3",
+    "x3"
+  ],
+  "ragequit": [
+    "nullifierHash",
+    "stateRoot",
+    "value",
+    "label"
+  ]
+}
