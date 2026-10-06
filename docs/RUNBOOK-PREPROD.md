@@ -13,7 +13,7 @@ The mainnet canary in [RUNBOOK-M0.md](./RUNBOOK-M0.md) uses the same commands wi
 ## 1. What you need
 
 - Node.js 22 or newer.
-- A Blockfrost project for Preprod. The free plan is enough for a session of a few hours. Section 7 explains the quota.
+- A Blockfrost project for Preprod. The free plan is enough. Section 8 explains the quota.
 - A new 32-byte key for the operator. `openssl rand -hex 32` makes one.
 - About 300 test ADA from the Preprod faucet for that key. Step 3 of section 3 shows its address.
 
