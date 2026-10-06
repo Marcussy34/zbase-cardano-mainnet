@@ -5,3 +5,4 @@ export * from './history.js';
 export * from './codec.js';
 export * from './scripts.js';
 export * from './providers/blockfrost.js';
+export * from './stealth.js';
