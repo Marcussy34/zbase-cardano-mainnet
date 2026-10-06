@@ -113,7 +113,7 @@ So one private payment in stealth mode cost 0.849327 ADA in network fees for its
 ### The demo through the node and the stock x402 seller
 
 On 2026-10-06 the node (`npm run node -w ops`), the example seller with the stock x402 server and facilitator, and the demo (`npm run demo -w ops`) ran as three processes against Preprod.
-The demo ran four times with the same note store. All four runs ended with HTTP 200 and the weather body.
+The demo ran four times with the same note store. All four runs ended with HTTP 200 and the weather body. Two later runs are at the end of this section.
 The agent paid through the stock x402 client with the SDK's stealth signer. The stock facilitator checked and submitted the second leg.
 The first and second run, between 15:44 and 15:57 UTC, used the first version of the node.
 The third run, at 18:00 UTC, used the hardened SDK and the first node that skips work while nothing changes.
@@ -165,6 +165,49 @@ A run makes two Inserts, so each kind of pool transaction is about 70 bytes larg
 A full history makes a pool transaction 525 bytes larger than in a new pool. The size alone then adds 0.0231 ADA to its fee.
 The proof for a new nullifier also changes with the place of that nullifier in the trie.
 It made a Settle or a Ragequit up to 139 bytes larger or smaller from one run to the next.
+
+### Two runs after the comparison with Base
+
+A comparison with zBase on Base then led to five fixes in the SDK and the relayer. Two more demo runs checked them on Preprod. Both ended with HTTP 200 and the weather body.
+
+The fifth run, at 20:50 UTC on 2026-10-06, started without the demo's note store and with the same seed. Before the fix, that run would have used an old note secret again and locked its deposit.
+The SDK found the four old deposits on chain. It took the fifth deposit secret and the fifth change secret, paid the seller and exited the change.
+The sixth run, at 21:13 UTC, used the final code with all five fixes and the note store of the fifth run.
+
+| Transaction, fifth run | CPU steps | Memory units | Size in bytes | Fee in ADA | Transaction hash |
+|---|---|---|---|---|---|
+| Deposit | none | none | 349 | 0.170781 | `722906c19ba2caf5df038b9ca8a7bfa85f1113832e165ece38ad9f977878e1a3` |
+| Insert, 1 deposit | 3,271,382,587 | 1,066,907 | 1,290 | 0.707268 | `48723b508932dd269e9e7a5602759245499c6148ad7e6a46b3bf7d10ebf8e583` |
+| ASP update | 61,407,529 | 178,537 | 599 | 0.215321 | `b1a916d47182ffe574e8d65874796c3de5e37e8a03511675255da9accdfa2a3e` |
+| Settle, 1 payout to a one-time address | 3,291,160,007 | 1,107,831 | 1,805 | 0.725945 | `fc6254b4deb6130161a842e7731309e8653239f04a18035aa8d0a16a26f4fe79` |
+| Stealth leg 2, submitted by the stock facilitator | none | none | 202 | 0.165961 | `cb978fb4cf0e667cb4313056efed375433a1163b1a173ad595234cc7593320f4` |
+| Insert, 1 note | 2,913,889,862 | 870,117 | 1,235 | 0.659948 | `8b19e41de203c49668fd8df7d4387bd70e73e8bbe8c479533eb87643b498159d` |
+| Ragequit | 2,868,558,005 | 719,279 | 1,597 | 0.663904 | `e3b6b5c2744cf20d9f206b6a28f8d4f6fa0b4e4cd942dbda2eec621785a7e68d` |
+
+| Transaction, sixth run | CPU steps | Memory units | Size in bytes | Fee in ADA | Transaction hash |
+|---|---|---|---|---|---|
+| Deposit | none | none | 349 | 0.170781 | `b0401cb76ee30e1f7f736a4880594b40bc8335eb95523c6341e6433913a49996` |
+| Insert, 1 deposit | 3,276,117,088 | 1,081,559 | 1,360 | 0.711534 | `bedb012c45c0cb8dd4b855126cd747bb9066b3da9f85075c82547a3daa299974` |
+| ASP update | 61,407,529 | 178,537 | 599 | 0.215321 | `75ce39638f893d2a6b2beb09a720dd15300df6d0d509f867ab4d9bb5e01518c9` |
+| Settle, 1 payout to a one-time address | 3,289,134,782 | 1,099,944 | 1,875 | 0.728424 | `8aa14376b07df1d1c5f1862c3981656e71451c0ecc0335606d7427302f463802` |
+| Stealth leg 2, submitted by the stock facilitator | none | none | 202 | 0.165961 | `31ecb799a2ecf591030562aa79940d2cb74071bedaf1819c54fe6d617b0ea5ff` |
+| Insert, 1 note | 2,915,789,138 | 880,486 | 1,305 | 0.663763 | `fcb2adb5066e8d76c434f22ef4abfed2cfe5ef788b70ccf628430b73698a5193` |
+| Ragequit | 2,901,528,426 | 819,698 | 1,740 | 0.678367 | `e71971072dd46b50c2b600790d1bce87ee1b44b1eef3cf2b09a7288671e4b0b9` |
+
+| Step, in seconds | Fifth run | Sixth run |
+|---|---|---|
+| Deposit submitted | 3.1 | 2.9 |
+| Note spendable, from the start | 194.8 | 139.9 |
+| First leg confirmed, from the payment request | 40.2 | 34.6 |
+| Seller answered HTTP 200, from the payment request | 83.3 | 178.2 |
+| Change note spendable, after the seller answered | 9.3 | 0.1 |
+| Exit submitted, after the change was spendable | 9.6 | 9.7 |
+| Exit confirmed, after the change was spendable | 23.3 | 19.9 |
+| Whole demo | 310.6 | 338.0 |
+
+During the fifth run the machine also ran two test suites that make proofs. So its time to a spendable note says nothing about the code.
+In the sixth run Preprod made no block for 132 seconds after the block of the Settle. The payment to the seller entered the next block, so the seller answered after 178 seconds. The code did not cause that wait.
+Since the fixes, a private payment makes two more requests to the agent's provider: one for the fee rate and one for the tip. A deposit through the SDK makes one sync first.
 
 ### Admin transactions on Preprod
 
