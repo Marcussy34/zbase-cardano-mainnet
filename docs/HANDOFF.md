@@ -107,7 +107,8 @@ Known limits of M0, each a deliberate cut:
 
 - The relayer does not chain transactions. One pool transaction confirms before the next is built, so the pool serves about one action per block.
 - A payout with a datum hash is refused by the Settle builder.
-- A change note cannot be recovered from the seed alone. The SDK needs its store file.
+- A change note cannot be recovered from the seed alone. The SDK needs its store file. After a lost store the SDK goes on safely with new secrets, but the unspent change notes of the old store stay out of reach, and the one-time addresses start again at the first one, which links those payments on chain.
+- The pool does not refuse a repeated precommitment on chain, as zBase on Base does. The SDK prevents it. A wallet without the SDK must do the same.
 - The association service approves every absorbed deposit at once, unless a deny function refuses it. No screening data source is connected.
 - The indexer treats confirmed data as final. It does not wait for a number of blocks.
 - A deploy that stops midway has no resume command. Section 9 of the Preprod runbook says what to do.
@@ -141,6 +142,7 @@ The build made these choices where the plan was silent or wrong. Each one can be
 | The relayer fee is limited in the SDK, 2 ADA by default | The validator fixes only the protocol fee, and the proof fixes the withdrawn amount | A relayer that needs more is refused until the caller raises the limit |
 | The SDK settles its own tentative marks by deadline | A deadline needs no extra chain reads and cannot give a false answer when the indexer lags | A dropped transaction is noticed up to 12 minutes late |
 | The indexer reads a new block a second time only for two minutes after a change | A provider can serve old data right after a block, and a second read of every block would nearly double the requests of an idle node | Outside those two minutes, only the next block corrects a stale read |
+| The SDK, not the chain, makes sure that no note secret is used twice | A rule on chain needs a second set in the pool datum, more script budget, and a new pool | A wallet that skips the SDK can lock its own deposit |
 | The network key setup never replaces a complete set of proving keys | The key script makes new keys when Node.js, circom, snarkjs or a circuit changes, and a deployed pool cannot work with other keys | To make new keys, someone must move the key folder away by hand |
 | The first live run was on Preprod | The owner asked for it. All off-chain code takes a network setting | None. Mainnet uses the same code |
 

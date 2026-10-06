@@ -94,6 +94,7 @@ The demo does this, and prints each transaction:
 One run took 3.5 minutes on Preprod with the final code. Slow blocks can double that.
 The user ends with about 5 ADA less: 2 ADA for the weather, 1 ADA for the relayer, 0.3 ADA for the crank, and the network fees.
 You can run the demo again at any time. It keeps its notes in `deployments/preprod/demo-store.json`.
+Keep that file and back it up. Without it the demo still works, because the SDK finds its old deposits on chain and takes new secrets. But a change note that was still in the pool is then out of reach.
 If you changed a port, set `INDEXER_URL`, `RELAYER_URL` or `SELLER_URL` for the demo.
 
 ## 7. Admin actions
