@@ -75,7 +75,9 @@ export class RelayerClient extends JsonClient implements RelayerApi {
 
   async settle(request: SettleRequest) {
     const value = bodyObject(await this.request('POST', '/v1/settle', settleRequestToJson(request)));
-    if (value.status !== 'submitted') throw new ApiError('bad_request', 'status: expected submitted');
+    if (value.status !== 'submitted' && value.status !== 'confirmed') {
+      throw new ApiError('bad_request', 'status: expected submitted or confirmed');
+    }
     // SPEC 8.8 omits polling fields from the accepted response.
     return settleStatusFromJson({ ...value, confirmations: 0, error: null });
   }

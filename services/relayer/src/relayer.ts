@@ -10,7 +10,7 @@ import {
 } from '@zbase-cardano/crypto';
 import { verify } from '@zbase-cardano/prover';
 import {
-  buildSettle, enterpriseAddress, keyHash, nullifierInsertion, readPool, signTx,
+  buildSettle, enterpriseAddress, keyHash, nullifierInsertion, readPool, signTx, slotToTime,
   type ChainContext, type PoolState, type UtxoRef,
 } from '@zbase-cardano/txlib';
 
@@ -144,7 +144,13 @@ export class Relayer implements RelayerApi {
     const entry = this.submissions.get(id);
     if (!entry) throw new ApiError('not_found', 'Settle not found');
     if (entry.status.status !== 'failed') {
+      const view = await this.getPool();
       const confirmed = (await this.nullifiers()).includes(entry.nullifier);
+      if (!confirmed && slotToTime(view.tip.slot, this.ctx.deployment.network) > entry.validUntil) {
+        entry.status = { ...entry.status, status: 'failed', confirmations: 0, error: 'Expired before confirmation' };
+        this.quotes.delete(id);
+        return { ...entry.status };
+      }
       return { ...entry.status, status: confirmed ? 'confirmed' : 'submitted', confirmations: confirmed ? 1 : 0 };
     }
     return { ...entry.status };
@@ -263,12 +269,15 @@ export class Relayer implements RelayerApi {
         if (error instanceof ApiError && error.code === 'quote_expired') throw error;
         this.log('Could not build or submit the settle transaction', error);
         let changed = false;
-        try { changed = !sameRef(pool.utxo.ref, (await readPool(this.ctx)).utxo.ref); }
-        catch (error) { this.log('Could not read the pool after a failed settle', error); }
-        if (changed && attempt < 2) {
-          await delay(this.retryDelayMs);
-          continue;
+        // A competing mempool transaction is invisible until the next confirmed block.
+        for (let read = 0; read < 3 && !changed; read++) {
+          if (read > 0) await delay(this.retryDelayMs);
+          this.checkExpiry(quote);
+          try { changed = !sameRef(pool.utxo.ref, (await readPool(this.ctx)).utxo.ref); }
+          catch (error) { this.log('Could not read the pool after a failed settle', error); }
+          this.checkExpiry(quote);
         }
+        if (changed && attempt < 2) continue;
         status.error = 'Could not build or submit the settle transaction';
         this.submissions.set(status.id, { status, nullifier: inputs.nullifierHash, validUntil: quote.validUntil });
         throw new ApiError('internal', status.error);
