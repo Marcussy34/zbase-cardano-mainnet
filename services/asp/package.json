@@ -1,0 +1,17 @@
+{
+  "name": "@zbase-cardano/asp",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": { ".": "./src/index.ts", "./*": "./src/*.ts" },
+  "scripts": {
+    "test": "node --import tsx --test \"test/**/*.test.ts\"",
+    "typecheck": "tsc --noEmit -p ."
+  },
+  "dependencies": {
+    "@zbase-cardano/api": "*",
+    "@zbase-cardano/crypto": "*",
+    "@zbase-cardano/txlib": "*"
+  },
+  "devDependencies": { "@zbase-cardano/indexer": "*", "@zbase-cardano/prover": "*" }
+}
