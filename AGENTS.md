@@ -37,13 +37,17 @@ Read [docs/HANDOFF.md](docs/HANDOFF.md) first.
 
 | Task | Command | Where |
 |---|---|---|
+| Install every tool | `npm ci` | repo root |
 | All JavaScript tests | `npm test` | repo root |
-| Validator tests | `aiken check` | `contracts/` |
+| Type check | `npm run typecheck` | repo root |
+| Validator tests | `npm run check:contracts` | repo root |
+| Validator tests and cost bounds | `npm run check:budgets` | repo root |
+| Toolchain smoke test | `npm run test:smoke` | repo root |
 | Compile circuits | `bash circuits/scripts/build.sh` | repo root |
 | Development keys | `bash circuits/scripts/setup-dev.sh` | repo root |
 | Rebuild proof fixtures | `node contracts/fixtures/gen.mjs` | repo root |
 
-These commands exist once work packages WP0 to WP4 of [docs/PLAN-M0.md](docs/PLAN-M0.md) are done.
+The last three commands exist once work packages WP2 and WP4 of [docs/PLAN-M0.md](docs/PLAN-M0.md) are done.
 
 ## Writing rules
 
