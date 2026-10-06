@@ -8,7 +8,7 @@ import {
 } from '@zbase-cardano/crypto';
 import { devKeysPresent, loadDevArtifacts, prove, shutdown } from '@zbase-cardano/prover';
 import {
-  buildAspUpdate, buildDeposit, buildInsert, buildRagequit, buildRefund, buildSettle,
+  buildAspUpdate, buildConfigUpdate, buildDeposit, buildInsert, buildRagequit, buildRefund, buildSettle,
   enterpriseAddress, keyHash, nullifierInsertion, nullifierRoot, planInsert,
   readConfig, readDeposits, readPool, type ChainHistory, type DepositUtxo, type Provider,
 } from '@zbase-cardano/txlib';
@@ -26,6 +26,160 @@ async function waitUntil(done: () => boolean | Promise<boolean>): Promise<void> 
   }
   assert.fail('Polling did not reach the expected state');
 }
+
+function countedChain(chain: Provider & ChainHistory) {
+  const calls: string[] = [];
+  const provider: Provider = {
+    getTip: () => { calls.push('tip'); return chain.getTip(); },
+    getUtxosAt: address => { calls.push('address'); return chain.getUtxosAt(address); },
+    getUtxos: refs => { calls.push('utxos'); return chain.getUtxos(refs); },
+    getProtocolParameters: () => { calls.push('parameters'); return chain.getProtocolParameters(); },
+    evaluate: (cbor, extra) => { calls.push('evaluate'); return chain.evaluate(cbor, extra); },
+    submit: cbor => { calls.push('submit'); return chain.submit(cbor); },
+  };
+  const history: ChainHistory = {
+    getTransactionsAt: (address, after) => { calls.push('history'); return chain.getTransactionsAt(address, after); },
+    getTransactionCbor: id => { calls.push('transaction'); return chain.getTransactionCbor(id); },
+  };
+  return { provider, history, calls };
+}
+
+test('IDX-01: an idle pool keeps one tip read per poll after a full block refresh', async () => {
+  const { chain, ctx } = await startDevnet();
+  const { provider, history, calls } = countedChain(chain);
+  let now = 0;
+  const indexer = new Indexer({ ctx: { ...ctx, provider }, history, now: () => now,
+    settleMs: undefined, activeMs: undefined });
+  await indexer.sync();
+  now = 120_000;
+  chain.mineBlock();
+  calls.length = 0;
+  await indexer.sync();
+  assert.equal(calls.length, 8);
+  for (const elapsed of [0, 4_999, 5_000, 120_000]) {
+    now = 120_000 + elapsed;
+    calls.length = 0;
+    await indexer.sync();
+    assert.deepEqual(calls, ['tip']);
+  }
+});
+
+test('IDX-01: an active pool takes exactly one second look per tip before activity expires', async () => {
+  const { chain, ctx } = await startDevnet();
+  const { provider, history, calls } = countedChain(chain);
+  let now = 0;
+  const indexer = new Indexer({ ctx: { ...ctx, provider }, history, now: () => now, settleMs: 50, activeMs: 200 });
+  await indexer.sync();
+  now = 1_000;
+  assert.equal(typeof indexer.expectChange, 'function');
+  indexer.expectChange();
+  chain.mineBlock();
+  const sync = async (at: number, expected: number) => {
+    now = at;
+    calls.length = 0;
+    await indexer.sync();
+    assert.equal(calls.length, expected, `Provider calls at ${at}`);
+  };
+  await sync(1_000, 8);
+  await sync(1_000, 1);
+  await sync(1_049, 1);
+  await sync(1_050, 8);
+  await sync(1_050, 1);
+  await sync(1_100, 1);
+  await sync(1_200, 1);
+  chain.mineBlock();
+  await sync(1_200, 8);
+  await sync(1_250, 1);
+});
+
+test('IDX-01: the second look sees a lagged association root and renews activity without a new block', async t => {
+  const { chain, ctx, keys, run } = await startDevnet();
+  const { provider, history, calls } = countedChain(chain);
+  let now = 0;
+  const labels = [7n];
+  const root = MerkleTree.fromLeaves(labels).root;
+  const indexer = new Indexer({ ctx: { ...ctx, provider }, history, now: () => now,
+    aspLeaves: confirmed => confirmed === root ? labels : [] });
+  await indexer.sync();
+  const old = await chain.getUtxosAt(ctx.deployment.scripts.asp.address);
+  await run(await buildAspUpdate(ctx, { payer: { address: enterpriseAddress(keys.asp, ctx.deployment.network) },
+    root, signers: [hex(keyHash(keys.asp))] }), [keys.asp]);
+  const read = chain.getUtxosAt.bind(chain);
+  let lag = true;
+  let fail = false;
+  t.mock.method(chain, 'getUtxosAt', async (address: string) => {
+    if (address === ctx.deployment.scripts.asp.address && fail) throw new Error('association read failed');
+    if (address === ctx.deployment.scripts.asp.address && lag) { lag = false; return old; }
+    return read(address);
+  });
+  now = 120_000;
+  assert.equal(typeof indexer.expectChange, 'function');
+  indexer.expectChange();
+  await indexer.sync();
+  const before = await indexer.getPool();
+  assert.notEqual(before.aspRoot, root);
+  now += 4_999;
+  calls.length = 0;
+  await indexer.sync();
+  assert.deepEqual(calls, ['tip']);
+  now += 1;
+  const syncedAt = indexer.syncedAt;
+  fail = true;
+  await assert.rejects(indexer.sync(), /association read failed/);
+  assert.deepEqual(await indexer.getPool(), before);
+  assert.equal(indexer.syncedAt, syncedAt);
+  fail = false;
+  calls.length = 0;
+  await indexer.sync();
+  assert.equal(calls.length, 8);
+  assert.equal((await indexer.getPool()).aspRoot, root);
+  assert.deepEqual((await indexer.getPool()).tip, before.tip);
+  assert.deepEqual((await indexer.getAspLeaves(0, 10)).leaves, labels);
+  calls.length = 0;
+  await indexer.sync();
+  assert.deepEqual(calls, ['tip']);
+  // The changed root extends activity past the original expectation's deadline.
+  now = 239_999;
+  chain.mineBlock();
+  await indexer.sync();
+  now += 5_000;
+  calls.length = 0;
+  await indexer.sync();
+  assert.equal(calls.length, 8);
+});
+
+test('IDX-01: changed deposits, refunds and config activate second looks without an expectation', async () => {
+  const { chain, ctx, keys, run } = await startDevnet();
+  const { provider, history, calls } = countedChain(chain);
+  let now = 0;
+  const indexer = new Indexer({ ctx: { ...ctx, provider }, history, now: () => now });
+  await indexer.sync();
+  const user = keys.users[0]!;
+  const payer = { address: enterpriseAddress(user, ctx.deployment.network) };
+  const changes = [
+    async () => run(await buildDeposit(ctx, { payer, amount: 5_000_000n,
+      precommitment: 1n, refundKeyHash: hex(keyHash(user)) }), [user]),
+    async () => run(await buildRefund(ctx, { payer, deposit: (await readDeposits(ctx))[0]!, payTo: payer.address }), [user]),
+    async () => run(await buildConfigUpdate(ctx, {
+      payer: { address: enterpriseAddress(keys.admin[0]!, ctx.deployment.network) },
+      config: { ...(await readConfig(ctx)).datum, depositsPaused: true }, signers: [hex(keyHash(keys.admin[0]!))],
+    }), [keys.admin[0]!]),
+  ];
+  for (const change of changes) {
+    now += 120_000;
+    await change();
+    await indexer.sync();
+    now += 5_000;
+    calls.length = 0;
+    await indexer.sync();
+    assert.equal(calls.length, 8);
+    calls.length = 0;
+    await indexer.sync();
+    assert.deepEqual(calls, ['tip']);
+  }
+  assert.equal((await indexer.getDeposits())[0]!.status, 'refunded');
+  assert.equal((await indexer.getPool()).config.depositsPaused, true);
+});
 
 test('IDX-01: Init exposes genesis and validates pages without proving keys', async () => {
   const { chain, ctx } = await startDevnet();
