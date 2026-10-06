@@ -119,3 +119,4 @@ The default level keeps linear constraints. Compile with `--O2`, or each hash co
 8. The trie library is imported as `aiken/merkle_patricia_forestry`. `mpf.empty` is a constant, not a function.
 9. `aiken check` prints JSON to standard output when it is not a terminal. Its shape differs from the published schema.
 10. In JavaScript, use division for tree indexes above 2^31. The `>>` operator is a signed 32-bit shift.
+11. `snarkjs.wtns.check` needs a logger object. Without one it crashes when a witness is wrong.

@@ -82,7 +82,7 @@ One positive test per circuit, then one negative test per constraint. Numbers fo
 |---|---|---|
 | VER-00 | V4 | Both proofs from TEST-VECTORS section 9 verify |
 | VER-01 | V1 | A public input of `x + r` is rejected. A negative input is rejected |
-| VER-02 | V2 | A point of the wrong length, a non-canonical point, and the point at infinity are each rejected |
+| VER-02 | V2 | A point of the wrong length and the point at infinity are each rejected. Bytes that are not a valid point fail the script |
 | VER-03 | V3 | One input too few and one input too many are each rejected |
 | VER-04 | V4 | A tampered proof and a wrong public input are each rejected |
 | VER-05 | V5 | A proof with a zero public input verifies, and the zero input costs no scalar multiplication |

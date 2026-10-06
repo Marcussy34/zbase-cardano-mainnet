@@ -489,6 +489,8 @@ Each wrap costs one extra compress and uncompress: about 57M CPU for a G1 point 
 The multi-scalar builtin needs a list of points, so it was slower than the loop in every case measured.
 Return failure with `fail` or a `Bool`, not with `Option<G1Element>`.
 
+The canonical check in V2 is defensive. The uncompress builtin already fails on bytes that are not a valid point. No input is known that passes uncompress and fails the round trip, so no test can show that case.
+
 ### 6.5 Pool validator
 
 Rules that apply to every redeemer:
