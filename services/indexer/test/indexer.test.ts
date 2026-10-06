@@ -265,6 +265,38 @@ test('IDX-03 HTTP: expired snapshots answer 503 and recover after a successful p
   assert.deepEqual(await client.getPool(), before);
 });
 
+test('IDX-03 HTTP: caller-driven sync owns readiness and freshness with no server polling', async t => {
+  const { chain, ctx } = await startDevnet();
+  const tip = t.mock.method(chain, 'getTip');
+  let now = 1_000;
+  t.mock.method(Date, 'now', () => now);
+  const indexer = new Indexer({ ctx, history: chain });
+  assert.equal(indexer.syncedAt, undefined);
+  const server = await serveIndexer(indexer, { port: 0, syncMs: 0, maxStaleMs: 50 });
+  t.after(() => server.close());
+  await new Promise(resolve => setTimeout(resolve, 20));
+  assert.equal(tip.mock.callCount(), 0);
+  assert.equal((await fetch(`${server.url}/v1/pool`)).status, 503);
+  await indexer.sync();
+  assert.equal(indexer.syncedAt, now);
+  const client = new IndexerClient(server.url);
+  const before = await client.getPool();
+  now += 50;
+  assert.deepEqual(await client.getPool(), before);
+  now += 1;
+  assert.equal((await fetch(`${server.url}/v1/pool`)).status, 503);
+  // An unchanged tip still confirms the snapshot's freshness.
+  assert.equal(await indexer.sync(), 0);
+  assert.equal(indexer.syncedAt, now);
+  assert.deepEqual(await client.getPool(), before);
+  const syncedAt = indexer.syncedAt;
+  tip.mock.mockImplementation(async () => { throw new Error('provider unavailable'); });
+  now += 51;
+  await assert.rejects(indexer.sync(), /provider unavailable/);
+  assert.equal(indexer.syncedAt, syncedAt);
+  assert.equal((await fetch(`${server.url}/v1/pool`)).status, 503);
+});
+
 test('IDX-03 HTTP: startup retries two failed syncs before serving', async t => {
   const { chain, ctx } = await startDevnet();
   const getTip = chain.getTip.bind(chain);

@@ -45,12 +45,18 @@ export class Indexer implements IndexerApi {
   private readonly transactions = new Map<string, TxView>();
   private state = fresh();
   private syncing?: Promise<number>;
+  private lastSyncedAt: number | undefined;
+
+  get syncedAt(): number | undefined { return this.lastSyncedAt; }
 
   constructor(a: Options) { this.options = a; }
 
   sync(): Promise<number> {
     if (this.syncing) return this.syncing;
-    this.syncing = this.refresh().finally(() => { this.syncing = undefined; });
+    this.syncing = this.refresh().then(applied => {
+      this.lastSyncedAt = Date.now();
+      return applied;
+    }).finally(() => { this.syncing = undefined; });
     return this.syncing;
   }
 
@@ -285,8 +291,8 @@ export async function serveIndexer(indexer: Indexer, a: {
   const syncMs = a.syncMs ?? 5_000;
   const maxStaleMs = a.maxStaleMs ?? 120_000;
   const onError = a.onError ?? (() => {});
-  if (!Number.isSafeInteger(syncMs) || syncMs < 1 || syncMs > 2_147_483_647) throw new RangeError('syncMs must be a positive timer interval');
-  for (let attempt = 0; attempt < 5; attempt += 1) {
+  if (!Number.isSafeInteger(syncMs) || syncMs < 0 || syncMs > 2_147_483_647) throw new RangeError('syncMs must be a nonnegative timer interval');
+  for (let attempt = 0; syncMs > 0 && attempt < 5; attempt += 1) {
     try {
       await indexer.sync();
       break;
@@ -296,22 +302,23 @@ export async function serveIndexer(indexer: Indexer, a: {
       await new Promise(resolve => setTimeout(resolve, syncMs));
     }
   }
-  let lastSuccess = Date.now();
   const server = await serveJson(indexerRoutes(indexer).map(route => ({ ...route, handle: request => {
-    if (Date.now() - lastSuccess > maxStaleMs) throw new ApiError('internal', 'Indexer snapshot is too old', 503);
+    if (indexer.syncedAt === undefined || Date.now() - indexer.syncedAt > maxStaleMs) {
+      throw new ApiError('internal', 'Indexer snapshot is too old', 503);
+    }
     return route.handle(request);
   } })), a.port);
   let closed = false;
   let running: Promise<void> | undefined;
-  let timer: ReturnType<typeof setTimeout>;
+  let timer: ReturnType<typeof setTimeout> | undefined;
   const schedule = () => {
     timer = setTimeout(() => {
-      running = indexer.sync().then(() => { lastSuccess = Date.now(); }, onError)
+      running = indexer.sync().then(() => {}, onError)
         .finally(() => { if (!closed) schedule(); });
     }, syncMs);
     timer.unref();
   };
-  schedule();
+  if (syncMs > 0) schedule();
   return { url: server.url, async close() {
     closed = true;
     clearTimeout(timer);
