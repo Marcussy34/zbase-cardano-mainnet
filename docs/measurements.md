@@ -18,13 +18,17 @@ Proving times were measured on an Apple M2 Max with Node 24.10.0 and snarkjs 0.7
 
 ## 2. Scripts
 
-| Script | Size in bytes | Script hash |
-|---|---|---|
-| `pool` | | |
-| `deposit` | | |
-| `config` | | |
-| `asp` | | |
-| `nft` | | |
+| Script | Size in bytes | Size with parameters applied | Script hash |
+|---|---|---|---|
+| `pool` | 10,072 | 12,659 | |
+| `deposit` | 484 | 518 | |
+| `config` | 1,760 | 1,794 | |
+| `asp` | 1,219 | 1,254 | |
+| `nft` | 456 | 499 | |
+
+Measured on 2026-10-06 with Aiken 1.1.24 and the development verification keys. The pool script takes the three verification keys as parameters, which adds about 2,600 bytes.
+The pool script fits one publication transaction (limit 16,384 bytes). Its reference output locks 55.5 ADA at the current price per byte.
+Script hashes depend on the deployment and are filled in after the live run.
 
 ## 3. Transactions on mainnet
 
@@ -68,6 +72,15 @@ Measured in Aiken 1.1.24 unit tests on 2026-10-06. Each number includes the smal
 | `groth16.verify`, real `insert` proof | 15 public inputs, 9 of them 0 | 2,604,890,058 | 270,047 |
 | `groth16.verify`, real `spend` proof | 6 public inputs | 2,700,200,044 | 150,443 |
 | `groth16.verify`, real `ragequit` proof | 4 public inputs | 2,430,918,152 | 120,491 |
+
+Whole runs of the pool validator, measured in Aiken tests with real proofs. The limit for one transaction is 10,000,000,000 CPU steps.
+
+| Action | Case | CPU steps | Memory units |
+|---|---|---|---|
+| Insert | 4 deposits | 4,259,066,560 | 1,303,951 |
+| Insert | 4 queued notes | 3,083,043,009 | 959,424 |
+| Settle | 4 payouts, queue of 7, trie proof of 5 levels | 3,163,119,524 | 1,525,372 |
+| Ragequit | a deposit note | 2,628,484,625 | 731,595 |
 
 A skipped zero input saves 130,679,623 CPU. So one proof check costs about 1.90B CPU plus 0.131B for each non-zero public input.
 That is close to the model in SPEC 10.2 (1.87B plus 0.13B).
