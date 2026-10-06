@@ -1,0 +1,15 @@
+name = "zbase/contracts"
+version = "0.0.0"
+compiler = "v1.1.24"
+plutus = "v3"
+description = "zBase Cardano M0 pool contracts"
+
+[[dependencies]]
+name = "aiken-lang/stdlib"
+version = "v4.0.0"
+source = "github"
+
+[[dependencies]]
+name = "aiken-lang/merkle-patricia-forestry"
+version = "2.1.0"
+source = "github"
