@@ -754,6 +754,11 @@ When the SDK itself submits a spend, an exit or a refund, it marks the note at o
 A later sync confirms the mark from chain data. If the chain passes the deadline without the transaction, the sync removes the mark and the note returns to its computed state.
 A settlement is valid until its quote deadline. The SDK gives an exit and a refund an expiry of 600 slots.
 
+The SDK trusts its own seed and its own chain provider, and nothing else. The indexer and the relayer belong to an operator.
+Before it proves a settlement, the SDK reads the fee rate from the config output and the tip from its own provider. It refuses a quote whose protocol fee does not match that rate, or whose relayer fee is above `maxRelayerFee`. It also refuses a quote whose deadline is past, or more than `maxQuoteTtlMs` (15 minutes) after the tip.
+Only a known refusal of the relayer releases a note. After any other answer, also after `uncertain`, the SDK keeps its `pending` record and the change note, and the chain decides.
+A deposit that the SDK submits itself is followed by its exact output reference. A note secret is never used twice: the SDK syncs before it deposits and skips every index that the pool has seen.
+
 ### 8.8 API contracts
 
 All amounts and field elements travel as decimal strings. All hashes and points travel as lowercase hex.
@@ -823,7 +828,8 @@ Errors use one shape: `{ "error": { "code": string, "message": string } }`.
 | `intent_mismatch` | The intent does not match the quote or the public inputs. |
 | `not_found` | The quote, the settle, or the route is unknown. |
 | `bad_request` | The request is malformed. |
-| `internal` | Any other failure. |
+| `internal` | Any other failure before the relayer sent a transaction. |
+| `uncertain` | The relayer sent a settle transaction and cannot say whether it will land. Do not prove again with the same note. Ask `GET /v1/settle/:id`, or wait until the deadline of the quote has passed. A client also reports a reply that it cannot read as `uncertain`. |
 
 The relayer verifies every proof locally before it builds a transaction.
 
@@ -1060,7 +1066,7 @@ Measured: a first full setup takes about 28 minutes, of which the phase 1 prepar
 ### 12.2 Known sharp edges
 
 - **Circuit or verifier bug.** It can drain the pool. Caps bound the loss. An audit comes before caps rise.
-- **Duplicate precommitment.** Two notes with the same nullifier cannot both be spent. If someone copies a pending deposit, the copier loses their deposit. The SDK follows the deposit that carries the refund key it used itself, because only that note can also exit in public. Among deposits with that key, or when the SDK was restored from the seed alone and no longer knows the key, it prefers an absorbed deposit and then the larger one.
+- **Duplicate precommitment.** Two notes with the same nullifier cannot both be spent. If someone copies a pending deposit, the copier loses their deposit. The SDK follows the deposit that carries the refund key it used itself, because only that note can also exit in public. Among deposits with that key, or when the SDK was restored from the seed alone and no longer knows the key, it prefers an absorbed deposit and then the larger one. A copy can also carry the owner's refund key and be absorbed first. So a deposit that the SDK submitted itself is followed by its exact output reference, and a copy cannot take its place.
 - **No rule on chain against a repeated precommitment.** zBase on Base refuses a second deposit with the same precommitment. This pool does not, because that needs a second set in the pool datum. So every wallet must make sure that it never uses a note secret twice in one pool. The SDK derives secrets from the seed and a counter in its store. It syncs before it deposits, and it skips every index whose precommitment is already on chain or whose nullifier is already spent. That holds for deposits and for change notes, also after a lost store. A wallet that builds deposits without the SDK must apply the same rule, or its deposit is locked for good.
 - **Malformed deposits.** They are lost (section 6.6).
 - **Rollbacks.** Cardano finality is probabilistic. The indexer and relayer handle rollbacks and rebuild.
@@ -1103,6 +1109,9 @@ Measured: a first full setup takes about 28 minutes, of which the phase 1 prepar
 | Self-relay | Your own wallet pays the fee | Warn, and suggest a fresh wallet |
 
 We publish the number of approved deposits, the pool balance, and the settle count (FR-O2).
+
+M0 status: the SDK makes one key for each settle. It does not build the warnings, the waiting rule or the lower limit on the approved set of this table.
+Two more leaks belong to this list. A public exit of a change note reveals the payments of its deposit by subtraction. And the agent's own chain provider sees its deposit wallet, its one-time addresses and its seller payments.
 
 ## 14. Compliance operations
 
@@ -1295,3 +1304,4 @@ That measurement is the reason for decision D3.
 | 1.0.2 | 2026-10-06 | Rule P3 also forbids a reference script on the continuing pool output. |
 | 1.0.3 | 2026-10-06 | Build findings. The first live run is on Preprod, and all off-chain code takes a network setting (section 15). Script parameters use the Evolution SDK, because the Mesh function truncates long byte strings (8.6). The indexer serves `GET /v1/pool`, and two error codes were added (8.8). The code layout matches the repository (8.9). The Preprod pool uses a single-contributor setup (11). |
 | 1.0.4 | 2026-10-07 | Findings from the first live runs on Preprod. The SDK treats its own marks as tentative until the chain confirms them, and exits and refunds carry an expiry (8.7). A copied precommitment is resolved by the refund key (12.2). M0 status notes for the relayer, the indexer and the association service (8.2, 8.4, 8.5). |
+| 1.0.5 | 2026-10-07 | Findings from a comparison with zBase on Base. The pool has no rule against a repeated precommitment, so the SDK never uses a note secret twice and follows the exact output of its own deposit (12.2). The SDK reads the fee rate and the tip from its own provider, limits the lifetime of a quote, and releases a note only on a known refusal (8.7). The relayer has the error code `uncertain` (8.8). M0 status of the privacy defaults, and two more leaks (13.2). |
