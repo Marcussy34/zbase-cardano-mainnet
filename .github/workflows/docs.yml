@@ -12,10 +12,9 @@ on:
       - package-lock.json
   workflow_dispatch:
 
+# The build only reads the repository. The deploy job holds the Pages permissions.
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 # One deploy at a time. A newer push waits for the running one instead of cancelling it.
 concurrency:
@@ -45,6 +44,9 @@ jobs:
   deploy:
     needs: build
     runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
