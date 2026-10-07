@@ -20,7 +20,7 @@ describe("Landing page", () => {
     expect(network.queryByText("Note secrets")).toBeNull();
     expect(
       screen.getByRole("link", { name: "Privacy model" }).getAttribute("href"),
-    ).toBe("/docs/?topic=spec#13-privacy");
+    ).toBe("https://marcussy34.github.io/zx402/guide/privacy/");
   });
   it("FE-13 groups footer destinations and retains the project status", () => {
     render(<App />);
@@ -41,17 +41,17 @@ describe("Landing page", () => {
     );
     expect(
       resources.getByRole("link", { name: "Read docs" }).getAttribute("href"),
-    ).toBe("/docs/");
+    ).toBe("https://marcussy34.github.io/zx402/");
     expect(
       resources.getByRole("link", { name: "Build plan" }).getAttribute("href"),
-    ).toBe("/docs/?topic=plan");
+    ).toBe("https://marcussy34.github.io/zx402/reference/plan-m0/");
     expect(
       resources.getByRole("link", { name: "GitHub" }).getAttribute("href"),
     ).toBe("https://github.com/Marcussy34/zx402");
     expect(footer.getByText(/in development/i)).toBeTruthy();
     expect(
       footer.getAllByRole("link", { name: "Read docs" })[0].getAttribute("href"),
-    ).toBe("/docs/");
+    ).toBe("https://marcussy34.github.io/zx402/");
   });
   it("FE-01 states the release status and the limits of payment privacy", () => {
     render(<App />);
@@ -78,11 +78,11 @@ describe("Landing page", () => {
     ).toBe(1);
   });
 
-  it("FE-02 makes every Read docs CTA open the local documentation", () => {
+  it("FE-02 makes every Read docs CTA open the documentation site", () => {
     render(<App />);
     const links = screen.getAllByRole("link", { name: /read docs/i });
     expect(links.length).toBeGreaterThanOrEqual(2);
-    links.forEach((link) => expect(link.getAttribute("href")).toBe("/docs/"));
+    links.forEach((link) => expect(link.getAttribute("href")).toBe("https://marcussy34.github.io/zx402/"));
   });
 
   it("FE-03 opens navigation, closes with Escape, and restores focus", async () => {

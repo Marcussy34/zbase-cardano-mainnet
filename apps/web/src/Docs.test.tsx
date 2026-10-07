@@ -6,7 +6,7 @@ import Docs from "./Docs";
 describe("Documentation reader", () => {
   beforeEach(() => window.history.replaceState({}, "", "/docs/"));
 
-  it("FE-06 renders the current product requirements with development status", () => {
+  it("FE-06 renders the current product requirements with the Preprod status", () => {
     render(<Docs />);
     const article = screen.getByRole("article");
     expect(within(article).getByRole("heading", { level: 1 }).textContent).toBe(
@@ -16,7 +16,7 @@ describe("Documentation reader", () => {
       "A compliance list blocks flagged deposits from private use.",
     );
     expect(
-      within(screen.getByRole("complementary")).getByText(/in development/i),
+      within(screen.getByRole("complementary")).getByText(/live on the preprod test network/i),
     ).toBeTruthy();
     expect(
       screen.getByRole("link", { name: /back to zx402/i }).getAttribute("href"),
