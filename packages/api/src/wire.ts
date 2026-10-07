@@ -156,13 +156,15 @@ export function payoutRequestFromJson(value: unknown, field = 'payout'): PayoutR
 
 export function quoteToJson(value: Quote): Json<Quote> {
   return { quoteId: value.quoteId, poolId: value.poolId, withdrawn: value.withdrawn.toString(), protocolFee: value.protocolFee.toString(),
-    relayerFee: value.relayerFee.toString(), relayerKeyHash: value.relayerKeyHash, validUntil: value.validUntil };
+    relayerFee: value.relayerFee.toString(), payoutLovelace: value.payoutLovelace.toString(),
+    relayerKeyHash: value.relayerKeyHash, validUntil: value.validUntil };
 }
 
 export function quoteFromJson(value: unknown, field = 'quote'): Quote {
   const v = object(value, field);
   return { quoteId: string(v.quoteId, `${field}.quoteId`), poolId: hex28(v.poolId, `${field}.poolId`), withdrawn: decimal(v.withdrawn, `${field}.withdrawn`),
     protocolFee: decimal(v.protocolFee, `${field}.protocolFee`), relayerFee: decimal(v.relayerFee, `${field}.relayerFee`),
+    payoutLovelace: decimal(v.payoutLovelace, `${field}.payoutLovelace`),
     relayerKeyHash: hex28(v.relayerKeyHash, `${field}.relayerKeyHash`), validUntil: integer(v.validUntil, `${field}.validUntil`) };
 }
 

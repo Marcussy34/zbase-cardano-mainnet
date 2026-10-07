@@ -44,7 +44,7 @@ const payout: api.PayoutRequest = {
 const payoutJson = { address: payout.address, amount: amountJson, datumHash: hash32 };
 const quote: api.Quote = {
   quoteId: 'quote-1', poolId: hash28, withdrawn: amount, protocolFee: 20n,
-  relayerFee: 30n, relayerKeyHash: hash28, validUntil: 1800000000000,
+  relayerFee: 30n, payoutLovelace: amount, relayerKeyHash: hash28, validUntil: 1800000000000,
 };
 const proof: api.ProofHex = { a: 'ab'.repeat(48), b: 'cd'.repeat(96), c: 'ef'.repeat(48) };
 const publicInputs: api.SpendPublicInputs = {
@@ -80,7 +80,7 @@ roundTrip('SDK-01: nullifier wire preserves spent hashes', nullifiers, api.nulli
   { from: 0, nullifiers: [fieldJson] });
 roundTrip('REL-01: payout wire preserves amount and datum', payout, api.payoutRequestToJson, api.payoutRequestFromJson, payoutJson);
 roundTrip('REL-01: quote wire preserves fees and expiry', quote, api.quoteToJson, api.quoteFromJson,
-  { ...quote, withdrawn: amountJson, protocolFee: '20', relayerFee: '30' });
+  { ...quote, withdrawn: amountJson, protocolFee: '20', relayerFee: '30', payoutLovelace: amountJson });
 roundTrip('REL-02: proof wire preserves compressed points', proof, api.proofHexToJson, api.proofHexFromJson, proof);
 roundTrip('REL-02: public inputs wire preserves all six values', publicInputs, api.spendPublicInputsToJson, api.spendPublicInputsFromJson, publicInputsJson);
 roundTrip('REL-02: intent wire preserves payouts', intent, api.intentRequestToJson, api.intentRequestFromJson, intentJson);
@@ -97,6 +97,24 @@ function badRequest(fieldName: string) {
     return true;
   };
 }
+
+test('REL-01: quote wire requires payoutLovelace', () => {
+  const json: Record<string, unknown> = { ...quote, withdrawn: amountJson, protocolFee: '20', relayerFee: '30' };
+  delete json.payoutLovelace;
+  assert.throws(() => api.quoteFromJson(json), badRequest('payoutLovelace'));
+});
+
+test('REL-01: quote wire rejects invalid payoutLovelace', () => {
+  const json = { ...quote, withdrawn: amountJson, protocolFee: '20', relayerFee: '30' };
+  for (const payoutLovelace of ['-1', '1.5', '1e3', '', ' 1', '+1', 1, null]) {
+    assert.throws(() => api.quoteFromJson({ ...json, payoutLovelace }), badRequest('payoutLovelace'));
+  }
+});
+
+test('REL-01: quote wire accepts zero payoutLovelace', () => {
+  const value = { ...quote, payoutLovelace: 0n };
+  assert.deepEqual(api.quoteFromJson(api.quoteToJson(value)), value);
+});
 
 test('SDK-02: malformed wire fields name the rejected field', () => {
   assert.equal(typeof api.poolViewFromJson, 'function');
@@ -139,7 +157,7 @@ test('SDK-02: every wire shape requires all declared fields', () => {
     [api.aspLeavesPageFromJson, { from: 0, leaves: [], root: '0' }],
     [api.depositViewFromJson, depositJson], [api.nullifiersPageFromJson, { from: 0, nullifiers: [] }],
     [api.payoutRequestFromJson, payoutJson],
-    [api.quoteFromJson, { ...quote, withdrawn: amountJson, protocolFee: '20', relayerFee: '30' }],
+    [api.quoteFromJson, { ...quote, withdrawn: amountJson, protocolFee: '20', relayerFee: '30', payoutLovelace: amountJson }],
     [api.proofHexFromJson, { ...proof }], [api.spendPublicInputsFromJson, publicInputsJson],
     [api.intentRequestFromJson, intentJson],
     [api.settleRequestFromJson, { quoteId: quote.quoteId, proof, publicInputs: publicInputsJson, intent: intentJson }],

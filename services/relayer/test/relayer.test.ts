@@ -11,7 +11,7 @@ import {
 } from '@zbase-cardano/crypto';
 import { devKeysPresent, loadDevArtifacts, loadDevVkey, prove, shutdown } from '@zbase-cardano/prover';
 import {
-  buildAspUpdate, buildDeposit, buildInsert, complete, decodePoolRedeemer, decodeTx,
+  assetAmount, assetWireUnit, buildAspUpdate, buildDeposit, buildInsert, complete, decodePoolRedeemer, decodeTx,
   encodeConfigDatum, encodeVoid, enterpriseAddress, keyHash, newTxBuilder, planInsert,
   readAsp, readConfig, readDeposits, readPool, signTx, timeToSlot, utxoToMesh,
   type ChainContext,
@@ -20,6 +20,7 @@ import { startDevnet } from '@zbase-cardano/txlib/testing/devnet';
 import { Relayer } from '../src/index.js';
 
 const repoRoot = fileURLToPath(new URL('../../../', import.meta.url));
+const tokenAsset = { policy: '16a55b2a349361ff88c03788f93e1e966e5d689605d044fef722ddde', name: '0014df10745553444d' };
 const hex = (bytes: Uint8Array) => Buffer.from(bytes).toString('hex');
 const rejects = (promise: Promise<unknown>, code: ErrorCode) =>
   assert.rejects(promise, error => error instanceof ApiError && error.code === code);
@@ -31,7 +32,7 @@ function fakeIndexer(ctx: ChainContext, leaves: bigint[], spent: bigint[]): Inde
     async getPool() {
       const [pool, config, asp, tip] = await Promise.all([readPool(ctx), readConfig(ctx), readAsp(ctx), ctx.provider.getTip()]);
       const { depositsPaused, minDeposit, maxDeposit, poolCap, depositFeeBps, settleFeeBps, crankFee } = config.datum;
-      return { poolId: ctx.deployment.poolId, asset: 'lovelace', ...pool.datum, aspRoot: asp.datum.root,
+      return { poolId: ctx.deployment.poolId, asset: assetWireUnit(ctx.deployment.asset), ...pool.datum, aspRoot: asp.datum.root,
         config: { depositsPaused, minDeposit, maxDeposit, poolCap, depositFeeBps, settleFeeBps, crankFee },
         tip: { slot: tip.slot, hash: tip.blockHash } };
     },
@@ -41,12 +42,75 @@ function fakeIndexer(ctx: ChainContext, leaves: bigint[], spent: bigint[]): Inde
     async getAspLeaves(from) { return { from, leaves: [], root: (await readAsp(ctx)).datum.root }; },
     async getNullifiers(from, limit) { return { from, nullifiers: spent.slice(from, from + Math.min(limit, 1)) }; },
     async getDeposits() {
-      return (await readDeposits(ctx)).map(({ utxo, datum }) => ({ ...utxo.ref, gross: utxo.value.lovelace,
+      return (await readDeposits(ctx)).map(({ utxo, datum }) => ({ ...utxo.ref, gross: assetAmount(utxo.value, ctx.deployment.asset),
         precommitment: datum.precommitment, refundKeyHash: datum.refund, status: 'pending' as const,
         value: null, label: null, leafIndex: null }));
     },
   };
 }
+
+test('TOKEN-14 a quote in a token pool', { timeout: 120_000 }, async () => {
+  const { ctx, keys } = await startDevnet({ asset: tokenAsset });
+  const relayer = new Relayer({ ctx, indexer: fakeIndexer(ctx, [], []), seed: keys.relayer,
+    vkey: await loadDevVkey('spend', repoRoot) });
+  const payout = { address: enterpriseAddress(keys.users[0]!, ctx.deployment.network), amount: 100_000n, datumHash: null };
+  const quote = await relayer.quote([payout]);
+  assert.equal(quote.payoutLovelace, 2_000_000n);
+  assert.equal(quote.relayerFee, 1_000_000n);
+  assert.equal(quote.withdrawn, 1_100_000n);
+  assert.equal(quote.protocolFee, 0n);
+  assert.equal((await relayer.quote([{ ...payout, amount: 1n }])).withdrawn, 1_000_001n);
+  await rejects(relayer.quote([{ ...payout, amount: 0n }]), 'bad_request');
+});
+
+test('TOKEN-15 the ADA pool quote is unchanged', { timeout: 120_000 }, async () => {
+  const { ctx, keys } = await startDevnet();
+  const relayer = new Relayer({ ctx, indexer: fakeIndexer(ctx, [], []), seed: keys.relayer,
+    vkey: await loadDevVkey('spend', repoRoot) });
+  const payout = { address: enterpriseAddress(keys.users[0]!, ctx.deployment.network), amount: 1_000_000n, datumHash: null };
+  const quote = await relayer.quote([payout]);
+  assert.equal(quote.payoutLovelace, 0n);
+  assert.equal(quote.relayerFee, 1_000_000n);
+  assert.equal(quote.withdrawn, 2_000_000n);
+  assert.equal(quote.protocolFee, 0n);
+  await rejects(relayer.quote([{ ...payout, amount: 999_999n }]), 'bad_request');
+});
+
+test('TOKEN-16 relayer settings', { timeout: 240_000 }, async t => {
+  const vkey = await loadDevVkey('spend', repoRoot);
+  for (const [asset, invalid, valid] of [
+    [tokenAsset, [500_000n, -1n, 0n, 999_999n], [1_000_000n, 3_000_000n]],
+    [{ policy: '', name: '' }, [1n, -1n], [0n]],
+  ] as const) {
+    const { ctx, keys } = await startDevnet({ asset });
+    const options = { ctx, indexer: fakeIndexer(ctx, [], []), seed: keys.relayer, vkey };
+    for (const payoutLovelace of invalid) {
+      await t.test(`TOKEN-16 ${asset.name ? 'token' : 'ADA'} pool refuses payoutLovelace ${payoutLovelace}`, () => {
+        assert.throws(() => new Relayer({ ...options, payoutLovelace }), RangeError);
+      });
+    }
+    for (const payoutLovelace of valid) {
+      await t.test(`TOKEN-16 ${asset.name ? 'token' : 'ADA'} pool quotes payoutLovelace ${payoutLovelace}`, async () => {
+        const relayer = new Relayer({ ...options, payoutLovelace });
+        const quote = await relayer.quote([{ address: enterpriseAddress(keys.users[0]!, ctx.deployment.network),
+          amount: 1_000_000n, datumHash: null }]);
+        assert.equal(quote.payoutLovelace, payoutLovelace);
+      });
+    }
+  }
+});
+
+test('TOKEN-17 the indexer must serve the same asset', { timeout: 120_000 }, async () => {
+  const { ctx, keys } = await startDevnet({ asset: tokenAsset });
+  const indexer = fakeIndexer(ctx, [], []);
+  const original = indexer.getPool;
+  indexer.getPool = async () => ({ ...await original(), asset: 'lovelace' });
+  const relayer = new Relayer({ ctx, indexer, seed: keys.relayer, vkey: await loadDevVkey('spend', repoRoot) });
+  // This amount also clears the ADA floor, so only the asset mismatch can reject it.
+  await assert.rejects(relayer.quote([{ address: enterpriseAddress(keys.users[0]!, ctx.deployment.network),
+    amount: 1_000_000n, datumHash: null }]), error => error instanceof ApiError
+    && error.code === 'internal' && error.message === 'Indexer serves another pool asset');
+});
 
 test('REL-01: quotes include both fees and validate payouts without proving keys', { timeout: 120_000 }, async () => {
   const { ctx, keys } = await startDevnet();
