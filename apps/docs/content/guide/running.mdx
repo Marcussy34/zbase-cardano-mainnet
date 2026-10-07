@@ -129,7 +129,7 @@ MASUMI_API_KEY=<admin key of your Masumi node> MASUMI_PURCHASE_WALLET=<its purch
 npm run masumi -w ops -- --agent <registry asset of the agent> --input '{"question":"..."}'
 ```
 
-The command reads the agent's registry metadata through Blockfrost, refuses an agent that is not priced in the pool's tUSDM unit, pays the purchasing wallet with one private Settle, starts the job, creates the purchase on your Masumi node, waits for the escrow lock and prints the result. `MASUMI_NODE_URL` defaults to `http://localhost:3001`. The [measurements](/reference/measurements) record the live purchase.
+The command reads the agent's registry metadata through Blockfrost, refuses an agent that is not priced in the pool's tUSDM unit, pays the purchasing wallet with one private Settle, starts the job, creates the purchase on your Masumi node, waits for the escrow lock, prints the result and the explorer links. Add `--deposit` to start with a fresh 10 tUSDM deposit, for an end-to-end demo; without it the command deposits only when no note in the pool covers the price. `MASUMI_NODE_URL` defaults to `http://localhost:3001`. The [measurements](/reference/measurements) record the live purchases.
 
 ## Admin actions
 

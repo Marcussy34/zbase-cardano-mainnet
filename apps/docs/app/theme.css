@@ -3,3 +3,12 @@
 .diagram-dark { display: none !important; }
 html.dark .diagram-light { display: none !important; }
 html.dark .diagram-dark { display: block !important; }
+
+/* The overview is black and white: no accent color on the badge, the buttons or the icons. */
+.hero-badge { background: #e5e5e5; color: #171717; }
+html.dark .hero-badge { background: #262626; color: #f5f5f5; }
+.hero-dot { background: #171717; }
+html.dark .hero-dot { background: #f5f5f5; }
+.hero-button-primary { background: #171717; color: #ffffff; border: 1px solid #171717; }
+html.dark .hero-button-primary { background: #f5f5f5; color: #111111; border-color: #f5f5f5; }
+.hero-button-secondary { border: 1px solid currentColor; color: inherit; }

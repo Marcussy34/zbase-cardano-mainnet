@@ -8,7 +8,8 @@ import { IndexerClient, RelayerClient } from '@zx402/api';
 import { createZx402, fileStore } from '@zx402/core';
 import { addressFromBech32 } from '@zx402/crypto';
 import { shutdown, type CircuitArtifacts } from '@zx402/prover';
-import { assetAmount, assetUnit, assetWireUnit, blockfrostProvider, type ChainContext, type Deployment } from '@zx402/txlib';
+import { assetAmount, assetUnit, assetWireUnit, blockfrostProvider, enterpriseAddress, type ChainContext, type Deployment } from '@zx402/txlib';
+import { explorerUrl } from './demo.js';
 import { readSettings } from './env.js';
 import { deploymentArtifacts, redactedLog } from './node.js';
 import { roleSeed } from './roles.js';
@@ -24,6 +25,8 @@ export interface MasumiOptions {
   walletSeed: Uint8Array; agentSeed: Uint8Array;
   artifacts: { spend: CircuitArtifacts; ragequit: CircuitArtifacts };
   storePath?: string;
+  /** Deposit 10 tUSDM first even when a note in the pool already covers the price, for an end-to-end demo. */
+  deposit?: boolean;
   poll?: { intervalMs?: number; timeoutMs?: number; onPoll?: () => void | Promise<void> };
   log?: (line: string) => void;
 }
@@ -123,7 +126,8 @@ export async function runMasumi(o: MasumiOptions): Promise<MasumiResult> {
   const availability = await request(`${apiBase}/availability`, 'Agent availability');
   if (availability.status !== 'available') throw new Error('Masumi agent is not available');
   const schema = await request(`${apiBase}/input_schema`, 'Agent input schema');
-  if (!Array.isArray(schema.input_data)) {
+  // The schema is only checked for presence; agents answer with an array or an object of fields.
+  if (schema.input_data === undefined || schema.input_data === null) {
     throw new Error(`Agent input schema must contain input_data, got keys ${printable(Object.keys(schema).join(', ')) || 'none'}`);
   }
   step('Agent is available and its input schema is loaded');
@@ -142,7 +146,7 @@ export async function runMasumi(o: MasumiOptions): Promise<MasumiResult> {
   const coversPrice = () => sdk.balance().spendable >= quote.withdrawn
     && sdk.listNotes().some(note => note.status === 'spendable' && !note.pending && note.value !== null && note.value >= quote.withdrawn);
   let depositTx: string | null = null;
-  if (!coversPrice()) {
+  if (o.deposit || !coversPrice()) {
     const deposit = await sdk.deposit({ amount: 10_000_000n, walletSeed: o.walletSeed });
     depositTx = deposit.txId;
     step(`Deposit ${depositTx} submitted`);
@@ -218,12 +222,27 @@ export async function runMasumi(o: MasumiOptions): Promise<MasumiResult> {
   }, `Masumi job ${jobId} to complete`);
   step(`Job ${printable(jobId)} ${printable(status.status)}: ${printable(JSON.stringify(status.result ?? null))}`);
   if (status.status === 'failed') throw new Error(`Masumi job ${jobId} failed`);
+  // Explorer links, so an audience can check every claim on chain.
+  const base = explorerUrl(o.ctx.deployment.network);
+  const clean = (value: unknown, pattern: RegExp) => typeof value === 'string' && pattern.test(value) ? value : 'invalid';
+  const tx = (hash: unknown) => `${base}/transaction/${clean(hash, /^[0-9a-f]{64}$/)}`;
+  const addr = (address: unknown) => `${base}/address/${clean(address, /^[a-z0-9_]{20,120}$/)}`;
+  for (const line of ['', 'What the chain shows, on the explorer:',
+    `  Pool              ${addr(o.ctx.deployment.scripts.pool.address)}`,
+    `  Agent's wallet    ${addr(enterpriseAddress(o.walletSeed, o.ctx.deployment.network))}`,
+    ...(depositTx ? [`  Deposit           ${tx(depositTx)}`, "                    from the agent's wallet, in public like any deposit"] : []),
+    ...(settleTx ? [`  Private payment   ${tx(settleTx)}`, `                    the pool pays the Masumi node's purchasing wallet with a proof; no deposit is named`] : []),
+    `  Purchasing wallet ${addr(o.purchaseWallet)}`,
+    `  Escrow lock       ${tx(lockTx)}`, '                    the purchasing wallet locks the price in the Masumi escrow, as any Masumi buyer does',
+    `  Escrow contract   ${addr(source.smartContractAddress)}`,
+    `  Agent             ${printable(apiBase)}, job ${printable(jobId)}`,
+    "Not on the chain: any link from the agent's wallet or its deposit to the purchasing wallet, the escrow or the Masumi agent."]) log(line);
   return { depositTx, settleTx, lockTx, jobId, blockchainIdentifier, result: status.result ?? null,
     seconds: { total: (performance.now() - start) / 1000 } };
 }
 
 export async function main(): Promise<void> {
-  const { values } = parseArgs({ options: { agent: { type: 'string' }, input: { type: 'string' } } });
+  const { values } = parseArgs({ options: { agent: { type: 'string' }, input: { type: 'string' }, deposit: { type: 'boolean' } } });
   if (!values.agent || !values.input) throw new Error('Both the agent registry asset and input JSON are required');
   let input: Record<string, unknown>;
   try { input = object(JSON.parse(values.input), 'input'); }
@@ -246,7 +265,7 @@ export async function main(): Promise<void> {
     await runMasumi({ ctx: { provider: blockfrostProvider(settings.blockfrostProjectId, settings.network), deployment },
       indexerUrl: process.env.INDEXER_URL ?? 'http://127.0.0.1:4010',
       relayerUrl: process.env.RELAYER_URL ?? 'http://127.0.0.1:4011',
-      agentAsset: values.agent, input, masumiNodeUrl: process.env.MASUMI_NODE_URL ?? 'http://localhost:3001',
+      agentAsset: values.agent, input, deposit: values.deposit ?? false, masumiNodeUrl: process.env.MASUMI_NODE_URL ?? 'http://localhost:3001',
       masumiApiKey, purchaseWallet, blockfrostProjectId: settings.blockfrostProjectId, walletSeed, agentSeed,
       artifacts: { spend: await keys.load('spend'), ragequit: await keys.load('ragequit') },
       // Reuse the demo notes, but never load notes from a different pool.
