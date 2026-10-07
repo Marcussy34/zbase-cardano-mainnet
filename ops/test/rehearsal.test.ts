@@ -14,7 +14,7 @@ import { fileStore } from '@zbase-cardano/core';
 import { addressFromBech32, deriveNoteSecrets, precommitment, vkToCardano } from '@zbase-cardano/crypto';
 import { devKeysPresent, loadDevArtifacts, loadDevVkey, shutdown } from '@zbase-cardano/prover';
 import {
-  buildDeposit, decodePoolRedeemer, decodeTx, encodeDepositDatum, enterpriseAddress, keyHash, readPool, signTx, timeToSlot, vkToHex,
+  buildDeposit, decodePoolDatum, decodePoolRedeemer, decodeTx, encodeDepositDatum, enterpriseAddress, keyHash, readPool, signTx, timeToSlot, vkToHex,
   type TxView, type Utxo,
 } from '@zbase-cardano/txlib';
 import { FakeChain } from '@zbase-cardano/txlib/testing/fake-chain';
@@ -155,7 +155,10 @@ function facilitator(chain: FakeChain, mine: () => Promise<unknown>): Facilitato
       if (!u) return { exists: false };
       const payment = addressFromBech32(u.address, 'preprod').payment;
       assert.equal(payment.kind, 'key');
-      return { exists: true, address: u.address, coin: u.value.lovelace, assets: u.value.assets,
+      // The stock facilitator conserves token values using dotted wire units.
+      const assets = Object.fromEntries(Object.entries(u.value.assets).map(([unit, amount]) =>
+        [`${unit.slice(0, 56)}.${unit.slice(56)}`, amount]));
+      return { exists: true, address: u.address, coin: u.value.lovelace, assets,
         paymentKeyHash: Buffer.from(payment.hash).toString('hex') };
     },
     async getCurrentSlot() { return BigInt((await chain.getTip()).slot); },
@@ -179,6 +182,87 @@ function facilitator(chain: FakeChain, mine: () => Promise<unknown>): Facilitato
     },
   };
 }
+
+test('TOKEN-25 the whole product in a token pool', {
+  timeout: 1_800_000,
+  skip: devKeysPresent(root) ? false : 'Development proving keys are absent: circuits/build/dev/manifest.json is required',
+}, async t => {
+  const { startNode } = await import('../src/node.js');
+  const { runDemo } = await import('../src/demo.js');
+  const asset = { policy: '16a55b2a349361ff88c03788f93e1e966e5d689605d044fef722ddde', name: '0014df10745553444d' };
+  const unit = asset.policy + asset.name;
+  const wireUnit = `${asset.policy}.${asset.name}`;
+  const operator = new Uint8Array(32).fill(72);
+  const walletSeed = roleSeed(operator, 'user');
+  const agentSeed = roleSeed(operator, 'agent');
+  const network = 'preprod';
+  const wallet = enterpriseAddress(walletSeed, network);
+  const seller = enterpriseAddress(roleSeed(operator, 'seller'), network);
+  const seeds = { crank: roleSeed(operator, 'crank'), relayer: roleSeed(operator, 'relayer'), asp: roleSeed(operator, 'asp') };
+  const relayer = enterpriseAddress(seeds.relayer, network);
+  const chain = new FakeChain({ network, startSlot: timeToSlot(Date.now(), network) });
+  // Real elapsed slots keep the relayer's wall-clock deadlines valid while proofs run.
+  const mine = async () => chain.mineBlock(Math.max(0, timeToSlot(Date.now(), network) - (await chain.getTip()).slot));
+  chain.addUtxo({ address: enterpriseAddress(operator, network), value: { lovelace: 400_000_000n, assets: {} },
+    inlineDatum: null, datumHash: null, scriptRef: null });
+  const deployment = await deploy({ provider: chain, network, operatorSeed: operator, asset,
+    vkeys: { spend: await loadDevVkey('spend', root), insert: await loadDevVkey('insert', root),
+      ragequit: await loadDevVkey('ragequit', root) },
+    confirm: async () => { await mine(); },
+  });
+  chain.addUtxo({ address: wallet, value: { lovelace: 5_000_000n, assets: { [unit]: 100_000_000n } },
+    inlineDatum: null, datumHash: null, scriptRef: null });
+  await mine();
+  const ctx = { provider: chain, deployment };
+  const tokenBalance = async (address: string) => (await chain.getUtxosAt(address))
+    .reduce((sum, u) => sum + (u.value.assets[unit] ?? 0n), 0n);
+  const relayerBefore = await tokenBalance(relayer);
+  const node = await startNode({ ctx, history: chain, seeds, intervalMs: 0, ports: { indexer: 0, relayer: 0 },
+    insertArtifacts: await loadDevArtifacts('insert', root), spendVkey: await loadDevVkey('spend', root) });
+  t.after(() => node.close());
+  const server = await startSeller({ port: 0, network: 'cardano:preprod', payTo: seller,
+    price: { asset: wireUnit, amount: 2_000_000n }, blockfrostProjectId: '', facilitatorSigner: facilitator(chain, mine) });
+  t.after(() => server.close());
+  const transactions: { view: TxView; inputs: Utxo[] }[] = [];
+  const submit = chain.submit.bind(chain);
+  t.mock.method(chain, 'submit', async (cbor: string) => {
+    const view = decodeTx(cbor);
+    const inputs = await chain.getUtxos(view.inputs);
+    const id = await submit(cbor);
+    transactions.push({ view, inputs });
+    return id;
+  });
+  const logs: string[] = [];
+  const result = await runDemo({ ctx, indexerUrl: node.urls.indexer, relayerUrl: node.urls.relayer, sellerUrl: server.url,
+    walletSeed, agentSeed, depositAmount: 10_000_000n,
+    artifacts: { spend: await loadDevArtifacts('spend', root), ragequit: await loadDevArtifacts('ragequit', root) },
+    poll: { intervalMs: 0, timeoutMs: 900_000, onPoll: async () => { await mine(); await node.tick(); } },
+    log: line => { logs.push(line); t.diagnostic(line); },
+  });
+  assert.equal(result.paid.status, 200);
+  assert.deepEqual(JSON.parse(result.paid.body), { weather: 'sunny', temperatureC: 28 });
+  assert.ok(result.paid.settlementTx);
+  assert.equal(result.noteValue, 10_000_000n);
+  assert.equal(await tokenBalance(seller), 2_000_000n);
+  assert.ok(total(await chain.getUtxosAt(seller)) >= 1_000_000n);
+  assert.ok(result.exitTx);
+  const exit = transactions.find(tx => tx.view.txId === result.exitTx);
+  assert.ok(exit && chain.transaction(result.exitTx)?.block);
+  // The confirmed exit input proves the change was inserted before leaving the pool.
+  const beforeExit = exit.inputs.find(u => u.address === deployment.scripts.pool.address);
+  assert.ok(beforeExit?.inlineDatum);
+  const datum = decodePoolDatum(beforeExit.inlineDatum);
+  assert.equal(datum.size, 2);
+  assert.deepEqual(datum.queue, []);
+  assert.equal(beforeExit.value.assets[unit], 7_000_000n);
+  assert.equal(beforeExit.value.lovelace, 6_000_000n);
+  const pool = await readPool(ctx);
+  assert.equal(pool.balance, 0n);
+  assert.equal(Object.hasOwn(pool.utxo.value.assets, unit), false);
+  assert.equal(pool.utxo.value.lovelace, 6_000_000n);
+  assert.equal(await tokenBalance(relayer) - relayerBefore, 1_000_000n);
+  assert.ok(logs.some(line => line.includes(`10000000 ${wireUnit}`)));
+});
 
 test('E2E-01 through E2E-04: deployed pool rehearsal through real HTTP and stock x402', {
   timeout: 1_800_000,
