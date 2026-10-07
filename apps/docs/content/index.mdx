@@ -16,12 +16,10 @@ export const descriptionStyle = { order: 1, padding: '0 1rem 1rem', fontSize: '0
 <Hero />
 
 <figure style={{ margin: '1.5rem 0 2rem' }}>
-  <a href={`${process.env.NEXT_PUBLIC_BASE_PATH ?? ''}/diagrams/private-payment.png`} aria-label="Open the private payment diagram at full size" className="x:focus-visible:nextra-focus" style={{ display: 'block', borderRadius: 8 }}>
-    <img className="diagram-light" src={`${process.env.NEXT_PUBLIC_BASE_PATH ?? ''}/diagrams/private-payment.png`} alt="A private payment: wallet to pool in public, pool to one-time address with a proof, one-time address to seller through x402" style={{ display: 'block', width: '100%', height: 'auto', borderRadius: 8 }} />
-    <img className="diagram-dark" src={`${process.env.NEXT_PUBLIC_BASE_PATH ?? ''}/diagrams/private-payment-dark.png`} alt="A private payment: wallet to pool in public, pool to one-time address with a proof, one-time address to seller through x402" style={{ width: '100%', height: 'auto', borderRadius: 8 }} />
-  </a>
+  <img className="diagram-light" src={`${process.env.NEXT_PUBLIC_BASE_PATH ?? ''}/diagrams/payment-steps.png`} alt="One payment, step by step: the agent wallet deposits into the zx402 pool in public, the agent proves on its own machine and sends the proof to a relayer, the pool pays a one-time key, and that key pays the x402 seller" style={{ width: '100%', height: 'auto', borderRadius: 8 }} />
+  <img className="diagram-dark" src={`${process.env.NEXT_PUBLIC_BASE_PATH ?? ''}/diagrams/payment-steps-dark.png`} alt="One payment, step by step: the agent wallet deposits into the zx402 pool in public, the agent proves on its own machine and sends the proof to a relayer, the pool pays a one-time key, and that key pays the x402 seller" style={{ width: '100%', height: 'auto', borderRadius: 8 }} />
   <figcaption style={{ marginTop: 12, fontSize: '0.85rem', lineHeight: 1.5 }}>
-    The proof hides which deposit funds the payment.
+    Solid lines are on chain, dashed lines are web requests. The transaction-level diagram is on <a href="/guide/life-of-a-payment">the life of a payment</a>.
   </figcaption>
 </figure>
 
