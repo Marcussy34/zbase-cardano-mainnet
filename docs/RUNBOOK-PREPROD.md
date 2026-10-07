@@ -133,7 +133,7 @@ If you changed a port, set `INDEXER_URL`, `RELAYER_URL` or `SELLER_URL` for the 
 
 Two flags stage a short demo: `npm run demo -w ops -- --no-exit` leaves the change note in the pool, and `npm run demo -w ops -- --reuse` pays from the largest spendable note without a deposit.
 
-To pay a Masumi agent from the pool, run your own Masumi payment service node, then `MASUMI_API_KEY=<admin key> MASUMI_PURCHASE_WALLET=<purchasing wallet address> npm run masumi -w ops -- --agent <registry asset> --input '<json>'`. The pool pays the purchasing wallet in private, and the Masumi node locks the escrow for the job.
+To pay a Masumi agent from the pool, run your own Masumi payment service node, then `MASUMI_API_KEY=<admin key> MASUMI_PURCHASE_WALLET=<purchasing wallet address> npm run masumi -w ops -- --agent <registry asset> --input '<json>'`. The pool pays the purchasing wallet in private, and the Masumi node locks the escrow for the job. Add `--deposit` for a fresh 10 tUSDM deposit first; the command prints the explorer links at the end.
 
 ## 7. Admin actions
 
