@@ -27,9 +27,9 @@ import {
 } from "./BrandIcons";
 
 // The documentation site. The in-app reader at /docs/ keeps the deep documents, but every call to action goes here.
-const DOCS = "https://marcussy34.github.io/zx402/";
-const PLAN = "https://marcussy34.github.io/zx402/reference/plan-m0/";
-const RUNNING = "https://marcussy34.github.io/zx402/guide/running/";
+const DOCS = "https://docs.zx402.org/";
+const PLAN = "https://docs.zx402.org/reference/plan-m0/";
+const RUNNING = "https://docs.zx402.org/guide/running/";
 // The prompt a visitor pastes into a coding agent. It installs and tests the repository, nothing more.
 export const SETUP_PROMPT =
   "Clone https://github.com/Marcussy34/zx402, read docs/HANDOFF.md, then run npm ci, npm run build:circuits, npm run setup:dev and npm test. Do not deploy anything.";

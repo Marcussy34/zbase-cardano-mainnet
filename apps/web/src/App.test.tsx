@@ -20,7 +20,7 @@ describe("Landing page", () => {
     expect(network.queryByText("Note secrets")).toBeNull();
     expect(
       screen.getByRole("link", { name: "Privacy model" }).getAttribute("href"),
-    ).toBe("https://marcussy34.github.io/zx402/guide/privacy/");
+    ).toBe("https://docs.zx402.org/guide/privacy/");
   });
   it("FE-13 groups footer destinations and retains the project status", () => {
     render(<App />);
@@ -41,17 +41,17 @@ describe("Landing page", () => {
     );
     expect(
       resources.getByRole("link", { name: "Read docs" }).getAttribute("href"),
-    ).toBe("https://marcussy34.github.io/zx402/");
+    ).toBe("https://docs.zx402.org/");
     expect(
       resources.getByRole("link", { name: "Build plan" }).getAttribute("href"),
-    ).toBe("https://marcussy34.github.io/zx402/reference/plan-m0/");
+    ).toBe("https://docs.zx402.org/reference/plan-m0/");
     expect(
       resources.getByRole("link", { name: "GitHub" }).getAttribute("href"),
     ).toBe("https://github.com/Marcussy34/zx402");
     expect(footer.getByText(/in development/i)).toBeTruthy();
     expect(
       footer.getAllByRole("link", { name: "Read docs" })[0].getAttribute("href"),
-    ).toBe("https://marcussy34.github.io/zx402/");
+    ).toBe("https://docs.zx402.org/");
   });
   it("FE-01 states the release status and the limits of payment privacy", () => {
     render(<App />);
@@ -82,7 +82,7 @@ describe("Landing page", () => {
     render(<App />);
     const links = screen.getAllByRole("link", { name: /read docs/i });
     expect(links.length).toBeGreaterThanOrEqual(2);
-    links.forEach((link) => expect(link.getAttribute("href")).toBe("https://marcussy34.github.io/zx402/"));
+    links.forEach((link) => expect(link.getAttribute("href")).toBe("https://docs.zx402.org/"));
   });
 
   it("FE-03 opens navigation, closes with Escape, and restores focus", async () => {
@@ -165,7 +165,7 @@ describe("Landing page", () => {
       ].forEach((part) => expect(SETUP_PROMPT).toContain(part));
       expect(
         setup.getByRole("link", { name: "Running it" }).getAttribute("href"),
-      ).toBe("https://marcussy34.github.io/zx402/guide/running/");
+      ).toBe("https://docs.zx402.org/guide/running/");
     });
 
     it("FE-19 copies the exact prompt, announces it, and clears the notice", async () => {

@@ -8,7 +8,7 @@ An agent deposits tUSDM into a shared pool once. Later it pays x402 sellers from
 
 **Mainnet** is the next step and is not deployed. Before it takes outside funds it needs a key ceremony with several parties, an on-chain check of the pool's start state and an outside audit. Nobody outside this project has reviewed the design or the code yet.
 
-**Documentation:** [marcussy34.github.io/zx402](https://marcussy34.github.io/zx402/) explains how it works in plain words and carries every document from `docs/`. Run it locally with `npm run docs:dev`. New here? Read [docs/HANDOFF.md](docs/HANDOFF.md) first.
+**Documentation:** [docs.zx402.org](https://docs.zx402.org/) explains how it works in plain words and carries every document from `docs/`. Run it locally with `npm run docs:dev`. New here? Read [docs/HANDOFF.md](docs/HANDOFF.md) first.
 
 ## How it works
 
