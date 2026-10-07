@@ -139,7 +139,7 @@ This matches the note model of the Base implementation.
 The chain derives the label when Insert absorbs a deposit.
 
 ```text
-label_preimage = "zbase/label/v1"                 14 ASCII bytes
+label_preimage = "zx402/label/v1"                 14 ASCII bytes
               || pool_id                          28 bytes
               || deposit_tx_id                    32 bytes
               || u32_be(deposit_output_index)      4 bytes
@@ -190,7 +190,7 @@ payout(p)  = cred(p.address.payment) || stake(p.address) || u64_be(p.amount) || 
 relayer(i) = 0x00                   intent i names no relayer
            = 0x01 || key_hash       intent i names one, 28 bytes
 
-intent_bytes = "zbase/intent/v1"    15 ASCII bytes
+intent_bytes = "zx402/intent/v1"    15 ASCII bytes
             || pool_id              28 bytes
             || u8(number of payouts)
             || payout(p_1) || ... || payout(p_n)
@@ -234,9 +234,9 @@ The HKDF salt is empty. The info strings are exact ASCII:
 
 | Value | Info string |
 |---|---|
-| `nullifier_i` | `zbase/nullifier/v1/` followed by the decimal index `i` |
-| `secret_i` | `zbase/secret/v1/` followed by the decimal index `i` |
-| One-time payment key `j` (32-byte Ed25519 seed) | `zbase/onetime/v1/` followed by the decimal index `j` |
+| `nullifier_i` | `zx402/nullifier/v1/` followed by the decimal index `i` |
+| `secret_i` | `zx402/secret/v1/` followed by the decimal index `i` |
+| One-time payment key `j` (32-byte Ed25519 seed) | `zx402/onetime/v1/` followed by the decimal index `j` |
 
 A deposit uses the next unused index. A change note uses the next unused index after that.
 
@@ -1350,3 +1350,4 @@ That measurement is the reason for decision D3.
 | 1.0.4 | 2026-10-07 | Findings from the first live runs on Preprod. The SDK treats its own marks as tentative until the chain confirms them, and exits and refunds carry an expiry (8.7). A copied precommitment is resolved by the refund key (12.2). M0 status notes for the relayer, the indexer and the association service (8.2, 8.4, 8.5). |
 | 1.0.5 | 2026-10-07 | Findings from a comparison with the Base implementation. The pool has no rule against a repeated precommitment, so the SDK never uses a note secret twice and follows the exact output of its own deposit (12.2). The SDK reads the fee rate and the tip from its own provider, limits the lifetime of a quote, and releases a note only on a known refusal (8.7). The relayer has the error code `uncertain` (8.8). M0 status of the privacy defaults, and two more leaks (13.2). |
 | 1.0.6 | 2026-10-07 | Added the M0 tUSDM pool rules, asset units, payout ADA, per-payout relayer fee, and token stealth flow. Recorded token payout checks and the unpinned ADA reserve. |
+| 1.0.7 | 2026-10-07 | Protocol strings renamed to zx402. New labels, contexts, note secrets and role keys. A new pool. |

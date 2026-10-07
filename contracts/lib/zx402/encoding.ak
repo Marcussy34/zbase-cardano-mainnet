@@ -14,7 +14,7 @@ pub fn label(
   expect builtin.length_of_bytearray(pool_id) == 28
   expect builtin.length_of_bytearray(deposit_ref.transaction_id) == 32
   expect builtin.length_of_bytearray(refund) == 28
-  "zbase/label/v1"
+  "zx402/label/v1"
     |> builtin.append_bytearray(pool_id)
     |> builtin.append_bytearray(deposit_ref.transaction_id)
     |> builtin.append_bytearray(

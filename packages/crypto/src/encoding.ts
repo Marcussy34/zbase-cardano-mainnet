@@ -29,8 +29,9 @@ export interface SettleIntent {
   validUntil: bigint;
 }
 
-const LABEL_TAG = utf8ToBytes("zbase/label/v1");
-const INTENT_TAG = utf8ToBytes("zbase/intent/v1");
+// These domains bind hashes to the protocol, so a rename requires a new pool.
+const LABEL_TAG = utf8ToBytes("zx402/label/v1");
+const INTENT_TAG = utf8ToBytes("zx402/intent/v1");
 
 function fixedBytes(bytes: Uint8Array, length: number, field: string): Uint8Array {
   if (!(bytes instanceof Uint8Array) || bytes.length !== length) {

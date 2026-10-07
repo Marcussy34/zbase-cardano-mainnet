@@ -148,7 +148,8 @@ test('OPS-03: role derivation separates keys and preserves the operator seed', (
   roles.forEach((role, index) => {
     assert.deepEqual(roleSeed(operatorSeed, role), derived[index]);
     assert.equal(derived[index]!.length, 32);
-    if (role !== 'operator') assert.deepEqual(derived[index], new Uint8Array(hkdfSync('sha256', operatorSeed, new Uint8Array(), `zbase/role/${role}/v1`, 32)));
+    // Pin the protocol domain because a rename changes every derived role key.
+    if (role !== 'operator') assert.deepEqual(derived[index], new Uint8Array(hkdfSync('sha256', operatorSeed, new Uint8Array(), `zx402/role/${role}/v1`, 32)));
     assert.equal(roleKeyHash(operatorSeed, role).length, 56);
     assert.equal(roleAddress(operatorSeed, role, network), enterpriseAddress(derived[index]!, network));
     assert.match(roleAddress(operatorSeed, role, 'mainnet'), /^addr1/);

@@ -9,7 +9,7 @@ export function roleSeed(operatorSeed: Uint8Array, role: Role): Uint8Array {
   if (operatorSeed.length !== 32) throw new Error('Expected a 32-byte operator seed');
   if (!ROLES.includes(role)) throw new Error('Unknown role');
   if (role === 'operator') return new Uint8Array(operatorSeed);
-  return new Uint8Array(hkdfSync('sha256', operatorSeed, new Uint8Array(), `zbase/role/${role}/v1`, 32));
+  return new Uint8Array(hkdfSync('sha256', operatorSeed, new Uint8Array(), `zx402/role/${role}/v1`, 32));
 }
 export function roleAddress(operatorSeed: Uint8Array, role: Role, network: Network): string {
   return enterpriseAddress(roleSeed(operatorSeed, role), network);

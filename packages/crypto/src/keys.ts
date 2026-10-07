@@ -13,7 +13,8 @@ function validate(seed: Uint8Array, index: number): void {
 }
 
 function derive(seed: Uint8Array, domain: string, index: number, length: number): Uint8Array {
-  return hkdf(sha256, seed, new Uint8Array(), utf8ToBytes(`zbase/${domain}/v1/${index}`), length);
+  // Separate the protocol and purpose so one seed cannot reuse derived keys.
+  return hkdf(sha256, seed, new Uint8Array(), utf8ToBytes(`zx402/${domain}/v1/${index}`), length);
 }
 
 export function deriveNoteSecrets(seed: Uint8Array, index: number): { nullifier: bigint; secret: bigint } {

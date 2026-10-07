@@ -1,4 +1,4 @@
-# Computes label, context and nullifier-key test vectors for the zBase Cardano spec.
+# Computes label, context and nullifier-key test vectors for the zx402 Cardano spec.
 # Encodings follow SPEC sections 4.4, 4.5 and 4.6 exactly.
 # Run it inside docs/vectors. It writes encoding-vectors.json to the current directory.
 import hashlib, json
@@ -14,7 +14,7 @@ def int_be31(h: bytes) -> int:
     return int.from_bytes(h[:31], "big")
 
 def label(pool_id, tx_id, index, refund):
-    pre = b"zbase/label/v1" + pool_id + tx_id + index.to_bytes(4, "big") + refund
+    pre = b"zx402/label/v1" + pool_id + tx_id + index.to_bytes(4, "big") + refund
     h = b2b256(pre)
     return pre, h, int_be31(h)
 
@@ -30,7 +30,7 @@ def payout(p):
     return out + (b"\x00" if dh is None else b"\x01" + dh)
 
 def intent_bytes(pool_id, payouts, relayer, valid_until):
-    out = b"zbase/intent/v1" + pool_id + bytes([len(payouts)])
+    out = b"zx402/intent/v1" + pool_id + bytes([len(payouts)])
     for p in payouts:
         out += payout(p)
     out += b"\x00" if relayer is None else b"\x01" + relayer
