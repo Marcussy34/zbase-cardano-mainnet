@@ -1,4 +1,5 @@
 export * from './types.js';
+export * from './asset.js';
 export * from './cost-models.js';
 export * from './keys.js';
 export * from './txview.js';
