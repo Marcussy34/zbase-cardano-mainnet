@@ -8,7 +8,7 @@ import { decodePaymentResponseHeader, wrapFetchWithPaymentFromConfig } from '@x4
 import { IndexerClient, RelayerClient } from '@zbase-cardano/api';
 import { createZbaseCardano, fileStore } from '@zbase-cardano/core';
 import { shutdown, type CircuitArtifacts } from '@zbase-cardano/prover';
-import { blockfrostProvider, type ChainContext, type Deployment } from '@zbase-cardano/txlib';
+import { assetWireUnit, blockfrostProvider, type ChainContext, type Deployment } from '@zbase-cardano/txlib';
 import { readSettings } from './env.js';
 import { deploymentArtifacts, redactedLog } from './node.js';
 import { roleSeed } from './roles.js';
@@ -19,6 +19,8 @@ export interface DemoOptions {
   walletSeed: Uint8Array;
   agentSeed: Uint8Array;
   artifacts: { spend: CircuitArtifacts; ragequit: CircuitArtifacts };
+  depositAmount?: bigint;
+  /** Keep the old amount option for ADA callers only. */
   depositLovelace?: bigint;
   storePath?: string;
   exit?: boolean;
@@ -35,18 +37,20 @@ export interface DemoResult {
 export async function runDemo(o: DemoOptions): Promise<DemoResult> {
   const start = performance.now();
   const elapsed = (since: number) => (performance.now() - since) / 1000;
+  const unit = assetWireUnit(o.ctx.deployment.asset);
   const log = redactedLog(o.log ?? (() => {}), [o.walletSeed, o.agentSeed].map(seed => Buffer.from(seed).toString('hex')));
   if (o.storePath) await mkdir(dirname(o.storePath), { recursive: true });
   const indexer = new IndexerClient(o.indexerUrl);
   const sdk = createZbaseCardano({ seed: o.agentSeed, ctx: o.ctx, indexer,
     relayer: new RelayerClient(o.relayerUrl), artifacts: o.artifacts,
     ...(o.storePath ? { store: fileStore(o.storePath) } : {}), poll: o.poll });
-  const deposit = await sdk.deposit({ amount: o.depositLovelace ?? 10_000_000n, walletSeed: o.walletSeed });
+  const amount = o.depositAmount ?? (unit === 'lovelace' ? o.depositLovelace : undefined) ?? 10_000_000n;
+  const deposit = await sdk.deposit({ amount, walletSeed: o.walletSeed });
   log(`Deposit ${deposit.txId} submitted in ${elapsed(start).toFixed(3)} seconds`);
   const note = await sdk.waitForNote(deposit.prepared.noteId);
   if (note.value === null) throw new Error('Spendable deposit has no value');
   const toSpendable = elapsed(start);
-  log(`Deposit ${deposit.txId} spendable: ${note.value} lovelace in ${toSpendable.toFixed(3)} seconds`);
+  log(`Deposit ${deposit.txId} spendable: ${note.value} ${unit} in ${toSpendable.toFixed(3)} seconds`);
 
   const paymentStart = performance.now();
   const network = `cardano:${o.ctx.deployment.network}` as const;
@@ -56,8 +60,8 @@ export async function runDemo(o: DemoOptions): Promise<DemoResult> {
   await challenge.body?.cancel();
   if (challenge.status !== 402 || !required) throw new Error('Seller did not advertise an x402 price');
   const offer = decodePaymentRequiredHeader(required).accepts.find(a => a.scheme === 'exact'
-    && a.network === network && a.asset === 'lovelace' && /^[1-9][0-9]*$/.test(a.amount));
-  if (!offer) throw new Error('Seller did not offer a lovelace payment on this network');
+    && a.network === network && a.asset === unit && /^[1-9][0-9]*$/.test(a.amount));
+  if (!offer) throw new Error(`Seller did not offer a ${unit} payment on this network`);
   const signer = sdk.x402Signer({ mode: 'stealth' });
   let leg1Tx = '';
   let oneTimeAddress = '';
@@ -73,8 +77,8 @@ export async function runDemo(o: DemoOptions): Promise<DemoResult> {
         return signed;
       },
     }) }],
-    // ADA requires an explicit atomic-unit allowance in the stock client.
-    spendControls: { allowedAssets: [{ network, asset: 'lovelace', maxAmountPerPayment: offer.amount }] },
+    // The stock client must explicitly allow the pool asset and quoted amount.
+    spendControls: { allowedAssets: [{ network, asset: unit, maxAmountPerPayment: offer.amount }] },
   });
   const response = await paidFetch(weather, { redirect: 'error' });
   const body = await response.text();
@@ -125,13 +129,17 @@ async function main(): Promise<void> {
   const log = redactedLog(console.log, [settings.blockfrostProjectId, ...[settings.operatorSeed, walletSeed, agentSeed]
     .map(seed => Buffer.from(seed).toString('hex'))]);
   try {
-    if (settings.network === 'mainnet') log('CAUTION: this demo spends real ADA. Submitted transactions cannot be undone.');
+    if (settings.network === 'mainnet') {
+      const unit = assetWireUnit(deployment.asset);
+      log(`CAUTION: this demo spends real ${unit === 'lovelace' ? 'ADA' : unit}. Submitted transactions cannot be undone.`);
+    }
     const result = await runDemo({ ctx: { provider: blockfrostProvider(settings.blockfrostProjectId, settings.network), deployment },
       indexerUrl: process.env.INDEXER_URL ?? 'http://127.0.0.1:4010',
       relayerUrl: process.env.RELAYER_URL ?? 'http://127.0.0.1:4011',
       sellerUrl: process.env.SELLER_URL ?? 'http://127.0.0.1:4021', walletSeed, agentSeed,
       artifacts: { spend: await keys.load('spend'), ragequit: await keys.load('ragequit') },
-      storePath: join(root, `deployments/${settings.network}/demo-store.json`), log });
+      // A new pool must never load notes that belong to the previous pool.
+      storePath: join(root, `deployments/${settings.network}/demo-store-${deployment.poolId.slice(0, 8)}.json`), log });
     log(result.paid.body);
   } finally {
     walletSeed.fill(0);
