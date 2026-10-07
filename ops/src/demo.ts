@@ -46,8 +46,12 @@ export function explorerUrl(network: Deployment['network']): string {
 export function proofLines(deployment: Deployment, p: { depositTx: string | null; wallet: string; leg1Tx: string;
   oneTimeAddress: string; settlementTx: string | null; seller: string; exitTx: string | null }): string[] {
   const base = explorerUrl(deployment.network);
-  const tx = (hash: string) => `${base}/transaction/${hash}`;
-  const addr = (address: string) => `${base}/address/${address}`;
+  // Hashes and addresses come from the chain and the seller; only their own alphabet reaches the terminal.
+  const clean = (value: string, pattern: RegExp) => pattern.test(value) ? value : 'invalid';
+  const tx = (hash: string) => `${base}/transaction/${clean(hash, /^[0-9a-f]{64}$/)}`;
+  const addr = (address: string) => `${base}/address/${clean(address, /^[a-z0-9_]{20,120}$/)}`;
+  p = { ...p, wallet: clean(p.wallet, /^[a-z0-9_]{20,120}$/), oneTimeAddress: clean(p.oneTimeAddress, /^[a-z0-9_]{20,120}$/),
+    seller: clean(p.seller, /^[a-z0-9_]{20,120}$/) };
   const lines = ['', 'What the chain shows, on the explorer:',
     `  Pool            ${addr(deployment.scripts.pool.address)}`];
   if (p.depositTx) lines.push(`  Deposit         ${tx(p.depositTx)}`, `                  from the agent's wallet ${p.wallet}, in public like any deposit`);
