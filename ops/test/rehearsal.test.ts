@@ -413,7 +413,8 @@ test('E2E-01 through E2E-04: deployed pool rehearsal through real HTTP and stock
     assert.equal(reused.noteValue, kept.value);
     assert.equal(reused.paid.status, 200);
     assert.ok(reused.exitTx, 'The default demo still exits its change');
-    assert.ok(logs.some(line => line.includes(`Reusing spendable note ${kept.id}`)));
+    assert.ok(logs.some(line => line.includes(`Note ${kept.id} in the pool covers the price plus fees`)));
+    assert.ok(logs.some(line => line.includes('Not on the chain: any link from the agent')), 'The demo must print the explorer summary');
   });
   await t.test('E2E-01: incoming HTTP URLs and bodies never contain raw note secrets', async () => {
     assert.ok(served.some(request => request.url === '/v1/settle' && request.body.includes('publicInputs')));
