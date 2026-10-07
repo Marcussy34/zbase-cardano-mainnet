@@ -1,5 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import { vkToCardano } from '@zbase-cardano/crypto';
+import { assetUnit, isAdaAsset, type AssetClass } from '../asset.js';
 import { vkToHex, type ChainContext } from '../context.js';
 import { buildInit, buildPublishScripts, genesisPoolDatum } from '../init.js';
 import { enterpriseAddress, keyHash, signTx } from '../keys.js';
@@ -10,14 +11,17 @@ import { FakeChain } from './fake-chain.js';
 export interface Devnet {
   chain: FakeChain;
   ctx: ChainContext;
+  asset: AssetClass;
   keys: { operator: Uint8Array; relayer: Uint8Array; crank: Uint8Array; asp: Uint8Array; admin: Uint8Array[]; users: Uint8Array[] };
   run(tx: BuiltTx, seeds: Uint8Array[]): Promise<string>;
 }
 
-/** A deterministic local chain with throwaway keys and the M0 ADA config. */
-export async function startDevnet(options: { network?: Network; users?: number } = {}): Promise<Devnet> {
+/** A deterministic local chain with throwaway keys and an ADA or token pool. */
+export async function startDevnet(options: { network?: Network; users?: number; asset?: AssetClass } = {}): Promise<Devnet> {
   const network = options.network ?? 'preprod';
   const users = options.users ?? 3;
+  const asset = options.asset ?? { policy: '', name: '' };
+  const unit = assetUnit(asset);
   if (!Number.isSafeInteger(users) || users < 0 || users > 10_000) throw new RangeError('users must be between 0 and 10000');
   const seed = (id: number): Uint8Array => {
     const bytes = new Uint8Array(32);
@@ -35,10 +39,18 @@ export async function startDevnet(options: { network?: Network; users?: number }
       if (key === keys.operator && lovelace > 5_000_000n && initSeed === undefined) initSeed = ref;
     }
   }
+  if (!isAdaAsset(asset)) {
+    // Only depositors need tokens; service keys pay transaction fees with ADA.
+    for (const key of keys.users) {
+      chain.addUtxo({ address: enterpriseAddress(key, network),
+        value: { lovelace: 10_000_000n, assets: { [unit]: 1_000_000_000n } },
+        inlineDatum: null, datumHash: null, scriptRef: null });
+    }
+  }
   const vkeys = await Promise.all(['spend', 'insert', 'ragequit'].map(async name =>
     vkToCardano(JSON.parse(await readFile(new URL(`../../../../artifacts/dev/${name}_vkey.json`, import.meta.url), 'utf8')))));
   const [vkSpend, vkInsert, vkRagequit] = vkeys;
-  const scripts = buildScripts({ seed: initSeed!, asset: { policy: '', name: '' }, vkSpend: vkSpend!, vkInsert: vkInsert!, vkRagequit: vkRagequit! }, { network });
+  const scripts = buildScripts({ seed: initSeed!, asset, vkSpend: vkSpend!, vkInsert: vkInsert!, vkRagequit: vkRagequit! }, { network });
   const run = async (tx: BuiltTx, seeds: Uint8Array[]): Promise<string> => {
     const id = await chain.submit(signTx(tx.cbor, seeds));
     chain.mineBlock();
@@ -61,8 +73,8 @@ export async function startDevnet(options: { network?: Network; users?: number }
   });
   await run(init, [keys.operator]);
   const ctx: ChainContext = { provider: chain, deployment: {
-    network, poolId: scripts.poolId, seed: initSeed!, asset: { policy: '', name: '' }, scripts,
+    network, poolId: scripts.poolId, seed: initSeed!, asset, scripts,
     vkeys: { spend: vkToHex(vkSpend!), insert: vkToHex(vkInsert!), ragequit: vkToHex(vkRagequit!) }, refScripts: publish.refScripts, initTx: init.txId,
   } };
-  return { chain, ctx, keys, run };
+  return { chain, ctx, asset, keys, run };
 }

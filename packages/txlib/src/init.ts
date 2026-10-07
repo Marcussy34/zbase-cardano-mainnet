@@ -15,7 +15,7 @@ export function genesisPoolDatum(): PoolDatum {
 }
 
 /** Fix the lovelace field width before measuring the ledger output bytes. */
-function minimumLovelace(output: ReturnType<typeof utxoToMesh>['output'], coinsPerByte: bigint): bigint {
+export function minimumLovelace(output: ReturnType<typeof utxoToMesh>['output'], coinsPerByte: bigint): bigint {
   let minimum = 0n;
   for (;;) {
     const amount = [{ unit: 'lovelace', quantity: String(minimum) }, ...output.amount.filter(a => a.unit !== 'lovelace')];
