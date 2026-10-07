@@ -209,6 +209,53 @@ During the fifth run the machine also ran two test suites that make proofs. So i
 In the sixth run Preprod made no block for 132 seconds after the block of the Settle. The payment to the seller entered the next block, so the seller answered after 178 seconds. The code did not cause that wait.
 Since the fixes, a private payment makes two more requests to the agent's provider: one for the fee rate and one for the tip. A deposit through the SDK makes one sync first.
 
+### The tUSDM pool
+
+On 2026-10-07 the pool asset changed from ADA to tUSDM, the Preprod stablecoin of Masumi (policy `16a55b2a349361ff88c03788f93e1e966e5d689605d044fef722ddde`, name `0014df10745553444d`, 6 decimals). The same validators and the same proving keys serve the new pool; only the asset parameter of the pool script changed. The deploy sent four transactions and took about four minutes.
+
+| Deploy transaction | Transaction hash |
+|---|---|
+| Role funding | `6e525fdf46419f7c587a3a164a4fb55bb2319c9d82ed95961d365ef58af6679c` |
+| Reference scripts 1 | `0200b471e4c1bc127566edc3521cc7dbca2f49fff95f5bee63b7184c613706a8` |
+| Reference scripts 2 | `432ded4adfc56ad362858fe4ace3a73930c2cee593a7592cdc245d9983230391` |
+| Pool, config and ASP outputs | `291d5501d4ffa0eb97b63197e4a0424b51c71149fb5979cd9730ccce5d6e0dd9` |
+
+The pool ID is `d433ba1cc677f8771f22b0ecbbbdcda504022b96f34eeaed39fae78c`. The ADA pool from 2026-10-06 is retired; its record is in `deployments/retired/`.
+
+The demo ran once against the tUSDM pool, at 03:44 UTC on 2026-10-07. It deposited 10 tUSDM, paid the seller 2 tUSDM through the stock x402 client, and exited the change of 7 tUSDM in public. It ended with HTTP 200 and the weather body.
+
+| Transaction, tUSDM run | CPU steps | Memory units | Size in bytes | Fee in ADA | Transaction hash |
+|---|---|---|---|---|---|
+| Deposit, 10 tUSDM plus 1.392130 ADA minimum | none | none | 445 | 0.175005 | `7618ba9a3b33ae70ae9c23bcf7f4f5635def0c77a1ffd81d5ac8583b9fd01e8d` |
+| Insert, 1 deposit | 3,093,071,619 | 968,056 | 983 | 0.675770 | `3fe4adbde235b2d2657612666ac60229bcb3d3ae658cd8099d26e755285ff462` |
+| ASP update | 61,407,529 | 178,537 | 599 | 0.215321 | `54290a18e7917be5d6aca5b71131f89852346841ff58dfd52b34bde3b18e6c84` |
+| Settle, 1 payout of 2 tUSDM plus 2 ADA to a one-time address | 3,261,123,910 | 1,015,170 | 1,384 | 0.700479 | `ca9178e1f0768c05cef31f5f0565411190ce4b9d18ba25fb2e8d4140db9db5d7` |
+| Leg 2, one-time address to the seller, submitted by the stock facilitator | none | none | 250 | 0.168073 | `0f848755cd9e3309c15ea1a5622d4db53fed1ecea3f60fef9fe890873cc419ec` |
+| Insert, 1 change note | 2,900,511,156 | 833,523 | 930 | 0.644022 | `38f59cd274f4d1813744c8b2020d32ae175aa2f356c4d92789d71d3ece1942e3` |
+| Ragequit, 7 tUSDM | 2,865,602,217 | 705,056 | 1,276 | 0.649316 | `fb038a0197d25aeea3890ab5ccc7a9a990736256e4f44366e1b7484fe28760a2` |
+
+What the outputs show, read from the chain:
+
+- The deposit output held 10 tUSDM and 1.392130 ADA, the measured minimum for that output. The Insert credited the whole 10 tUSDM, and the crank kept the deposit's ADA.
+- The Settle left the pool with 7 tUSDM and its 6 ADA. The one-time address got exactly 2 tUSDM and 2 ADA. The relayer's change got 1 tUSDM, its fee, and the relayer paid the 2 ADA and the network fee from its own ADA.
+- Leg 2 paid the seller 2 tUSDM and 1.831927 ADA, which is the attached 2 ADA minus the fee. No change output.
+- The exit paid the user 7 tUSDM and 1.055950 ADA, which is the measured minimum. The pool ended with no token entry and its 6 ADA.
+
+| Step, in seconds | tUSDM run |
+|---|---|
+| Deposit submitted | 3.2 |
+| Note spendable, from the start | 139.1 |
+| First leg confirmed, from the payment request | 30.6 |
+| Seller answered HTTP 200, from the payment request | 75.9 |
+| Change note spendable, after the seller answered | 24.2 |
+| Exit submitted, after the change was spendable | 9.8 |
+| Exit confirmed, after the change was spendable | 132.7 |
+| Whole demo | 371.9 |
+
+Block times: deposit 03:44:53, Insert 03:45:42, ASP update 03:46:44, Settle 03:47:16, seller payment 03:47:37, change Insert 03:48:08, exit 03:50:42 UTC. The exit waited 154 seconds for a block, which is the chain, not the code.
+
+Costs of the tUSDM run for each party: the depositor paid 0.175 ADA of fee plus 1.392 ADA attached to the deposit, which the crank kept; the agent paid 1 tUSDM to the relayer and nothing in ADA for the payment; the relayer spent 0.700 ADA of fee plus the 2 ADA it attached, and earned 1 tUSDM; the seller received 2 tUSDM plus 1.832 ADA; the exit cost the user 0.649 ADA of fee plus 1.056 ADA attached to the exit output, which stays in the user's wallet.
+
 ### Admin transactions on Preprod
 
 Run on 2026-10-06 on the rehearsal pool with `ops/src/admin.ts`.

@@ -5,34 +5,35 @@ description: What every transaction costs on Preprod, how long each step takes, 
 
 # Costs and timings
 
-All numbers were measured on Preprod in October 2026. The full tables, with every transaction hash, are in the [measurements](/reference/measurements).
+All numbers were measured on Preprod in October 2026. The pool holds tUSDM since 2026-10-07; the earlier runs held ADA. The full tables, with every transaction hash, are in the [measurements](/reference/measurements).
 
 ## What a payment costs
 
-A private payment of 2 ADA costs the agent about 1.2 ADA on top of the price.
+A private payment of 2 tUSDM costs the agent 1 tUSDM on top of the price, and no ADA.
 
-| Item | ADA | Who gets it |
+| Item | Amount | Who gets it |
 |---|---|---|
-| Relayer fee | 1.00 | The relayer, for the Settle transaction fee of 0.73 ADA and its margin |
-| Fee of the second leg | 0.17 | The network, for the plain payment from the one-time address to the seller |
+| Relayer fee | 1 tUSDM per payout | The relayer. It pays the Settle transaction fee of about 0.70 ADA and attaches 2 ADA to the payout output from its own wallet |
+| Attached ADA | 2 ADA, from the relayer | The one-time address. It pays the second leg's fee of 0.17 ADA and sends the rest to the seller with the tokens |
 | Protocol fee | 0 | The pool treasury. The Preprod config sets `settle_fee_bps` to 0 |
 
-A deposit costs 0.17 ADA of network fee plus the crank fee of 0.3 ADA, which pays the crank for the Insert transaction. So a 10 ADA deposit is credited as 9.7 ADA. An exit costs 0.68 ADA of network fee and no protocol fee.
+A deposit costs 0.18 ADA of network fee plus 1.39 ADA attached to the deposit output, which the crank keeps as its fee. There is no crank fee in tokens, so a 10 tUSDM deposit is credited as 10 tUSDM. An exit costs 0.65 ADA of network fee plus 1.06 ADA attached to the exit output, which stays in the user's wallet, and no protocol fee.
+
+In the retired ADA pool the agent paid about 1.2 ADA on top of the price: 1 ADA relayer fee and 0.17 ADA for the second leg, both from the note.
 
 ## Transactions
 
-| Transaction | CPU steps | Memory units | Size in bytes | Fee in ADA |
+| Transaction, tUSDM run | CPU steps | Memory units | Size in bytes | Fee in ADA |
 |---|---|---|---|---|
-| Deposit | none | none | 349 | 0.171 |
-| Insert, one deposit | 3.28 billion | 1.08 million | 1,360 | 0.712 |
+| Deposit, 10 tUSDM | none | none | 445 | 0.175 |
+| Insert, one deposit | 3.09 billion | 0.97 million | 983 | 0.676 |
 | ASP update | 0.06 billion | 0.18 million | 599 | 0.215 |
-| Settle, one payout | 3.29 billion | 1.10 million | 1,875 | 0.728 |
-| Second leg, one-time address to the seller | none | none | 202 | 0.166 |
-| Insert, one change note | 2.92 billion | 0.88 million | 1,305 | 0.664 |
-| Ragequit | 2.90 billion | 0.82 million | 1,740 | 0.678 |
-| Config update | 0.08 billion | 0.24 million | 737 | 0.234 |
+| Settle, one payout of 2 tUSDM | 3.26 billion | 1.02 million | 1,384 | 0.700 |
+| Second leg, one-time address to the seller | none | none | 250 | 0.168 |
+| Insert, one change note | 2.90 billion | 0.83 million | 930 | 0.644 |
+| Ragequit, 7 tUSDM | 2.87 billion | 0.71 million | 1,276 | 0.649 |
 
-These are the rows of the sixth demo run. The limit for one transaction is 10 billion CPU steps and 14 million memory units, so every pool action uses about a third of the CPU budget. A Groth16 verification over BLS12-381 is the bulk of it: the two pairings and the scalar multiplications for the public inputs.
+The ADA pool runs had the same shape: Insert about 3.28 billion steps and 0.71 ADA, Settle about 3.29 billion steps and 0.73 ADA, Ragequit about 2.90 billion steps and 0.68 ADA, and a config update 0.08 billion steps and 0.23 ADA. The limit for one transaction is 10 billion CPU steps and 14 million memory units, so every pool action uses about a third of the CPU budget. A Groth16 verification over BLS12-381 is the bulk of it: the two pairings and the scalar multiplications for the public inputs.
 
 ## Circuits
 
@@ -72,17 +73,17 @@ Preprod makes a block about every 20 seconds, but not always. Every step of the 
 
 ## The demo end to end
 
-| Step, in seconds | Run 1 | Run 2 | Run 3 | Run 4 | Run 5 | Run 6 |
-|---|---|---|---|---|---|---|
-| Deposit submitted | 3.6 | 2.9 | 3.0 | 2.8 | 3.1 | 2.9 |
-| Note spendable, from the start | 119 | 164 | 231 | 91 | 195 | 140 |
-| First leg confirmed, from the payment request | 29 | 27 | 30 | 40 | 40 | 35 |
-| Seller answered HTTP 200, from the payment request | 116 | 110 | 69 | 78 | 83 | 178 |
-| Change note spendable, after the seller answered | 0 | 6 | 55 | 15 | 9 | 0.1 |
-| Exit confirmed, after the change was spendable | 20 | 75 | 42 | 21 | 23 | 20 |
-| Whole demo | 255 | 355 | 396 | 206 | 311 | 338 |
+| Step, in seconds | ADA run 1 | ADA run 2 | ADA run 3 | ADA run 4 | ADA run 5 | ADA run 6 | tUSDM run |
+|---|---|---|---|---|---|---|---|
+| Deposit submitted | 3.6 | 2.9 | 3.0 | 2.8 | 3.1 | 2.9 | 3.2 |
+| Note spendable, from the start | 119 | 164 | 231 | 91 | 195 | 140 | 139 |
+| First leg confirmed, from the payment request | 29 | 27 | 30 | 40 | 40 | 35 | 31 |
+| Seller answered HTTP 200, from the payment request | 116 | 110 | 69 | 78 | 83 | 178 | 76 |
+| Change note spendable, after the seller answered | 0 | 6 | 55 | 15 | 9 | 0.1 | 24 |
+| Exit confirmed, after the change was spendable | 20 | 75 | 42 | 21 | 23 | 20 | 133 |
+| Whole demo | 255 | 355 | 396 | 206 | 311 | 338 | 372 |
 
-Three waits make up a payment: the Settle block, the funding check, and the second leg's block. In a normal run that is 70 to 115 seconds. Run 6 took 178 seconds because Preprod made no block for 132 seconds after the Settle. Run 5 ran next to two proof-making test suites, so its time to a spendable note says nothing about the code.
+Three waits make up a payment: the Settle block, the funding check, and the second leg's block. In a normal run that is 70 to 115 seconds. ADA run 6 took 178 seconds because Preprod made no block for 132 seconds after the Settle, and the tUSDM run's exit waited 154 seconds for a block. ADA run 5 ran next to two proof-making test suites, so its time to a spendable note says nothing about the code.
 
 A deposit becomes spendable after three blocks in a row: the deposit, the Insert and the ASP update. The crank and the ASP service each poll every 10 seconds and retry an idle step after 20 seconds, so the gap between blocks is mostly the chain.
 
