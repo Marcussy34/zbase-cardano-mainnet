@@ -35,7 +35,7 @@ pub fn intent_bytes(intent: SettleIntent) -> ByteArray {
     builtin.integer_to_bytearray(True, 8, intent.valid_until),
   )
   let payouts = list.foldr(intent.payouts, suffix, payout_bytes)
-  "zx402/intent/v1"
+  "zbase/intent/v1"
     |> builtin.append_bytearray(intent.pool_id)
     |> builtin.append_bytearray(count)
     |> builtin.append_bytearray(payouts)
