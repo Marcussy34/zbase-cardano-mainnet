@@ -105,15 +105,16 @@ describe("Landing page", () => {
     expect(button.getAttribute("aria-expanded")).toBe("false");
   });
 
-  it("FE-04 presents all payment steps together without selecting a step", () => {
+  it("FE-04 presents one connected payment overview without selecting a step", () => {
     render(<App />);
     const overview = within(screen.getByRole("region", { name: "Payment overview" }));
-    ["Deposit", "Prove locally", "Pay"].forEach((name) => {
-      expect(overview.getByRole("heading", { name, level: 3 })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "One payment. The whole picture." })).toBeTruthy();
+    expect(overview.getAllByRole("img")).toHaveLength(1);
+    const diagram = within(overview.getByRole("img"));
+    ["Your wallet", "Shared pool", "One-time key", "x402 seller", "Your agent", "Relayer"].forEach((name) => {
+      expect(diagram.getAllByText(name, { exact: true })).toHaveLength(1);
     });
-    expect(overview.getByText(/shared pool/)).toBeTruthy();
-    expect(overview.getByText(/proof and intent to the relayer/)).toBeTruthy();
-    expect(overview.getByText(/one-time key, which pays the x402 seller/)).toBeTruthy();
+    expect(overview.queryByRole("list")).toBeNull();
     expect(overview.queryByRole("button")).toBeNull();
   });
 
