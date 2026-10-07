@@ -5,7 +5,7 @@ description: The commands to build, test, deploy a pool on Preprod and play the 
 
 # Running it
 
-Everything runs from the repository root with npm. The [Preprod runbook](/reference/runbook-preprod) is the full procedure. This page is the short version and the story of the live runs.
+Everything runs from the repository root with npm. The [Preprod runbook](/reference/runbook) is the full procedure. This page is the short version and the story of the live runs.
 
 ## What you need
 
@@ -64,7 +64,7 @@ Use the dry run to check the current deployment cost.
 Deployment funds the role keys with ADA only. Send at least 10 tUSDM to the `user` address printed in step 3.
 Keep ADA there too, because token deposits and exits need minimum ADA and network fees from that wallet.
 The ADA pool from 2026-10-06 is retired, and its record moved to `deployments/retired/`.
-Keep that record, its proving keys and its note stores. The [retirement procedure](/reference/runbook-preprod#10-retiring-a-pool) explains how to sweep its reference outputs.
+Keep that record, its proving keys and its note stores. The [retirement procedure](/reference/runbook#10-retiring-a-pool) explains how to sweep its reference outputs.
 
 ## Run the node, the seller and the demo
 
@@ -166,4 +166,4 @@ Section 9 of the runbook has the full list.
 
 ## Mainnet
 
-The code accepts `NETWORK=mainnet` and the [mainnet canary runbook](/reference/runbook-m0) describes a small pool with the team's own funds. Nothing is deployed on mainnet yet. Read [Trust and limits](/guide/trust-and-limits) first: a pool whose proving keys one party made, and whose start state the chain does not check, must never take outside deposits.
+The code accepts `NETWORK=mainnet` and the [mainnet canary runbook](/reference/runbook#11-mainnet-canary) describes a small pool with the team's own funds. Nothing is deployed on mainnet yet. Read [Trust and limits](/guide/trust-and-limits) first: a pool whose proving keys one party made, and whose start state the chain does not check, must never take outside deposits.

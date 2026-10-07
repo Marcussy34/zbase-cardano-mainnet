@@ -57,7 +57,7 @@ Read [docs/HANDOFF.md](docs/HANDOFF.md) first.
 | Play the user story against a running node and seller | `npm run demo -w ops` | repo root |
 | Pool status, pause, fee collection, wind-down | `npm run admin -w ops -- status` | repo root |
 
-The last six commands use a real network and read `.env`. [docs/RUNBOOK-PREPROD.md](docs/RUNBOOK-PREPROD.md) explains them.
+The last six commands use a real network and read `.env`. [docs/RUNBOOK.md](docs/RUNBOOK.md) explains them.
 
 New proofs need the development proving keys. The check needs none, because it reuses the cached proofs.
 

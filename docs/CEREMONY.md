@@ -4,7 +4,7 @@
 |---|---|
 | Status | v1.0, 2026-10-06 |
 | Applies to | The three circuits: `spend`, `insert`, `ragequit` |
-| Companions | [SPEC.md](./SPEC.md) section 11, [RUNBOOK-M0.md](./RUNBOOK-M0.md) |
+| Companions | [SPEC.md](./SPEC.md) section 11, [RUNBOOK.md](./RUNBOOK.md) |
 
 Groth16 needs a setup for each circuit. Whoever knows all the setup secrets can forge proofs and drain the pool.
 The ceremony spreads those secrets over several people. It stays safe if at least one of them destroys their secret.

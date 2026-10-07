@@ -188,7 +188,7 @@ npm run demo -w ops -- --reuse                                   # live: pay fro
 npm run masumi -w ops -- --agent <registry asset> --input '{"question":"..."}'   # pay a Masumi agent
 ```
 
-The demo prints every transaction hash and the explorer links shown above. [docs/RUNBOOK-PREPROD.md](docs/RUNBOOK-PREPROD.md) has the full procedure, from keys to deploy.
+The demo prints every transaction hash and the explorer links shown above. [docs/RUNBOOK.md](docs/RUNBOOK.md) has the full procedure, from keys to deploy.
 
 ## Try it from source
 
@@ -209,7 +209,7 @@ Step 3 takes about 30 minutes the first time. Without it, every test that needs 
 | Folder | What it holds |
 |---|---|
 | `apps/web` | The public landing page, [zx402.org](https://zx402.org) |
-| `apps/docs` | The documentation site, built with Nextra and published to GitHub Pages |
+| `apps/docs` | The documentation site, built with Nextra and served at docs.zx402.org by Vercel |
 | `circuits/` | The three circom circuits: spend, insert and ragequit |
 | `contracts/` | The Aiken validators: pool, deposit, config, association set, and the token policy |
 | `packages/crypto` | Hashes, notes, trees, encodings and key derivation |
@@ -248,11 +248,10 @@ Its "Read docs" buttons open the documentation site. The page has no wallet conn
 | [docs/TEST-PLAN.md](docs/TEST-PLAN.md) | Every test, with a stable ID, mapped to the Spec rules |
 | [docs/TEST-VECTORS.md](docs/TEST-VECTORS.md) | Known answers for hashes, encodings, and proofs |
 | [docs/SETUP.md](docs/SETUP.md) | Tools, versions, and known pitfalls |
-| [docs/RUNBOOK-PREPROD.md](docs/RUNBOOK-PREPROD.md) | Run the whole product on the Preprod test network, with the exact commands |
-| [docs/RUNBOOK-M0.md](docs/RUNBOOK-M0.md) | Step-by-step mainnet canary, for later |
+| [docs/RUNBOOK.md](docs/RUNBOOK.md) | Exact commands for Preprod and the step-by-step mainnet canary |
 | [docs/CEREMONY.md](docs/CEREMONY.md) | The Groth16 setup ceremony |
 | [docs/measurements.md](docs/measurements.md) | Measured costs, and every transaction of the Preprod runs |
-| [docs/research/](docs/research/) | Evidence: measurements, research digests, and two verified spikes |
+| [docs/research/](docs/research/) | Evidence: measurements, research digests, and three verified spikes |
 | [AGENTS.md](AGENTS.md) | Hard rules for people and AI agents |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Workflow and pull request checklist |
 

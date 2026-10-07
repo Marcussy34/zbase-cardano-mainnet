@@ -4,7 +4,7 @@
 |---|---|
 | Status | v1.0, 2026-10-06 |
 | Covers | Release M0 (mainnet canary) and the public frontend |
-| Companions | [SPEC.md](./SPEC.md), [TEST-VECTORS.md](./TEST-VECTORS.md), [PLAN-M0.md](./PLAN-M0.md), [RUNBOOK-M0.md](./RUNBOOK-M0.md) |
+| Companions | [SPEC.md](./SPEC.md), [TEST-VECTORS.md](./TEST-VECTORS.md), [PLAN-M0.md](./PLAN-M0.md), [RUNBOOK.md](./RUNBOOK.md) |
 
 Every rule in the Spec has at least one test that passes when the rule holds and one that fails when it is broken.
 Test IDs are stable. Use them in test names, commit messages, and reviews.
@@ -229,8 +229,8 @@ If a bound cannot be met, change the Spec estimate first, then the bound.
 
 ## 12. End to end on mainnet (`E2E`)
 
-`E2E-01` to `E2E-17` are the steps of [RUNBOOK-M0.md](./RUNBOOK-M0.md), in order. Each step lists its pass check there.
-[RUNBOOK-PREPROD.md](./RUNBOOK-PREPROD.md) runs the same steps on the test network with the exact commands.
+`E2E-01` to `E2E-17` are the [mainnet canary steps](./RUNBOOK.md#11-mainnet-canary), in order. Each step lists its pass check there.
+The same runbook gives the exact commands for the Preprod test network.
 
 ### Rehearsal on the local chain
 

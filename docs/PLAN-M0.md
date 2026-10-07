@@ -1,5 +1,7 @@
 # zx402 M0 Mainnet Canary Implementation Plan
 
+Status (2026-10-07): built. Every work package below is implemented and live on Preprod; this plan stays as the record of how the first release was cut.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 > **Granularity note:** this plan is a work breakdown for a human-led build. Each work package fixes its files, interfaces, tests, and done criteria. Before you code a work package, expand its tasks into test-first steps of a few minutes each.
@@ -64,7 +66,7 @@ circuits/
   src/main/insert.circom          component main for insert
   src/main/ragequit.circom        component main for ragequit
   scripts/build.sh                compile all circuits
-  scripts/setup-dev.sh            development keys, never for real funds
+  npm run setup:dev              command for development keys, never for real funds
   test/*.test.ts                  CIR tests
 
 contracts/
@@ -210,7 +212,9 @@ export function deriveOneTimeKey(seed: Uint8Array, index: number): Uint8Array;  
 
 ## WP2: Circuits (`circuits`)
 
-**Files:** the circuit files in the file structure, `scripts/build.sh`, `scripts/setup-dev.sh`, `test/spend.test.ts`, `test/insert.test.ts`, `test/ragequit.test.ts`.
+**Files:** the circuit files in the file structure, `scripts/build.sh`, `test/spend.test.ts`, `test/insert.test.ts`, `test/ragequit.test.ts`.
+
+Run `npm run setup:dev` for development keys.
 
 **Interfaces:**
 - Consumes: `packages/crypto` to build witnesses and expected values.
@@ -227,7 +231,7 @@ export function deriveOneTimeKey(seed: Uint8Array, index: number): Uint8Array;  
 - [ ] Write `insert.circom`. Write CIR-I00 to CIR-I08 first, one at a time.
 - [ ] Write `ragequit.circom`. Write CIR-R00 to CIR-R03 first.
 - [ ] Write `build.sh`. It compiles with `--prime bls12381 --O2` and writes `public-signals.json`. CIR-O01 passes.
-- [ ] Write `setup-dev.sh`. It makes development keys with snarkjs on curve `bls12-381`.
+- [ ] Provide `npm run setup:dev`. It makes development keys with snarkjs on curve `bls12-381`.
 - [ ] Record the constraint count of each circuit in `docs/measurements.md`.
 
 **Done when:** every CIR test passes, and the signal order file matches SPEC section 5.
@@ -420,7 +424,7 @@ export interface Zx402 {
 - [ ] Build the validators with the ceremony keys and record the script hashes.
 - [ ] Write the deploy scripts for reference scripts and Init.
 - [ ] Write the solvency monitor. MON-01 passes.
-- [ ] Run [RUNBOOK-M0.md](./RUNBOOK-M0.md) end to end.
+- [ ] Run [RUNBOOK.md](./RUNBOOK.md) end to end.
 - [ ] Fill in [measurements.md](./measurements.md) and update the estimates in the Spec.
 
 **Done when:** every runbook step passes, and the monitor stays green for 7 days.

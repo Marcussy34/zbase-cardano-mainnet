@@ -28,7 +28,7 @@ Common types are `feat`, `fix`, `test`, `docs`, and `chore`.
 ## Changing a circuit or a validator
 
 A change after the setup ceremony or after deploy means new keys, new script hashes, and a new pool.
-Say so in the pull request title, and update `artifacts/manifest.json` in the same change.
+Say so in the pull request title, and update `artifacts/dev/manifest.json` in the same change.
 
 ## Security issues
 

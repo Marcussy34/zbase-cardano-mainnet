@@ -1167,7 +1167,7 @@ CAUTION: mainnet funds are real, and deployed scripts cannot be changed. Keep th
 
 CAUTION: evaluate every transaction through the provider before you submit it. A failing script transaction that reaches a block costs the collateral.
 
-[RUNBOOK-M0.md](./RUNBOOK-M0.md) holds the step-by-step runbook. [CEREMONY.md](./CEREMONY.md) holds the setup ceremony.
+[RUNBOOK.md](./RUNBOOK.md) holds the step-by-step runbook. [CEREMONY.md](./CEREMONY.md) holds the setup ceremony.
 
 ### 15.3 Solvency monitor
 
@@ -1176,7 +1176,7 @@ All deposit and payment amounts are public. The monitor recomputes INV-1 from ch
 ## 16. Stablecoin pools
 
 Status: M0 on Preprod uses tUSDM, the Masumi test USDM. ADA remains a supported pool configuration.
-The ADA pool from 2026-10-06 is retired. Its record moved to `deployments/retired/`.
+The ADA pool of 2026-10-06 and the first tUSDM pool of 2026-10-07 are retired; their records are in `deployments/retired/`.
 
 | Field | Preprod pool asset |
 |---|---|
@@ -1257,7 +1257,7 @@ x402 on Cardano defaults to USDM. Masumi names USDCx on mainnet.
 | Live limits | Section 10.1 | `api.koios.rest/api/v1/epoch_params` |
 | snarkjs proof verified in Aiken 1.1.24, 2 public inputs | 2,402,366,517 CPU, 81,457 memory | Spike in `docs/research/spikes/groth16-pipeline` |
 | Same proof with input `x + r` and no range check | Verifies as valid | Same spike, control test |
-| Wrapping a curve point in `Option` | 57M extra CPU for G1, 79M for G2 | `docs/research/2026-10-06-measurements.md` section 4.2 |
+| Wrapping a curve point in `Option` | 57M extra CPU for G1, 79M for G2 | [measurements.md, section 4.2 of the first measurements](./measurements.md#42-curve-points-in-data-structures-cost-extra) |
 | Poseidon255 parity, circom against TypeScript | 26 of 26 checks pass | Spike in `docs/research/spikes/poseidon-vectors` |
 
 The Foundation pool test exceeds the transaction limits by about 3 times on CPU and 5 times on memory.

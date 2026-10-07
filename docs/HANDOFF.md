@@ -5,7 +5,7 @@
 | For | The engineer who builds zx402 |
 | From | Marcus |
 | Date | 2026-10-07 |
-| State of the repo | M0 uses the tUSDM pool on Preprod. The ADA pool from 2026-10-06 is retired. The public landing page links to docs.zx402.org. The documentation reader is retired. Mainnet is not deployed yet |
+| State of the repo | M0 uses the tUSDM pool on Preprod. The ADA pool of 2026-10-06 and the first tUSDM pool of 2026-10-07 are retired; their records are in `deployments/retired/`. The public landing page links to docs.zx402.org. The documentation reader is retired. Mainnet is not deployed yet |
 
 ## 1. What you are building
 
@@ -16,7 +16,7 @@ It adapts the Privacy Pools rail that runs on Base today to Cardano's limits.
 
 The transaction builders and quote field support token payouts.
 The SDK signer, deploy command, demo and seller support the pool's asset. SPEC 8.2, 9.2 and 16 describe the token rules.
-The retired ADA pool's record moved to `deployments/retired/`. The Preprod runbook explains how that record selects its reference outputs for a sweep.
+The ADA pool of 2026-10-06 and the first tUSDM pool of 2026-10-07 are retired; their records are in `deployments/retired/`. The runbook explains how each record selects its reference outputs for a sweep.
 
 ## 2. Read in this order
 
@@ -28,7 +28,7 @@ The retired ADA pool's record moved to `deployments/retired/`. The Preprod runbo
 | 4 | [TEST-PLAN.md](./TEST-PLAN.md) | 15 min | Every test, with a stable ID |
 | 5 | [PLAN-M0.md](./PLAN-M0.md) | 20 min | Work packages, interfaces, and done criteria |
 | 6 | [SETUP.md](./SETUP.md) | 10 min | Tools, versions, and known pitfalls |
-| 7 | [RUNBOOK-M0.md](./RUNBOOK-M0.md) and [CEREMONY.md](./CEREMONY.md) | 15 min | How M0 goes to mainnet |
+| 7 | [RUNBOOK.md](./RUNBOOK.md) and [CEREMONY.md](./CEREMONY.md) | 15 min | How M0 goes to mainnet |
 | 8 | [research/](./research/) | as needed | The evidence behind each number |
 
 [AGENTS.md](../AGENTS.md) holds the hard rules. Read it before you write code.
@@ -50,7 +50,7 @@ The owner approved the design on 2026-10-06. SPEC section 2 lists each decision 
 
 | Claim | Status | Where |
 |---|---|---|
-| A Groth16 check fits a transaction (about a quarter of the CPU limit) | Measured | research/2026-10-06-measurements.md |
+| A Groth16 check fits a transaction (about a quarter of the CPU limit) | Measured | [measurements.md](./measurements.md#before-the-build-the-first-measurements) |
 | On-chain Poseidon does not fit (1.27B CPU per hash) | Measured | Same file |
 | Live mainnet limits and prices | Read from the chain on 2026-10-06 | research/data/koios-mainnet-epoch-params.json |
 | A snarkjs proof on `bls12-381` verifies in Aiken after conversion | Verified in an Aiken test | research/spikes/groth16-pipeline |
@@ -62,7 +62,7 @@ The owner approved the design on 2026-10-06. SPEC section 2 lists each decision 
 | Fees of about 1.0 to 1.2 ADA per private payment | Measured on Preprod: 0.85 ADA for the two legs, plus a share of one Insert | measurements.md, sections 3 and 5 |
 | Circuit sizes | Measured: spend 16,828, insert 62,950 and ragequit 8,423 constraints | measurements.md, section 1 |
 | Mesh can build the Settle transaction | Verified on Preprod. Two defects of Mesh 1.9.1 are worked around in `packages/txlib` | AGENTS.md, Cardano knowledge |
-| The port keeps the safety rules of the Base implementation | Checked on 2026-10-07 by the lead and by two independent reviewers, rule by rule against the Base contracts. They found no way to move value without a valid proof. They found weaknesses outside the validators. Five were fixed, and section 5 lists the others | research/2026-10-07-comparison-with-base.md |
+| The port keeps the safety rules of the Base implementation | Checked on 2026-10-07 by the lead and by two independent reviewers, rule by rule against the Base contracts. They found no way to move value without a valid proof. They found weaknesses outside the validators. Five were fixed, and section 5 lists the others | [COMPARISON-WITH-BASE.md](./COMPARISON-WITH-BASE.md) |
 | The community powers of tau file is usable | Not verified | CEREMONY section 2 |
 
 The three circuits, the validators, the services and the SDK are written and run on Preprod.
@@ -102,7 +102,7 @@ What works, with tests and a live run:
 - The transaction builders, a Blockfrost provider, and a local test chain that runs the real validators and the ledger rules that bit us on the live network.
 - The indexer, the crank, the association set provider service and the relayer, as one node.
 - The agent SDK with the stealth x402 signer.
-- Deploy, the demo and the admin command. [RUNBOOK-PREPROD.md](./RUNBOOK-PREPROD.md) has the commands.
+- Deploy, the demo and the admin command. [RUNBOOK.md](./RUNBOOK.md) has the commands.
 - More than 980 JavaScript tests. The test in `ops/test/rehearsal.test.ts` plays the whole story through real HTTP.
 
 What is left before the mainnet canary:
@@ -138,7 +138,7 @@ Your first day:
 1. Do [SETUP.md](./SETUP.md) and confirm every version check.
 2. Run `npm ci`, `npm run build:circuits`, `npm run setup:dev` and `npm test`.
 3. Read `ops/test/rehearsal.test.ts`. It shows every part working together.
-4. Follow [RUNBOOK-PREPROD.md](./RUNBOOK-PREPROD.md) once with your own pool.
+4. Follow [RUNBOOK.md](./RUNBOOK.md) once with your own pool.
 
 ### Decisions made during the build
 
@@ -170,16 +170,7 @@ The build made these choices where the plan was silent or wrong. Each one can be
 
 ## 6. Hard rules
 
-These are the mistakes that lose funds or break privacy. [AGENTS.md](../AGENTS.md) has the full list.
-
-- Range-check every public input on-chain: `0 <= x < r`.
-- Never compute Poseidon in a validator.
-- Never use `circomlibjs`. Use the two Poseidon255 libraries named in the Spec.
-- Never spend a per-deposit UTXO at payment time. Funds sit in the one pool UTXO.
-- Never accept a tree root without a proof.
-- No pool transaction mints, withdraws rewards, or carries a certificate.
-- Never submit a mainnet transaction that fails evaluation.
-- Never commit a seed phrase, a signing key, or a proving key.
+See [AGENTS.md](../AGENTS.md) for the full list of hard rules.
 
 ## 7. Decisions that need the owner
 
