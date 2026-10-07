@@ -60,15 +60,15 @@
   display: block;
   position: absolute;
   border-radius: 50%;
-  animation: hero-smoke-drift 11s ease-in-out infinite alternate;
+  animation: hero-smoke-drift 8s ease-in-out infinite;
   animation-play-state: paused;
 }
 
 .hero-smoke-wisp-one {
   left: -2%;
-  top: 34%;
+  top: 30%;
   width: 73%;
-  height: 52%;
+  height: 58%;
   background:
     radial-gradient(ellipse at 25% 58%, #111111e8 9%, transparent 58%),
     radial-gradient(ellipse at 62% 42%, #655b71ba 5%, #29252fc9 35%, transparent 70%);
@@ -83,8 +83,8 @@
     radial-gradient(ellipse at 37% 55%, #19161de6 14%, transparent 61%),
     radial-gradient(ellipse at 67% 38%, #72667f99 3%, #27222ec9 31%, transparent 65%);
   animation-name: hero-smoke-curl;
-  animation-duration: 13s;
-  animation-delay: -5s;
+  animation-duration: 10.5s;
+  animation-delay: -4s;
 }
 
 .hero-smoke-wisp-three {
@@ -93,8 +93,9 @@
   width: 69%;
   height: 28%;
   background: radial-gradient(ellipse at 50% 50%, #5c526aab 6%, #17141ee6 40%, transparent 72%);
-  animation-duration: 9s;
-  animation-delay: -3s;
+  animation-name: hero-smoke-rise;
+  animation-duration: 6.8s;
+  animation-delay: -2.5s;
 }
 
 [data-motion="active"] .hero-smoke-wisp {
@@ -122,14 +123,24 @@
   display: none;
 }
 
+/* Each layer follows its own cycle so the veil rolls instead of moving as one block. */
 @keyframes hero-smoke-drift {
-  from { transform: translate(-2%, 5%) scale(1, .92) rotate(-3deg); }
-  to { transform: translate(5%, -9%) scale(1.04, 1.08) rotate(3deg); }
+  0%, 100% { transform: translate(-15%, 18%) scale(.92, .88) rotate(-7deg); opacity: .45; }
+  30% { transform: translate(1%, -8%) scale(1.06, 1.18) rotate(2deg); opacity: .9; }
+  65% { transform: translate(18%, -25%) scale(1.16, .82) rotate(7deg); opacity: .6; }
 }
 
 @keyframes hero-smoke-curl {
-  from { transform: translate(4%, 8%) scale(.94, 1.05) rotate(4deg); }
-  to { transform: translate(-4%, -7%) scale(1.05, .96) rotate(-4deg); }
+  0%, 100% { transform: translate(15%, -12%) scale(.86, 1.12) rotate(7deg); opacity: .65; }
+  35% { transform: translate(-5%, 20%) scale(1.12, .84) rotate(-5deg); opacity: .95; }
+  70% { transform: translate(-19%, -16%) scale(.98, 1.2) rotate(-9deg); opacity: .4; }
+}
+
+@keyframes hero-smoke-rise {
+  0% { transform: translate(-30%, 55%) scale(.85, .6) rotate(8deg); opacity: 0; }
+  22% { transform: translate(-16%, 10%) scale(1.03, 1) rotate(3deg); opacity: .85; }
+  65% { transform: translate(15%, -65%) scale(1.16, 1.4) rotate(-6deg); opacity: .6; }
+  100% { transform: translate(35%, -110%) scale(1.28, .65) rotate(-12deg); opacity: 0; }
 }
 
 @media (max-width: 1000px) {

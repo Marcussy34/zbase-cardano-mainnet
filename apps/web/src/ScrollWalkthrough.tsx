@@ -1,8 +1,6 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useId, useRef } from "react";
 import SoffitBackdrop from "./SoffitBackdrop";
 import {
-  ArrowRightIcon,
-  CheckIcon,
   KeyIcon,
   LockIcon,
   PoolIcon,
@@ -13,107 +11,100 @@ import {
 } from "./BrandIcons";
 import "./scroll-walkthrough.css";
 
-function FlowNode({
-  label,
-  icon: Icon,
-  portrait = false,
-  tone = "plain",
-  cue = "send",
-}: {
-  label: string;
-  icon?: BrandIcon;
-  portrait?: boolean;
-  tone?: "plain" | "accent" | "sage";
-  cue?: "send" | "receive" | "key" | "seller";
-}) {
+const description = "Your wallet deposits ADA into one shared pool. The pool funds a one-time key, and that key pays the x402 seller. Your agent keeps its private note secrets local and generates a proof on your device. Only proof and intent go to the relayer. The relayer submits the proof to the shared pool.";
+
+function FlowNode({ name, label, icon: Icon }: { name: string; label: string; icon?: BrandIcon }) {
   return (
-    <div className={`overview-node overview-node-${tone} overview-cue-${cue}${Icon || portrait ? "" : " overview-node-pool"}`}>
-      <span>{portrait ? <i className="overview-agent-portrait" aria-hidden="true" /> : Icon ? <Icon aria-hidden="true" /> : <PoolIcon />}</span>
-      <small>{label}</small>
+    <div className={`overview-node overview-node-${name}`}>
+      <span className="overview-symbol">
+        {Icon ? <Icon /> : <span className="overview-agent-portrait" />}
+      </span>
+      <strong>{label}</strong>
+      {name === "agent" && <small><LockIcon size={10} />Private note stays local</small>}
     </div>
   );
 }
 
-function FlowArrow({ label, leg = "single" }: { label?: string; leg?: "single" | "first" | "second" }) {
+const desktopRoutes = [
+  "M134 90H306",
+  "M414 90H586",
+  "M694 90H866",
+  "M314 295H586",
+  "M640 243V216Q640 200 624 200H376Q360 200 360 184V169",
+];
+const mobileRoutes = [
+  "M220 147V207",
+  "M220 334V432",
+  "M220 560V644",
+  "M66 245V323",
+  "M103 370H129Q145 370 145 354V266Q145 250 161 250H185",
+];
+
+function Routes({ mobile = false }: { mobile?: boolean }) {
+  const id = useId();
+  const routes = mobile ? mobileRoutes : desktopRoutes;
   return (
-    <div className={`overview-flow-arrow overview-leg-${leg}`} aria-hidden="true">
-      {label && <small>{label}</small>}
-      <span><i className="overview-packet" /><ArrowRightIcon size={13} /></span>
-    </div>
+    <svg className={`overview-routes overview-routes-${mobile ? "mobile" : "desktop"}`} viewBox={mobile ? "0 0 300 760" : "0 0 1000 420"} preserveAspectRatio="none" aria-hidden="true" focusable="false">
+      <defs>
+        {["funds", "proof"].map((kind) => <marker key={kind} id={`${id}-${kind}`} markerWidth="7" markerHeight="8" refX="6" refY="4" orient="auto" markerUnits="userSpaceOnUse"><path className={`overview-arrow-${kind}`} d="m1 1 5 3-5 3" fill="none" strokeWidth="1.5" /></marker>)}
+      </defs>
+      {routes.map((d, i) => <g key={d} className={`overview-route overview-route-${i} ${i > 2 ? "overview-route-proof" : "overview-route-funds"}`}>
+        <path className="overview-wire" d={d} markerEnd={`url(#${id}-${i > 2 ? "proof" : "funds"})`} />
+        <path className="overview-packet" d={d} pathLength="100" />
+      </g>)}
+    </svg>
   );
 }
 
 export default function ScrollWalkthrough() {
-  const steps = useRef<HTMLOListElement>(null);
+  const diagram = useRef<HTMLElement>(null);
 
   useEffect(() => {
-    if (!steps.current || typeof IntersectionObserver !== "function") return;
+    const target = diagram.current;
+    if (!target || typeof IntersectionObserver !== "function") return;
     const observer = new IntersectionObserver((entries) => {
       for (const entry of entries) {
         (entry.target as HTMLElement).dataset.inView = String(entry.isIntersecting && entry.intersectionRatio >= .25);
       }
     }, { threshold: [0, .25] });
-    for (const card of steps.current.children) observer.observe(card);
+    observer.observe(target);
     return () => observer.disconnect();
   }, []);
 
   return (
-    <section
-      className="how-section section-wrap payment-overview"
-      id="how-it-works"
-      aria-labelledby="how-title"
-    >
+    <section className="how-section section-wrap payment-overview" id="how-it-works" aria-labelledby="how-title">
       <div className="section-heading">
         <div>
           <span className="eyebrow">How it works</span>
-          <h2 id="how-title">Private payments. <span>Three simple steps.</span></h2>
+          <h2 id="how-title">One payment. <span>The whole picture.</span></h2>
         </div>
       </div>
       <div className="overview-panel" role="region" aria-label="Payment overview">
-        <div className="overview-atmosphere" aria-hidden="true">
-          <SoffitBackdrop />
-        </div>
+        <div className="overview-atmosphere" aria-hidden="true"><SoffitBackdrop /></div>
         <div className="overview-meta">
           <span className="overview-preview"><i aria-hidden="true" />Planned flow</span>
-          <span className="overview-boundary"><LockIcon size={12} aria-hidden="true" />Note secrets stay local</span>
+          <span className="overview-boundary"><LockIcon size={12} />Note secrets stay local</span>
         </div>
-        <ol className="overview-steps" ref={steps}>
-          <li className="overview-step">
-            <div className="overview-step-label" aria-hidden="true"><span>01</span> FUND <ArrowRightIcon size={15} /></div>
-            <h3>Deposit</h3>
-            <p>Deposit ADA into the shared pool. Your private note stays on your device.</p>
-            <div className="overview-diagram" role="img" aria-label="Your wallet deposits ADA into the shared pool. Your private note stays local.">
-              <FlowNode label="Your wallet" icon={WalletIcon} />
-              <FlowArrow label="ADA" />
-              <FlowNode label="Shared pool" tone="accent" cue="receive" />
-              <span className="overview-note"><LockIcon size={10} aria-hidden="true" />Private note saved locally</span>
-            </div>
-          </li>
-          <li className="overview-step">
-            <div className="overview-step-label" aria-hidden="true"><span>02</span> AUTHORIZE <ArrowRightIcon size={15} /></div>
-            <h3>Prove locally</h3>
-            <p>Generate a proof on your device. Send only proof and intent to the relayer.</p>
-            <div className="overview-diagram" role="img" aria-label="Your agent generates a proof locally. Only proof and intent go to the relayer.">
-              <FlowNode label="Your agent" portrait tone="accent" />
-              <FlowArrow label="Proof + intent" />
-              <FlowNode label="Relayer" icon={RelayerIcon} cue="receive" />
-              <span className="overview-note"><CheckIcon size={11} aria-hidden="true" />Proof generated locally</span>
-            </div>
-          </li>
-          <li className="overview-step overview-step-pay">
-            <div className="overview-step-label" aria-hidden="true"><span>03</span> PAY <CheckIcon size={15} /></div>
-            <h3>Pay</h3>
-            <p>The pool funds a one-time key, which pays the x402 seller. Your agent gets back to work.</p>
-            <div className="overview-diagram overview-diagram-pay" role="img" aria-label="The shared pool funds a one-time key. That key makes the standard x402 payment to the seller.">
-              <FlowNode label="Shared pool" tone="accent" />
-              <FlowArrow leg="first" />
-              <FlowNode label="One-time key" icon={KeyIcon} cue="key" />
-              <FlowArrow leg="second" />
-              <FlowNode label="x402 seller" icon={SellerIcon} tone="sage" cue="seller" />
-              <span className="overview-note"><CheckIcon size={11} aria-hidden="true" />Standard x402 payment</span>
-            </div>
-          </li>
-        </ol>
+        <figure className="overview-diagram" ref={diagram} role="img" aria-label={description}>
+          <Routes />
+          <Routes mobile />
+          <FlowNode name="wallet" label="Your wallet" icon={WalletIcon} />
+          <FlowNode name="pool" label="Shared pool" icon={PoolIcon} />
+          <FlowNode name="key" label="One-time key" icon={KeyIcon} />
+          <FlowNode name="seller" label="x402 seller" icon={SellerIcon} />
+          <FlowNode name="agent" label="Your agent" />
+          <FlowNode name="relayer" label="Relayer" icon={RelayerIcon} />
+          <span className="overview-route-label overview-label-deposit">ADA deposit</span>
+          <span className="overview-route-label overview-label-fund">Price + fee</span>
+          <span className="overview-route-label overview-label-pay">x402 payment</span>
+          <span className="overview-route-label overview-label-proof">Proof + intent</span>
+          <span className="overview-route-label overview-label-submit">Submit proof</span>
+          <span className="overview-local-label">Proves on your device</span>
+        </figure>
+        <div className="overview-legend" aria-hidden="true">
+          <span><i />Funds</span>
+          <span><i />Proof &amp; authorization</span>
+        </div>
       </div>
     </section>
   );
