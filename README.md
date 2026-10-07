@@ -1,6 +1,6 @@
 # zBase Cardano (mainnet)
 
-Private payments for AI agents on Cardano mainnet.
+Private payments for AI agents using tUSDM on Preprod, with Cardano mainnet planned.
 An agent deposits into a shared pool once.
 Later it pays sellers, escrows, or payment channels from the pool with a zero-knowledge proof.
 The chain shows the pool as the payer, not the agent's wallet.
