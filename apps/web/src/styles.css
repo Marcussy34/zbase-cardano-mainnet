@@ -933,6 +933,76 @@ h2 > span {
   white-space: nowrap;
   font-size: 12px;
 }
+.agent-setup-section {
+  display: grid;
+  grid-template-columns: 0.85fr 1.2fr;
+  gap: 75px;
+  align-items: start;
+  padding-top: 120px;
+}
+.agent-setup-brief h2 {
+  margin: 0;
+  font-size: clamp(27px, 3vw, 40px);
+}
+.agent-setup-brief p {
+  max-width: 42ch;
+  margin: 18px 0 0;
+  color: var(--muted);
+  font-size: 15px;
+  line-height: 1.6;
+}
+.agent-setup-note {
+  font-size: 12px;
+}
+.agent-setup-brief .text-link {
+  margin-top: 26px;
+}
+.prompt-card {
+  overflow: hidden;
+  border: 1px solid #383532;
+  border-radius: 11px;
+  background: #151515;
+}
+.prompt-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 10px 10px 16px;
+  border-bottom: 1px solid #33312f;
+}
+.prompt-copy {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+  padding: 6px 14px;
+  border-radius: 20px;
+  background: #efefed;
+  color: #191919;
+  font-size: 12px;
+  font-weight: 500;
+  transition: background 0.2s;
+}
+.prompt-copy:hover {
+  background: white;
+}
+.prompt-card-body {
+  margin: 0;
+  padding: 22px;
+  font: 12px/1.8 ui-monospace, SFMono-Regular, monospace;
+  color: #c4c0bd;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  user-select: text;
+}
+.prompt-status {
+  min-height: 18px;
+  margin: 0;
+  padding: 0 16px 12px;
+  color: #a9a9a5;
+  font-size: 11px;
+}
 .faq-section {
   display: grid;
   grid-template-columns: 0.85fr 1.2fr;
@@ -1578,6 +1648,17 @@ h2 > span {
   }
   .roadmap-bottom {
     margin-top: 17px;
+  }
+  .agent-setup-section {
+    padding-top: 80px;
+    grid-template-columns: 1fr;
+    gap: 36px;
+  }
+  .agent-setup-brief p {
+    max-width: none;
+  }
+  .prompt-card-body {
+    padding: 18px;
   }
   .faq-section {
     padding-top: 96px;

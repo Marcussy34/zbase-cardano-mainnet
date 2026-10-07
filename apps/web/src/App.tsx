@@ -14,6 +14,8 @@ import {
   ArrowDownIcon,
   ArrowUpRightIcon,
   ChevronDownIcon,
+  CheckIcon,
+  CopyIcon,
   ProofIcon,
   MenuIcon,
   PauseIcon,
@@ -27,6 +29,10 @@ import {
 // The documentation site. The in-app reader at /docs/ keeps the deep documents, but every call to action goes here.
 const DOCS = "https://marcussy34.github.io/zx402/";
 const PLAN = "https://marcussy34.github.io/zx402/reference/plan-m0/";
+const RUNNING = "https://marcussy34.github.io/zx402/guide/running/";
+// The prompt a visitor pastes into a coding agent. It installs and tests the repository, nothing more.
+export const SETUP_PROMPT =
+  "Clone https://github.com/Marcussy34/zx402, read docs/HANDOFF.md, then run npm ci, npm run build:circuits, npm run setup:dev and npm test. Do not deploy anything.";
 const portraits = [0, 1, 5, 8, 3, 6, 4, 7, 2, 5, 1, 8];
 const scatterPositions = [
   [0, -400],
@@ -99,6 +105,8 @@ export default function App() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [paused, setPaused] = useState(false);
   const [faq, setFaq] = useState<number | null>(null);
+  const [copied, setCopied] = useState<"" | "done" | "failed">("");
+  const copyTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const site = useRef<HTMLDivElement>(null);
   useLandingMotion(site, paused);
   const menuButton = useRef<HTMLButtonElement>(null);
@@ -121,6 +129,18 @@ export default function App() {
       document.removeEventListener("pointerdown", outside);
     };
   }, [menuOpen]);
+  useEffect(() => () => clearTimeout(copyTimer.current), []);
+  const copyPrompt = async () => {
+    clearTimeout(copyTimer.current);
+    try {
+      if (!navigator.clipboard?.writeText) throw new Error("no clipboard");
+      await navigator.clipboard.writeText(SETUP_PROMPT);
+      setCopied("done");
+      copyTimer.current = setTimeout(() => setCopied(""), 2200);
+    } catch {
+      setCopied("failed");
+    }
+  };
 
   return (
     <div ref={site} className={paused ? "site motion-paused" : "site"}>
@@ -156,6 +176,7 @@ export default function App() {
               ["How it works", "#how-it-works"],
               ["Privacy by design", "#privacy"],
               ["The roadmap", "#roadmap"],
+              ["Set up", "#agent-setup"],
               ["Questions", "#questions"],
               ["Documentation", DOCS],
             ].map(([label, href]) => (
@@ -300,6 +321,60 @@ export default function App() {
             <a className="text-link" href={PLAN}>
               Build plan <ArrowUpRightIcon size={16} aria-hidden="true" />
             </a>
+          </div>
+        </section>
+        <section
+          className="agent-setup-section section-wrap"
+          id="agent-setup"
+          aria-labelledby="agent-setup-title"
+        >
+          <div className="agent-setup-brief" data-reveal>
+            <span className="eyebrow">Set up with your agent</span>
+            <h2 id="agent-setup-title">Hand it to your agent.</h2>
+            <p>
+              Copy this prompt into Claude Code, Codex or Cursor. The agent
+              clones the repository, installs the tools and runs every test. No
+              wallet. No funds.
+            </p>
+            <p className="agent-setup-note">
+              Development keys take about 30 minutes the first time. There is
+              no package to install yet.
+            </p>
+            <a className="text-link" href={RUNNING}>
+              Running it <ArrowUpRightIcon size={16} aria-hidden="true" />
+            </a>
+          </div>
+          <div
+            className="prompt-card"
+            data-reveal
+            style={{ "--reveal-delay": "90ms" } as CSSProperties}
+          >
+            <div className="prompt-card-top">
+              <span className="mono">prompt.txt</span>
+              <button
+                type="button"
+                className="prompt-copy"
+                aria-label="Copy prompt"
+                onClick={copyPrompt}
+              >
+                {copied === "done" ? (
+                  <CheckIcon size={16} aria-hidden="true" />
+                ) : (
+                  <CopyIcon size={16} aria-hidden="true" />
+                )}
+                {copied === "done" ? "Copied" : "Copy"}
+              </button>
+            </div>
+            <pre className="prompt-card-body" tabIndex={0}>
+              {SETUP_PROMPT}
+            </pre>
+            <p className="prompt-status" role="status" aria-live="polite">
+              {copied === "done"
+                ? "Copied."
+                : copied === "failed"
+                  ? "Select the text and copy it."
+                  : ""}
+            </p>
           </div>
         </section>
         <section
