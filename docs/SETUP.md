@@ -59,7 +59,7 @@ npm run check:contracts
 | Item | Needed for | Note |
 |---|---|---|
 | Blockfrost project for Cardano mainnet | Chain data, evaluation, submit | Keep the project ID in `.env`, never in git |
-| Operator, relayer, admin, ASP, and test wallets | The runbook | See [RUNBOOK-M0.md](./RUNBOOK-M0.md) section 1 |
+| Operator, relayer, admin, ASP, and test wallets | The runbook | See [RUNBOOK.md](./RUNBOOK.md#111-before-you-start) section 11.1 |
 
 CAUTION: `.env` files, seed phrases, signing keys, and proving keys must never enter git. The `.gitignore` already blocks `.env`, `*.zkey`, and `*.ptau`.
 
@@ -113,4 +113,4 @@ Things that cost time in those runs:
 - A sandbox that blocks writes outside the repo also blocks that cache. Put the two packages under `contracts/build/packages` first.
 - `npx snarkjs --version` prints its help text and exits with code 99. That is normal.
 
-See [research/2026-10-06-measurements.md](./research/2026-10-06-measurements.md) and [research/spikes/](./research/spikes/) for the full results.
+See [the first measurements](./measurements.md#before-the-build-the-first-measurements) and [research/spikes/](./research/spikes/) for the full results.

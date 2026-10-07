@@ -5,7 +5,7 @@ description: The commands to build, test, deploy a pool on Preprod and play the 
 
 # Running it
 
-Everything runs from the repository root with npm. The [Preprod runbook](/reference/runbook-preprod) is the full procedure. This page is the short version and the story of the live runs.
+Everything runs from the repository root with npm. The [runbook](/reference/runbook) is the full procedure. This page is the short version and the story of the live runs.
 
 ## What you need
 
@@ -64,7 +64,7 @@ Use the dry run to check the current deployment cost.
 Deployment funds the role keys with ADA only. Send at least 10 tUSDM to the `user` address printed in step 3.
 Keep ADA there too, because token deposits and exits need minimum ADA and network fees from that wallet.
 The ADA pool from 2026-10-06 is retired, and its record moved to `deployments/retired/`.
-Keep that record, its proving keys and its note stores. The [retirement procedure](/reference/runbook-preprod#10-retiring-a-pool) explains how to sweep its reference outputs.
+Keep that record, its proving keys and its note stores. The [retirement procedure](/reference/runbook#10-retiring-a-pool) explains how to sweep its reference outputs.
 
 ## Run the node, the seller and the demo
 
@@ -115,9 +115,9 @@ npm run demo -w ops -- --reuse     # live: pay from that change note, no deposit
 ### Paying a Masumi agent
 
 <figure style={{ margin: '1.5rem 0 2rem' }}>
-  <a href={`${process.env.NEXT_PUBLIC_BASE_PATH ?? ''}/diagrams/masumi.png`} aria-label="Open the diagram at full size">
-    <img className="diagram-light" src={`${process.env.NEXT_PUBLIC_BASE_PATH ?? ''}/diagrams/masumi.png`} alt="Paying a Masumi agent from the pool: the pool funds the purchasing wallet in private, then Masumi locks the escrow and the agent answers" style={{ display: 'block', width: '100%', height: 'auto', borderRadius: 8 }} />
-    <img className="diagram-dark" src={`${process.env.NEXT_PUBLIC_BASE_PATH ?? ''}/diagrams/masumi-dark.png`} alt="Paying a Masumi agent from the pool: the pool funds the purchasing wallet in private, then Masumi locks the escrow and the agent answers" style={{ width: '100%', height: 'auto', borderRadius: 8 }} />
+  <a href="/diagrams/masumi.png" aria-label="Open the diagram at full size">
+    <img className="diagram-light" src="/diagrams/masumi.png" alt="Paying a Masumi agent from the pool: the pool funds the purchasing wallet in private, then Masumi locks the escrow and the agent answers" style={{ display: 'block', width: '100%', height: 'auto', borderRadius: 8 }} />
+    <img className="diagram-dark" src="/diagrams/masumi-dark.png" alt="Paying a Masumi agent from the pool: the pool funds the purchasing wallet in private, then Masumi locks the escrow and the agent answers" style={{ width: '100%', height: 'auto', borderRadius: 8 }} />
   </a>
   <figcaption style={{ marginTop: 12, fontSize: '0.85rem', lineHeight: 1.5 }}>The pool funds the Masumi node's purchasing wallet in private; Masumi does the rest unchanged. Source: docs/diagrams/masumi.excalidraw.</figcaption>
 </figure>
@@ -166,4 +166,4 @@ Section 9 of the runbook has the full list.
 
 ## Mainnet
 
-The code accepts `NETWORK=mainnet` and the [mainnet canary runbook](/reference/runbook-m0) describes a small pool with the team's own funds. Nothing is deployed on mainnet yet. Read [Trust and limits](/guide/trust-and-limits) first: a pool whose proving keys one party made, and whose start state the chain does not check, must never take outside deposits.
+The code accepts `NETWORK=mainnet` and the [mainnet canary steps](/reference/runbook#11-mainnet-canary) of the runbook describe a small pool with the team's own funds. Nothing is deployed on mainnet yet. Read [Trust and limits](/guide/trust-and-limits) first: a pool whose proving keys one party made, and whose start state the chain does not check, must never take outside deposits.

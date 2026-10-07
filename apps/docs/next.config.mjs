@@ -1,9 +1,7 @@
 import { fileURLToPath } from 'node:url';
 import nextra from 'nextra';
 
-// The site is exported as static files. On GitHub Pages it lives under the repository name,
-// so the workflow sets NEXT_PUBLIC_BASE_PATH to "/zx402". Locally it stays empty.
-const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? '';
+// The site is exported as static files and served at the root of docs.zx402.org by Vercel.
 
 const withNextra = nextra({
   // Code blocks hold hashes and addresses that nobody searches for.
@@ -13,8 +11,6 @@ const withNextra = nextra({
 export default withNextra({
   output: 'export',
   images: { unoptimized: true },
-  basePath,
-  ...(basePath ? { assetPrefix: basePath } : {}),
   // Every page becomes a folder with an index.html, which static hosts serve without rewrites.
   trailingSlash: true,
   reactStrictMode: true,

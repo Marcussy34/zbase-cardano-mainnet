@@ -85,18 +85,6 @@
   color: #91908d;
   margin: 24px 0;
 }
-.footer-signature {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  max-width: 210px;
-  font-size: 10px;
-  line-height: 1.65;
-  color: #a59dac;
-}
-.footer-signature svg {
-  flex-shrink: 0;
-}
 .footer-redesign .footer-top nav {
   display: flex;
   flex-direction: column;
@@ -162,9 +150,6 @@
   }
   .footer-about p {
     margin: 18px 0 12px;
-  }
-  .footer-signature {
-    max-width: none;
   }
   .footer-invitation-copy {
     width: 70%;

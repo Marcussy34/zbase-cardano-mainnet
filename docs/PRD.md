@@ -292,7 +292,7 @@ None of these blocks M0. Each has a default that the builder can assume.
 
 ## 17. M0 acceptance criteria
 
-M0 is done when all of these hold. Each maps to a step in [RUNBOOK-M0.md](./RUNBOOK-M0.md).
+M0 is done when all of these hold. Each maps to a step in [RUNBOOK.md](./RUNBOOK.md).
 
 1. A team wallet deposits 10 ADA with one ordinary transaction, and the note appears after Insert (runbook steps 7 and 8).
 2. The agent pays a stock x402 seller 3 ADA in stealth mode. The paying wallet appears in neither transaction (step 10).

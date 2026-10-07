@@ -80,7 +80,7 @@ The one-time key does not hide the pool. The chain shows that the pool funded it
 | Pool actions | Many in one block | About one in each block |
 | Not built here | | MCP server, agent spend limits, sanctions screening, recovery of change notes from the seed, gasless deposit, payment memory per request |
 
-The Base numbers come from the documents of the Base implementation. The Cardano numbers are in [measurements.md](../measurements.md).
+The Base numbers come from the documents of the Base implementation. The Cardano numbers are in [measurements.md](./measurements.md).
 
 ## 6. Limits of this check
 
