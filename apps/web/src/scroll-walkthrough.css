@@ -142,7 +142,7 @@
   place-items: center;
   height: 76px;
   border-radius: 23px;
-  background: #ffffff82;
+  background: transparent;
   color: #352c43;
 }
 .overview-node > span::after {
@@ -151,7 +151,6 @@
   inset: 0;
   border-radius: inherit;
   background: color-mix(in srgb, var(--overview-light) 10%, transparent);
-  box-shadow: 0 6px 24px color-mix(in srgb, var(--overview-light) 20%, transparent);
   opacity: 0;
   pointer-events: none;
   animation: overview-send var(--overview-cycle) var(--overview-delay) ease-in-out infinite;
@@ -160,25 +159,31 @@
 .overview-cue-key > span::after { animation-name: overview-key; }
 .overview-cue-seller > span::after { animation-name: overview-seller; }
 .overview-node svg {
-  width: 34px;
-  height: 34px;
+  width: 76px;
+  height: 76px;
+}
+.overview-agent-portrait {
+  display: block;
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: url("/images/privacy-companions.png") 0 0 / 300% 300%;
 }
 .overview-node-accent > span {
   color: #492c65;
-  background: #e4d7f2;
+  background: transparent;
 }
 .overview-node-pool > span {
   color: #f7efff;
-  background: #2c2239;
-  box-shadow: 0 12px 25px #2c223922;
+  background: transparent;
 }
 .overview-node-pool svg {
-  width: 46px;
-  height: 46px;
+  width: 76px;
+  height: 76px;
 }
 .overview-node-sage > span {
   color: #294d3e;
-  background: #c7dfd1;
+  background: transparent;
 }
 .overview-node > small {
   position: absolute;
@@ -258,8 +263,7 @@
   margin-top: 6px;
   border-radius: 20px;
 }
-.overview-diagram-pay .overview-node svg { width: 30px; height: 30px; }
-.overview-diagram-pay .overview-node-pool svg { width: 40px; height: 40px; }
+.overview-diagram-pay .overview-node svg { width: 64px; height: 64px; }
 .overview-diagram-pay .overview-flow-arrow { margin-inline: 6px; }
 
 /* All accents share one clock. The diagrams and copy never disappear. */
@@ -356,6 +360,7 @@
   .overview-panel { padding-inline: 23px; }
   .overview-diagram-pay .overview-node { width: 55px; }
   .overview-diagram-pay .overview-node > span { height: 55px; margin-top: 10px; border-radius: 17px; }
+  .overview-diagram-pay .overview-node svg { width: 55px; height: 55px; }
   .overview-diagram-pay .overview-flow-arrow { min-width: 17px; margin-inline: 4px; }
   .overview-diagram-pay .overview-node > small { font-size: 10px; }
   .overview-note { font-size: 9px; }

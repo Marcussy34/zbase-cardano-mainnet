@@ -1,0 +1,28 @@
+.z-icon {
+  display: inline-block;
+  flex-shrink: 0;
+  vertical-align: middle;
+  overflow: visible;
+}
+.z-icon-illustration {
+  --glyph-primary: #c7bbd3;
+  --glyph-secondary: #8d819c;
+}
+.overview-panel .z-icon-illustration {
+  --glyph-primary: #44374f;
+  --glyph-secondary: #7c6f89;
+}
+.overview-node-sage .z-icon-illustration {
+  --glyph-primary: #355c4e;
+  --glyph-secondary: #6c8b7e;
+}
+.privacy-vault .z-icon-illustration {
+  --glyph-primary: #574661;
+  --glyph-secondary: #8d7c9b;
+}
+.overview-panel { --icon-cutout: #d1e1de; }
+.privacy-boundary { --icon-cutout: #28232e; }
+.privacy-vault { --icon-cutout: #d7cbe1; }
+@media (forced-colors: active) {
+  .z-icon-illustration { forced-color-adjust: none; }
+}

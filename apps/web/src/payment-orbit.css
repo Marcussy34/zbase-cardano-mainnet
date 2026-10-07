@@ -393,7 +393,7 @@
   .payment-path > .section-wrap { width: calc(100% - 40px); }
   .path-orbit-center { width: 94px; }
   .path-node { width: 48px; height: 48px; }
-  .path-node-icon svg { width: 20px; height: 20px; }
+  .path-node-icon .z-icon-illustration { width: 34px; height: 34px; }
   .path-agent-label { font-size: 7px; top: calc(100% + 12px); }
   .path-node-label { top: calc(100% + 8px); font-size: 8px; }
   .path-mobile-break { display: block; }

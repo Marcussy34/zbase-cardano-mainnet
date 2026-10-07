@@ -70,12 +70,14 @@ Nobody outside this project has reviewed the design or the code.
 
 The public frontend is in `apps/web`. It explains the design, distinguishes Preprod from mainnet, and marks the project as `In development`.
 Its main action, `Read docs`, opens `/docs/`, which renders the current PRD, SPEC, and M0 plan.
-It uses soft stylized companion portraits with rounded shapes and simple faces. It has scroll-driven character motion, a three-step payment overview with animated diagrams, a visual privacy boundary, a six-node payment path, flat headline lettering with a drifting smoke veil that clears on hover, and a scenic footer.
+It uses soft stylized companion portraits with rounded shapes and simple faces. It has scroll-driven character motion, a three-step payment overview with animated diagrams, a visual privacy boundary, a six-node payment path, flat headline lettering with a drifting smoke veil that clears on hover, and a scenic footer. The footer carries the same friendly companion style into a rounded landscape, with muted lavender and slate tones, a warm twilight glow, subtle parallax, and room for the `Move freely.` invitation.
+The landing page uses a refined custom geometric SVG icon family. Diagram pictograms use flat muted lavender, sage, and charcoal fills, crisp silhouettes, and clear negative space. Icons have no gradients, highlights, drop shadows, faces, or toy-like details. Small controls use clear rounded marks. The zBase and Cardano identities remain recognizable. Decorative icons remain hidden from assistive technology, and controls keep their labels and keyboard behavior.
+The `Your agent` node in How it works uses an existing companion portrait with a clean crop. Its label stays readable, and the other icons keep the flat geometric style.
 The landing page uses short copy, a compact release-status row, three collapsed FAQ answers, and two footer link groups. Detailed explanations stay in the docs.
 The borderless How it works section uses the Soffit gradient in muted mint with soft edges and no bright corner flare, larger diagrams, and high-contrast marks. The card shows Deposit, Prove locally, and Pay together without scrolling or interaction. Its decorative loops show deposits, local proving, and payment through a one-time key. Offscreen cards pause, and phone cards use independent short loops. Only the payment orbit stays pinned through its sequence when it fits the viewport. Compact screens retain readable manual orbit controls.
 The centered payment orbit starts as a dotted ring. Scroll reveals each step and moves its detail card, then flips the center into the zBase mark and all outer nodes into portraits at the same time while the outer ring turns. The full sequence reverses on upward scroll. Dimmed node faces stay opaque over the dotted ring.
 The pause control and reduced motion setting keep every section readable.
-It has no wallet connection or transaction functions. See SPEC 8.10 and tests FE-01 to FE-17.
+It has no wallet connection or transaction functions. See SPEC 8.10 and tests FE-01 to FE-18.
 
 To work on the frontend, run these commands from the repo root:
 
