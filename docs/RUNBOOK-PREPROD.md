@@ -69,8 +69,8 @@ Keep ADA in that wallet too. A token deposit needs about 1.4 ADA for its output 
 The crank keeps the attached ADA and takes no crank fee in tokens. An exit also needs the wallet to supply its output's minimum ADA.
 
 If `deployments/preprod.json` already exists, step 6 stops.
-This repository holds the record of the tUSDM pool from 2026-10-07, pool ID `d433ba1cc677f8771f22b0ecbbbdcda504022b96f34eeaed39fae78c`. To use that pool you need its proving keys, which are not in the repository. To deploy your own pool, move the record away first.
-The ADA pool from 2026-10-06 is retired; its record moved to `deployments/retired/`.
+This repository holds the record of the tUSDM pool from 2026-10-07, pool ID `60279ebfb8db22bbe0cb2a1b7a61702ab36ade074a3866ac836df3ed`. To use that pool you need its proving keys, which are not in the repository. To deploy your own pool, move the record away first.
+The ADA pool from 2026-10-06 and the first tUSDM pool from 2026-10-07, deployed before the protocol strings took the name zx402, are retired; their records moved to `deployments/retired/`.
 Archive a retired pool's record before deploying its replacement. Section 10 explains how the record selects the reference outputs for a sweep.
 
 ## 4. Run the node
@@ -124,12 +124,16 @@ The demo does this, and prints each transaction:
 The retired ADA demo took 3.5 minutes on Preprod. Slow blocks can double that.
 The user pays 2 tUSDM for the weather and a 1 tUSDM relayer fee.
 The relayer funds each payout with 2 ADA by default. Leg 2 sends the seller the tokens and all that ADA minus its fee.
-The relayer spends about 0.73 ADA on its network fee, in addition to the payout ADA. Live token measurements are still pending.
+The relayer spends about 0.70 ADA on its network fee, in addition to the payout ADA. `docs/measurements.md` holds the live tUSDM runs.
 Before proving, the SDK rejects a quote below the seller output's minimum ADA plus the leg 2 fee, about 1.4 ADA.
 
 The token demo keeps its notes in `deployments/<network>/demo-store-<first 8 hex of the pool ID>.json`.
 Keep that file and back it up. Without it the demo still works, because the SDK finds its old deposits on chain and takes new secrets. But a change note that was still in the pool is then out of reach.
 If you changed a port, set `INDEXER_URL`, `RELAYER_URL` or `SELLER_URL` for the demo.
+
+Two flags stage a short demo: `npm run demo -w ops -- --no-exit` leaves the change note in the pool, and `npm run demo -w ops -- --reuse` pays from the largest spendable note without a deposit.
+
+To pay a Masumi agent from the pool, run your own Masumi payment service node, then `MASUMI_API_KEY=<admin key> MASUMI_PURCHASE_WALLET=<purchasing wallet address> npm run masumi -w ops -- --agent <registry asset> --input '<json>'`. The pool pays the purchasing wallet in private, and the Masumi node locks the escrow for the job.
 
 ## 7. Admin actions
 

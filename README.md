@@ -4,7 +4,7 @@ Private payments for AI agents on Cardano. Live on the Preprod test network.
 
 An agent deposits tUSDM into a shared pool once. Later it pays x402 sellers from the pool with a zero-knowledge proof. The chain shows the pool as the payer, not the agent's wallet, and nothing links the payment to the deposit.
 
-**Status (2026-10-07):** live on Preprod. The pool `d433ba1cc677f8771f22b0ecbbbdcda504022b96f34eeaed39fae78c` holds tUSDM, the Preprod stablecoin. An agent deposited 10 tUSDM, paid a stock x402 seller 2 tUSDM in private through a one-time address, and exited the rest, with the code of this repository. Every transaction is listed in [docs/measurements.md](docs/measurements.md).
+**Status (2026-10-07):** live on Preprod. The pool `60279ebfb8db22bbe0cb2a1b7a61702ab36ade074a3866ac836df3ed` holds tUSDM, the Preprod stablecoin. An agent deposited 10 tUSDM, paid a stock x402 seller 2 tUSDM in private through a one-time address, and exited the rest, with the code of this repository. The pool also paid a [Masumi](https://www.masumi.network/) agent on Preprod, which answered a question for 0.01 tUSDM. Every transaction is listed in [docs/measurements.md](docs/measurements.md).
 
 **Mainnet** is the next step and is not deployed. Before it takes outside funds it needs a key ceremony with several parties, an on-chain check of the pool's start state and an outside audit. Nobody outside this project has reviewed the design or the code yet.
 
