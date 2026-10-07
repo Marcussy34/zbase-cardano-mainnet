@@ -260,7 +260,7 @@ export default function PaymentOrbit({ paused = false }: { paused?: boolean }) {
               </div>
               <span className="path-agent-label">
                 <span className="path-agent-name">YOUR AGENT</span>
-                <span className="path-pool-name">zBase</span>
+                <span className="path-pool-name">zx402</span>
               </span>
             </div>
             <div className="path-orbit-turntable">
