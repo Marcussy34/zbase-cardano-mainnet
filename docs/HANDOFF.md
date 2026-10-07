@@ -4,15 +4,19 @@
 |---|---|
 | For | The engineer who builds zBase Cardano |
 | From | Marcus |
-| Date | 2026-10-06 |
-| State of the repo | M0 runs on Preprod. Public landing page and documentation reader are built. Mainnet is not deployed yet |
+| Date | 2026-10-07 |
+| State of the repo | M0 uses the tUSDM pool on Preprod. The ADA pool from 2026-10-06 is retired. Public landing page and documentation reader are built. Mainnet is not deployed yet |
 
 ## 1. What you are building
 
 zBase Cardano lets an AI agent pay on Cardano mainnet without showing which wallet paid.
 The agent deposits into a shared pool, then pays from the pool with a zero-knowledge proof.
-The first release is a capped ADA pool for team funds, called M0.
+The first release is a capped pool for team funds, called M0. It uses tUSDM on Preprod; the same validators support ADA pools.
 It adapts zBase, which runs on Base today, to Cardano's limits.
+
+The transaction builders and quote field support token payouts.
+The SDK signer, deploy command, demo and seller support the pool's asset. SPEC 8.2, 9.2 and 16 describe the token rules.
+The retired ADA pool's record moved to `deployments/retired/`. The Preprod runbook explains how that record selects its reference outputs for a sweep.
 
 ## 2. Read in this order
 
@@ -107,6 +111,7 @@ What is left before the mainnet canary:
 
 Known limits of M0, each a deliberate cut:
 
+- The builders preserve 6 ADA in the token pool UTXO, but the validators do not pin that amount. The relayer or crank could lower it to the ledger minimum, about 5.2 ADA. They cannot bypass the token balance rules.
 - The relayer does not chain transactions. One pool transaction confirms before the next is built, so the pool serves about one action per block.
 - A payout with a datum hash is refused by the Settle builder.
 - A change note cannot be recovered from the seed alone. The SDK needs its store file. After a lost store the SDK goes on safely with new secrets, but the unspent change notes of the old store stay out of reach, and the one-time addresses start again at the first one, which links those payments on chain.
@@ -149,7 +154,7 @@ The build made these choices where the plan was silent or wrong. Each one can be
 | The development verification keys are in git under `artifacts/dev` | The pool script takes the keys as parameters, and CI has no proving keys | None. A live pool never uses them |
 | Each network gets its own key setup, with keys outside the development folder | A test key must never be mistaken for a live key | None |
 | Tests that need a proving key skip without one | CI has no proving keys | A proving regression can reach main if nobody runs the tests locally |
-| The relayer fee is limited in the SDK, 2 ADA by default | The validator fixes only the protocol fee, and the proof fixes the withdrawn amount | A relayer that needs more is refused until the caller raises the limit |
+| The SDK limits the total relayer fee to 2,000,000 pool asset base units by default, equal to 2 tUSDM or 2 ADA | The validator fixes only the protocol fee, and the proof fixes the withdrawn amount | A relayer that needs more is refused until the caller raises the limit |
 | The SDK settles its own tentative marks by deadline | A deadline needs no extra chain reads and cannot give a false answer when the indexer lags | A dropped transaction is noticed up to 12 minutes late |
 | The indexer reads a new block a second time only for two minutes after a change | A provider can serve old data right after a block, and a second read of every block would nearly double the requests of an idle node | Outside those two minutes, only the next block corrects a stale read |
 | The SDK, not the chain, makes sure that no note secret is used twice | A rule on chain needs a second set in the pool datum, more script budget, and a new pool | A wallet that skips the SDK can lock its own deposit |

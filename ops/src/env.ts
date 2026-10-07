@@ -1,6 +1,6 @@
-import type { Network } from '@zbase-cardano/txlib';
+import { parseAssetWireUnit, type AssetClass, type Network } from '@zbase-cardano/txlib';
 
-export interface Settings { network: Network; blockfrostProjectId: string; operatorSeed: Uint8Array }
+export interface Settings { network: Network; blockfrostProjectId: string; operatorSeed: Uint8Array; asset: AssetClass }
 
 /** Report variable names only, because environment values can contain credentials. */
 export function readSettings(env: Record<string, string | undefined> = process.env): Settings {
@@ -12,5 +12,8 @@ export function readSettings(env: Record<string, string | undefined> = process.e
   }
   const seed = env.OPERATOR_SEED_HEX;
   if (!seed || !/^[a-fA-F0-9]{64}$/.test(seed)) throw new Error('Missing or malformed OPERATOR_SEED_HEX');
-  return { network, blockfrostProjectId, operatorSeed: new Uint8Array(Buffer.from(seed, 'hex')) };
+  let asset: AssetClass;
+  try { asset = parseAssetWireUnit(env.POOL_ASSET ?? 'lovelace'); }
+  catch { throw new Error('Malformed POOL_ASSET: expected lovelace or policy.name'); }
+  return { network, blockfrostProjectId, operatorSeed: new Uint8Array(Buffer.from(seed, 'hex')), asset };
 }

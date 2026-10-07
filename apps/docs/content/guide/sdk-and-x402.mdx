@@ -5,12 +5,12 @@ description: How an agent deposits, pays a stock x402 seller in private, and exi
 
 # The agent SDK and x402
 
-The SDK is the package `@zbase-cardano/sdk`. An agent needs nothing else: it gives the SDK a seed, a chain provider, the indexer and relayer URLs and the circuit files, and gets back deposits, private payments and exits. The code below is the demo in `ops/src/demo.ts`, trimmed.
+The SDK is the package `@zbase-cardano/core`. An agent needs nothing else: it gives the SDK a seed, a chain provider, the indexer and relayer URLs and the circuit files, and gets back deposits, private payments and exits. The code below follows the token demo in `ops/src/demo.ts`, trimmed.
 
 ## Setting it up
 
 ```ts
-import { createZbaseCardano, fileStore } from '@zbase-cardano/sdk';
+import { createZbaseCardano, fileStore } from '@zbase-cardano/core';
 import { IndexerClient, RelayerClient } from '@zbase-cardano/api';
 
 const sdk = createZbaseCardano({
@@ -24,6 +24,9 @@ const sdk = createZbaseCardano({
 ```
 
 The seed is the root of the note secrets, the refund key and the one-time keys. The store holds the notes: their secrets, values, labels, status and the counters. Keep both. With the seed alone the SDK can find and exit every deposit, but not a change note.
+
+The deployment in `ctx` selects the pool asset. Amounts use its base units: 1,000,000 units equal 1 tUSDM, which has 6 decimals.
+An ADA pool uses lovelace instead. The same SDK and validators support both configurations.
 
 ## The interface
 
@@ -61,8 +64,12 @@ interface ZbaseCardano {
 ```ts
 const deposit = await sdk.deposit({ amount: 10_000_000n, walletSeed });
 const note = await sdk.waitForNote(deposit.prepared.noteId);
-// note.value is 9_700_000n: the deposit minus the crank fee
+// note.value is 10_000_000n: 10 tUSDM with the M0 protocol fee of zero
 ```
+
+The wallet supplies the tokens, the deposit output's minimum ADA (about 1.4 ADA), and the network fee.
+The crank keeps the attached ADA. It takes no crank fee in tokens, so the note receives `gross - fee`.
+In an ADA pool, the configured 0.3 ADA crank fee still applies; a 10 ADA deposit creates a 9.7 ADA note.
 
 Before it makes the note, `deposit` syncs, so it never reuses a note secret that the pool has seen. After it submits, it follows the exact output reference of its own transaction, so a copy of the datum made by someone else cannot take the note's place.
 
@@ -72,25 +79,36 @@ The x402 client library from Coinbase, `@x402/fetch`, wraps `fetch`. It handles 
 
 ```ts
 import { wrapFetchWithPaymentFromConfig } from '@x402/fetch';
-import { ExactCardanoScheme } from '@x402/cardano';
+import { ExactCardanoScheme } from '@x402/cardano/exact/client';
 
+const poolAsset = '16a55b2a349361ff88c03788f93e1e966e5d689605d044fef722ddde.0014df10745553444d';
 const signer = sdk.x402Signer({ mode: 'stealth', maxPrice: 2_000_000n });
 const paidFetch = wrapFetchWithPaymentFromConfig(fetch, {
   schemes: [{ network: 'cardano:preprod', client: new ExactCardanoScheme(signer) }],
-  spendControls: { allowedAssets: [{ network: 'cardano:preprod', asset: 'lovelace', maxAmountPerPayment: '2000000' }] },
+  spendControls: { allowedAssets: [{ network: 'cardano:preprod', asset: poolAsset, maxAmountPerPayment: '2000000' }] },
 });
 
 const response = await paidFetch('http://localhost:4021/weather');
-// 200 OK, paid from the pool
+// 200 OK, paid 2 tUSDM from the pool
 ```
+
+This unit identifies the Masumi test USDM used by the pool.
+The x402 package's default Preprod USDM policy starts with `e675b46e`, so it is a different asset.
+The seller must price in the pool's unit, and the buyer must include that unit in `allowedAssets`.
+The signer reads its asset from `ctx.deployment`; `maxPrice` limits the seller price in base units, before fees.
 
 Inside `buildAndSignPaymentTransaction` the signer does the whole private flow.
 
-1. It checks the payment requirements: the network matches the deployment, the asset is lovelace, the amount is a positive integer below `maxPrice`, and the timeout is sane.
-2. It computes the fee of the second transaction and reserves the next one-time key index in the store. It saves before it moves any money, so a crash cannot reuse the address.
-3. It calls `settlePrivately` with one payout: the one-time address, for the price plus that fee plus the relayer fee. That makes the proof, checks the quote, and sends the proof to the relayer.
-4. It polls its own provider until the one-time address holds exactly that amount from the Settle transaction.
-5. It builds a plain payment from the one-time address to the seller, signs it with the one-time key, evaluates it, and returns it to the x402 client. The client puts it in the `X-PAYMENT` header and repeats the request. The seller's facilitator submits it.
+1. It checks that the network matches the deployment and the asset matches the pool. The amount must be positive and at most `maxPrice`.
+2. It computes the seller output's minimum ADA plus the second transaction's fee, about 1.4 ADA. It reserves and saves the next one-time key index before moving funds.
+3. It requests one payout of exactly the token price to that address. Before proving, it refuses a quote whose `payoutLovelace` cannot cover the required ADA. The relayer fee enters `withdrawn`, not the payout amount.
+4. It polls its provider until that Settle output holds exactly the token price and enough ADA. The relayer supplies 2 ADA by default.
+5. It builds a plain payment of the tokens and all attached ADA minus the fee to the seller. It signs and evaluates that payment, then returns it to the x402 client. The client retries with the `PAYMENT-SIGNATURE` header, and the seller's facilitator submits the transaction.
+
+Leg 2 has one input, one seller output, and no change output.
+For an ADA pool, leg 1 pays the price plus the second transaction's fee, and `payoutLovelace` is zero.
+The token pool charges 1 tUSDM per payout by default because the relayer supplies ADA for every output.
+The quote's `relayerFee` is the total charge. One 2 tUSDM payment withdraws 3 tUSDM when the protocol fee is zero.
 
 The key is wiped from memory after each use. If anything fails after the reservation, the error names the index, so `recoverOneTimeFunds({ index, payTo })` can move the money.
 
@@ -102,7 +120,9 @@ The SDK trusts its seed and its chain provider. Everything an operator sends is 
 |---|---|
 | The rebuilt tree and ASP roots match the pool datum on chain | A lying indexer cannot feed it a false tree |
 | The protocol fee in the quote matches `settle_fee_bps` in the config output | A lying relayer cannot take most of a note as fee |
-| The relayer fee is at most `maxRelayerFee`, 2 ADA by default | A relayer cannot overcharge |
+| The relayer fee is at most `maxRelayerFee`, 2,000,000 base units by default (2 tUSDM or 2 ADA) | The cap applies to the quote's total relayer charge |
+| The asset matches the pool, and each payout meets its floor | Token payouts start at 1 base unit; ADA payouts start at 1 ADA |
+| For token x402 payments, `payoutLovelace` covers the seller minimum ADA plus the second transaction's fee | The second leg has enough ADA before the SDK proves or reserves the note |
 | The quote deadline is after the chain tip and within 15 minutes of it | A relayer cannot keep a note reserved for hours |
 | The proof is bound to the payouts, the relayer key and the deadline | A relayer cannot redirect the money |
 
@@ -110,7 +130,9 @@ After it sends a proof, the SDK marks the note as pending. Only a definite refus
 
 ## The change
 
-A payment of 3.17 ADA from a 9.7 ADA note leaves 6.53 ADA of change. The SDK records the change note at once, as `queued`, and `waitForNote` turns it `spendable` after the crank absorbs it. The next payment spends the change. One deposit can pay many times.
+A 2 tUSDM payment and a 1 tUSDM relayer fee leave 7 tUSDM of change from a 10 tUSDM note.
+M0 charges no protocol fee. The relayer's attached ADA does not reduce that token change.
+The SDK records the change note at once, as `queued`, and `waitForNote` turns it `spendable` after the crank absorbs it. The next payment spends the change. One deposit can pay many times.
 
 ## Exiting
 
@@ -119,6 +141,8 @@ await sdk.ragequit({ noteId: change.id, refundSeed: walletSeed });
 ```
 
 The refund seed is the wallet seed that made the deposit, because its key hash is part of the label. The money goes to that wallet, or to `payTo`. A deposit that was never absorbed goes back through `refund` instead.
+
+In a token pool, the exit carries the note's tokens plus minimum ADA from the refund wallet. The builder preserves the pool's ADA.
 
 ## Note statuses
 
@@ -137,7 +161,7 @@ A note that is reserved for a settle, an exit or a refund also carries a `pendin
 
 ## Limits of the SDK today
 
-- It pays in ADA only. A payment to a seller that asks for a token is refused.
+- A seller must request the pool's exact asset. The SDK refuses another token or an ADA price for a token pool.
 - A stock x402 client that repeats a request after an unclear answer pays twice. The SDK keeps no memory of a payment per request.
 - The one-time address counter lives in the store. After a lost store the addresses repeat, which links payments but loses nothing.
 - There is no spend limit per agent beyond `maxPrice` and the x402 client's own `spendControls`.

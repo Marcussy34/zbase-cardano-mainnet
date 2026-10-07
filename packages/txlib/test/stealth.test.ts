@@ -5,9 +5,10 @@ import { Transaction, TxCBOR } from '@meshsdk/core-cst';
 import { addressToBech32, deriveOneTimeKey } from '@zbase-cardano/crypto';
 import { enterpriseAddress, keyHash, verifyWitnesses } from '../src/keys.js';
 import { buildStealthPayment, stealthFee } from '../src/stealth.js';
+import * as stealth from '../src/stealth.js';
 import { FakeChain, LedgerError } from '../src/testing/fake-chain.js';
 import { decodeTx } from '../src/txview.js';
-import { PREPROD_PARAMETERS, type Network, type Utxo } from '../src/types.js';
+import { minFee, PREPROD_PARAMETERS, type Network, type Utxo } from '../src/types.js';
 
 const slot = 100_000_000;
 const destination = (kind: 'key' | 'script', stake: boolean, network: Network = 'preprod') => addressToBech32({
@@ -16,6 +17,8 @@ const destination = (kind: 'key' | 'script', stake: boolean, network: Network = 
 }, network);
 const payTo = destination('key', false);
 const price = 2_500_000n;
+const asset = { policy: '16a55b2a349361ff88c03788f93e1e966e5d689605d044fef722ddde', name: '0014df10745553444d' };
+const unit = asset.policy + asset.name;
 
 async function fixture(options: { payTo?: string; price?: bigint; index?: number; network?: Network } = {}) {
   const network = options.network ?? 'preprod';
@@ -180,4 +183,56 @@ test('TX-09: two derived one-time keys share no input address or witness key has
   assert.notEqual(addresses[0], addresses[1]);
   assert.notEqual(views[0]!.witnessKeyHashes[0], views[1]!.witnessKeyHashes[0]);
   assert.notDeepEqual(views[0]!.inputs, views[1]!.inputs);
+});
+
+test('TOKEN-06 stealthFee and sellerMinimumLovelace for a token payment', async t => {
+  const ctx = { provider: new FakeChain({ network: 'preprod', startSlot: slot }), network: 'preprod' as const };
+  const payment = { payTo, price: 2_000_000n, asset };
+  // A namespace import keeps a missing export from hiding the remaining regression tests.
+  assert.equal(typeof stealth.sellerMinimumLovelace, 'function');
+  const minimum = await stealth.sellerMinimumLovelace(ctx, payment);
+  const fee = await stealthFee(ctx, payment);
+  assert.ok(minimum >= 1_000_000n && minimum < 1_500_000n);
+  assert.ok(fee > 150_000n && fee < 300_000n);
+  t.diagnostic(`Token seller minimum: ${minimum} lovelace; leg 2 fee: ${fee} lovelace`);
+});
+
+test('TOKEN-07 token leg 2', async t => {
+  const provider = new FakeChain({ network: 'preprod', startSlot: slot });
+  const ctx = { provider, network: 'preprod' as const };
+  const oneTimeSeed = randomBytes(32);
+  t.after(() => oneTimeSeed.fill(0));
+  const oneTimeUtxo: Utxo = {
+    ref: { txId: '22'.repeat(32), index: 0 }, address: enterpriseAddress(oneTimeSeed, ctx.network),
+    value: { lovelace: 2_000_000n, assets: { [unit]: 2_000_000n } },
+    inlineDatum: null, datumHash: null, scriptRef: null,
+  };
+  provider.addUtxo(oneTimeUtxo);
+  const args = { oneTimeSeed, oneTimeUtxo, payTo, price: 2_000_000n, asset };
+  await t.test('TOKEN-07 pays exactly two tokens and forwards the ADA after the fee', async () => {
+    const fee = await stealthFee(ctx, args);
+    const built = await buildStealthPayment(ctx, args);
+    const view = decodeTx(built.cbor);
+    assert.deepEqual(view.inputs, [oneTimeUtxo.ref]);
+    assert.deepEqual(view.outputs, [{ address: payTo,
+      value: { lovelace: 2_000_000n - fee, assets: { [unit]: 2_000_000n } },
+      inlineDatum: null, datumHash: null, scriptRef: null }]);
+    assert.equal(built.fee, fee);
+    assert.equal(view.fee, fee);
+    assert.ok(fee >= minFee(await provider.getProtocolParameters(), { size: built.size, exUnits: [], refScriptBytes: 0 }));
+    assert.ok(verifyWitnesses(built.cbor));
+    assert.equal(await provider.submit(built.cbor), built.txId);
+    provider.mineBlock();
+    assert.deepEqual((await provider.getUtxosAt(payTo)).map(u => u.value), [view.outputs[0]!.value]);
+    assert.deepEqual(await provider.getUtxosAt(oneTimeUtxo.address), []);
+  });
+  for (const [name, value, reason] of [
+    ['three tokens', { ...oneTimeUtxo.value, assets: { [unit]: 3_000_000n } }, /exactly.*pool asset/i],
+    ['a second token', { ...oneTimeUtxo.value, assets: { ...oneTimeUtxo.value.assets, ['ab'.repeat(28)]: 1n } }, /no other token/i],
+    ['one ADA', { ...oneTimeUtxo.value, lovelace: 1_000_000n }, /One-time UTXO cannot cover the seller minimum lovelace and the fee/],
+  ] satisfies Array<[string, Utxo['value'], RegExp]>) {
+    await t.test(`TOKEN-07 rejects ${name}`, async () => {
+      await assert.rejects(buildStealthPayment(ctx, { ...args, oneTimeUtxo: { ...oneTimeUtxo, value } }), reason);
+    });
+  }
 });

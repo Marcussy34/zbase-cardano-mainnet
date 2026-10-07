@@ -7,7 +7,7 @@ import {
 } from '@zbase-cardano/crypto';
 import { prove, type CircuitArtifacts } from '@zbase-cardano/prover';
 import {
-  buildDeposit, buildRagequit, buildRefund, buildStealthPayment, decodeTx, encodeDepositDatum, enterpriseAddress, keyHash,
+  assetAmount, assetWireUnit, buildDeposit, buildRagequit, buildRefund, buildStealthPayment, decodeTx, encodeDepositDatum, enterpriseAddress, isAdaAsset, keyHash,
   nullifierInsertion, readConfig, readDeposits, readPool, signTx, slotToTime, stealthFee, type ChainContext,
 } from '@zbase-cardano/txlib';
 import { memoryStore, type NoteRecord, type NoteStore, type StoreData } from './store.js';
@@ -22,7 +22,7 @@ export interface ZbaseOptions {
   store?: NoteStore;
   /** Exit and refund lifetime from the provider tip. Defaults to 600 slots. */
   exitValidForSlots?: number;
-  /** Maximum relayer fee in lovelace. Defaults to 2,000,000. */
+  /** Maximum relayer fee in pool asset units. Defaults to 2,000,000. */
   maxRelayerFee?: bigint;
   /** Maximum quote lifetime from the provider tip. Defaults to 900,000 milliseconds. */
   maxQuoteTtlMs?: number;
@@ -32,7 +32,12 @@ export interface PreparedDeposit {
   noteId: string; address: string; amount: bigint; precommitment: bigint; refundKeyHash: string; inlineDatum: string;
 }
 export interface SettleReceipt { id: string; txHash: string; noteId: string; changeNoteId: string | null; withdrawn: bigint }
-type PaymentArgs = { payouts: { address: string; amount: bigint; datumHash?: string | null }[]; noteId?: string };
+type PaymentArgs = {
+  payouts: { address: string; amount: bigint; datumHash?: string | null }[];
+  noteId?: string;
+  /** Minimum ADA the relayer must attach to each payout. Defaults to 0 lovelace. */
+  minPayoutLovelace?: bigint;
+};
 type ExitArgs = { noteId: string; refundSeed: Uint8Array; payTo?: string };
 export interface ZbaseCardano {
   prepareDeposit(a: { amount: bigint; refundKeyHash: string }): Promise<PreparedDeposit>;
@@ -47,7 +52,7 @@ export interface ZbaseCardano {
   refund(a: ExitArgs): Promise<{ txId: string }>;
   /** Recovers the largest confirmed output when a one-time address holds several. Leaves the counter unchanged. */
   recoverOneTimeFunds(a: { index: number; payTo: string }): Promise<{ txId: string; amount: bigint } | null>;
-  /** maxPrice limits the seller's price in lovelace, before any funding fees. */
+  /** maxPrice limits the seller's price in pool asset units, before any funding fees. */
   x402Signer(a?: { mode?: 'stealth'; maxPrice?: bigint }): ClientCardanoSigner;
 }
 
@@ -70,7 +75,7 @@ export function createZbaseCardano(o: ZbaseOptions): ZbaseCardano {
   const maxRelayerFee = o.maxRelayerFee ?? 2_000_000n;
   const maxQuoteTtlMs = o.maxQuoteTtlMs ?? 900_000;
   if (!Number.isSafeInteger(exitValidForSlots) || exitValidForSlots <= 0) throw new RangeError('Exit validity must be a positive safe slot count');
-  if (typeof maxRelayerFee !== 'bigint' || maxRelayerFee < 0n) throw new RangeError('Relayer fee limit must be nonnegative lovelace');
+  if (typeof maxRelayerFee !== 'bigint' || maxRelayerFee < 0n) throw new RangeError('Relayer fee limit must be nonnegative in pool asset units');
   if (!Number.isSafeInteger(maxQuoteTtlMs) || maxQuoteTtlMs <= 0) throw new RangeError('Quote lifetime limit must be a positive safe millisecond count');
   if (!Number.isSafeInteger(intervalMs) || intervalMs < 0 || !Number.isSafeInteger(timeoutMs) || timeoutMs <= 0) {
     throw new RangeError('Poll interval must be nonnegative and timeout must be positive');
@@ -150,6 +155,7 @@ export function createZbaseCardano(o: ZbaseOptions): ZbaseCardano {
   async function sync(): Promise<void> {
     const pool = await indexer.getPool();
     if (pool.poolId !== ctx.deployment.poolId) throw new Error('Indexer pool does not match the deployment');
+    if (pool.asset !== assetWireUnit(ctx.deployment.asset)) throw new Error('Indexer serves another pool asset');
     const nextLeaves: bigint[] = [];
     do {
       const page = await indexer.getLeaves(nextLeaves.length, PAGE_SIZE);
@@ -292,9 +298,13 @@ export function createZbaseCardano(o: ZbaseOptions): ZbaseCardano {
   }
   async function settle(a: PaymentArgs): Promise<SettleReceipt> {
     if (a.payouts.length < 1 || a.payouts.length > 4) throw new Error('A payment requires one to four payouts');
+    const adaPool = isAdaAsset(ctx.deployment.asset);
+    const minimumPayout = adaPool ? 1_000_000n : 1n;
     const payouts: PayoutRequest[] = a.payouts.map(p => {
       addressFromBech32(p.address, ctx.deployment.network);
-      if (typeof p.amount !== 'bigint' || p.amount < 1_000_000n || p.amount >= 1n << 64n) throw new Error('Payout must meet the minimum of 1000000 lovelace and fit in 64 bits');
+      if (typeof p.amount !== 'bigint' || p.amount < minimumPayout || p.amount >= 1n << 64n) {
+        throw new Error(`Payout must meet the minimum of ${minimumPayout} ${adaPool ? 'lovelace' : 'pool asset units'} and fit in 64 bits`);
+      }
       const datumHash = p.datumHash ?? null;
       if (datumHash !== null && !/^[0-9a-f]{64}$/.test(datumHash)) throw new Error('Invalid payout datum hash');
       // A caller may attach local note data. Only the public payment fields may leave this process.
@@ -308,6 +318,9 @@ export function createZbaseCardano(o: ZbaseOptions): ZbaseCardano {
       if (requested && (requested.status !== 'spendable' || requested.pending)) throw new Error(`Note ${requested.id} is not spendable`);
       if (!requested && candidates.length === 0) throw new Error('No spendable note is available');
       const quote = await relayer.quote(payouts);
+      // Check leg 2 funding before proving or reserving the note and its change.
+      if (adaPool && quote.payoutLovelace !== 0n) throw new Error('ADA pool quotes must have payoutLovelace of 0');
+      if (quote.payoutLovelace < (a.minPayoutLovelace ?? 0n)) throw new Error('Relayer attaches too little ADA to the payout');
       const total = payouts.reduce((sum, payout) => sum + payout.amount, 0n);
       if (quote.relayerFee > maxRelayerFee) throw new Error('Relayer fee exceeds the configured limit');
       // The operator cannot choose the fee rate or how long an agent's proof stays valid.
@@ -463,9 +476,21 @@ export function createZbaseCardano(o: ZbaseOptions): ZbaseCardano {
       const key = deriveOneTimeKey(seed, a.index);
       try {
         const utxos = await ctx.provider.getUtxosAt(enterpriseAddress(key, network));
-        const [utxo] = utxos.sort((a, b) => a.value.lovelace > b.value.lovelace ? -1 : a.value.lovelace < b.value.lovelace ? 1 : 0);
+        const asset = ctx.deployment.asset;
+        const [utxo] = utxos.sort((a, b) => {
+          const av = assetAmount(a.value, asset);
+          const bv = assetAmount(b.value, asset);
+          return av > bv ? -1 : av < bv ? 1 : 0;
+        });
         if (!utxo) return null;
         const context = { provider: ctx.provider, network };
+        if (!isAdaAsset(asset)) {
+          // The token builder forwards surplus ADA after paying the network fee.
+          const amount = assetAmount(utxo.value, asset);
+          const tx = await buildStealthPayment(context, { oneTimeUtxo: utxo, oneTimeSeed: key, payTo: a.payTo, price: amount, asset });
+          await ctx.provider.evaluate(tx.cbor);
+          return { txId: await ctx.provider.submit(tx.cbor), amount };
+        }
         // Quoting the full value is conservative: subtracting the fee cannot enlarge the output encoding.
         const fee = await stealthFee(context, { payTo: a.payTo, price: utxo.value.lovelace });
         const amount = utxo.value.lovelace - fee;

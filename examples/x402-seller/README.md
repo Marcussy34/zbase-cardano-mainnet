@@ -19,7 +19,9 @@ Do not paste a seed or provider credential into source, shell history, logs, or 
 | `BLOCKFROST_PROJECT_ID` | Both | A project ID for the selected network. |
 | `SELLER_ADDRESS` | Seller | The seller's Preprod bech32 payment address. |
 | `SELLER_PORT` | Seller | Optional. Defaults to `4021`. |
-| `SELLER_PRICE_LOVELACE` | Seller | Optional. Defaults to `2000000`, which is 2 test ADA. |
+| `SELLER_PRICE_ASSET` | Seller | Optional. Defaults to `lovelace`. Tokens use a lowercase hex `policy.name` unit. |
+| `SELLER_PRICE_AMOUNT` | Seller | Optional. Defaults to `2000000` base units of the selected asset. |
+| `SELLER_PRICE_LOVELACE` | Seller | Legacy amount alias for `lovelace` only, used when `SELLER_PRICE_AMOUNT` is absent. |
 | `SELLER_URL` | Buyer | Optional. Defaults to `http://localhost:4021`. |
 | `BUYER_SEED_HEX` | Buyer | Exactly 64 hex characters representing a raw Ed25519 seed, not a mnemonic or extended key. |
 | `BUYER_MAX_LOVELACE` | Buyer | Optional payment cap. Defaults to `2000000`. Raise it only for an intended higher quote. |
@@ -56,6 +58,19 @@ The facilitator broadcasts it. On mainnet, this spends real ADA and cannot be un
    Expect status `200`, `{"weather":"sunny","temperatureC":28}`, and the settlement transaction hash.
 
 4. In the seller terminal, press Ctrl+C to stop the server.
+
+## Token pool seller
+
+The seller can quote any pool asset. Use these settings for 2 tUSDM on Preprod, which has 6 decimals:
+
+```sh
+export SELLER_PRICE_ASSET=16a55b2a349361ff88c03788f93e1e966e5d689605d044fef722ddde.0014df10745553444d
+export SELLER_PRICE_AMOUNT=2000000
+```
+
+Start the seller with the same command above, then use the pool demo with a deployment holding that asset.
+The demo deposits and pays in the deployment's asset, and the relayer funds the payment's ADA requirement.
+The plain buyer remains an ADA example and only accepts `lovelace` quotes.
 
 ## Protocol and limits
 

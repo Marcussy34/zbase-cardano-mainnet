@@ -7,8 +7,8 @@ import { randomUUID } from 'node:crypto';
 import { ApiError, type DepositView, type ErrorCode, type IndexerApi, type RelayerApi, type SettleRequest } from '@zbase-cardano/api';
 import { commitment, deriveNoteSecrets, deriveOneTimeKey, MerkleTree, NETWORKS, nullifierHash, precommitment, type Note } from '@zbase-cardano/crypto';
 import { devKeysPresent, loadDevArtifacts, loadDevVkey, shutdown } from '@zbase-cardano/prover';
-import { buildConfigUpdate, buildDeposit, decodeDepositDatum, decodeTx, enterpriseAddress, keyHash, readConfig, signTx, slotToTime, stealthFee, timeToSlot,
-  type Provider } from '@zbase-cardano/txlib';
+import { assetUnit, assetWireUnit, buildConfigUpdate, buildDeposit, decodeDepositDatum, decodeTx, enterpriseAddress, keyHash, readConfig,
+  sellerMinimumLovelace, signTx, slotToTime, stealthFee, timeToSlot, type AssetClass, type Provider } from '@zbase-cardano/txlib';
 import { startDevnet } from '@zbase-cardano/txlib/testing/devnet';
 import { Indexer } from '@zbase-cardano/indexer';
 import { AspService } from '@zbase-cardano/asp';
@@ -21,6 +21,8 @@ const hex = (bytes: Uint8Array) => Buffer.from(bytes).toString('hex');
 const json = (value: unknown) => JSON.stringify(value, (_, v: unknown) => typeof v === 'bigint' ? v.toString() : v);
 after(shutdown);
 
+const tokenAsset = { policy: '16a55b2a349361ff88c03788f93e1e966e5d689605d044fef722ddde', name: '0014df10745553444d' };
+
 function droppingProvider(provider: Provider, dropped: string[]): Provider {
   return {
     getTip: () => provider.getTip(),
@@ -32,8 +34,8 @@ function droppingProvider(provider: Provider, dropped: string[]): Provider {
   };
 }
 
-async function reuseGuardHarness() {
-  const { chain, ctx, keys } = await startDevnet();
+async function reuseGuardHarness(asset: AssetClass = { policy: '', name: '' }) {
+  const { chain, ctx, keys } = await startDevnet({ asset });
   chain.advanceSlots(NETWORKS[ctx.deployment.network].zeroSlot);
   let asp: AspService;
   const indexer = new Indexer({ ctx, history: chain, aspLeaves: () => asp.leaves() });
@@ -61,6 +63,199 @@ async function reuseGuardHarness() {
   return { chain, options, confirm, keys, crank, asp,
     walletSeed: keys.users[0]!, seller: enterpriseAddress(keys.users[1]!, ctx.deployment.network) };
 }
+
+test('TOKEN-20 through TOKEN-24: SDK token pool story with real services and proofs', {
+  timeout: 1_800_000,
+  skip: devKeysPresent(root) ? false : 'Development proving keys are absent: circuits/build/dev/manifest.json is required',
+}, async t => {
+  const { chain, options, walletSeed, seller, confirm } = await reuseGuardHarness(tokenAsset);
+  const { ctx } = options;
+  const network = ctx.deployment.network;
+  const unit = assetUnit(tokenAsset);
+  const store = sdkModule.memoryStore();
+  const sdk = sdkModule.createZbaseCardano({ ...options, store });
+  const input = { network: `cardano:${network}`, asset: assetWireUnit(tokenAsset), payTo: seller,
+    amount: '2000000', maxTimeoutSeconds: 300 };
+  let depositId: string | undefined;
+  let changeId: string | undefined;
+  async function deposit() {
+    depositId ??= (await sdk.deposit({ amount: 10_000_000n, walletSeed })).prepared.noteId;
+    return sdk.waitForNote(depositId);
+  }
+  async function pay() {
+    if (changeId !== undefined) return;
+    await deposit();
+    const signer = sdk.x402Signer();
+    const address = signer.getAddress();
+    const signed = await signer.buildAndSignPaymentTransaction(input);
+    const cbor = Buffer.from(signed.transaction, 'base64').toString('hex');
+    const view = decodeTx(cbor);
+    assert.equal(view.inputs.length, 1);
+    assert.equal(signed.nonce, `${view.inputs[0]!.txId}#${view.inputs[0]!.index}`);
+    const [funding] = await chain.getUtxos(view.inputs);
+    assert.ok(funding);
+    assert.equal(funding.address, address);
+    assert.deepEqual(funding.value, { lovelace: 2_000_000n, assets: { [unit]: 2_000_000n } });
+    assert.equal(funding.inlineDatum, null);
+    assert.equal(funding.datumHash, null);
+    assert.equal(funding.scriptRef, null);
+    assert.equal(view.outputs.length, 1);
+    const output = view.outputs[0]!;
+    assert.equal(output.address, seller);
+    assert.deepEqual(output.value.assets, { [unit]: 2_000_000n });
+    assert.ok(output.value.lovelace >= 1_000_000n);
+    assert.ok(output.value.lovelace >= await sellerMinimumLovelace({ provider: chain, network },
+      { payTo: seller, price: 2_000_000n, asset: tokenAsset }));
+    assert.equal(output.value.lovelace, 2_000_000n - view.fee);
+    assert.equal(view.redeemers.length, 0);
+    assert.equal(await chain.submit(cbor), view.txId);
+    await confirm();
+    assert.ok((await chain.getUtxosAt(seller)).some(u => u.ref.txId === view.txId
+      && u.value.assets[unit] === 2_000_000n && u.value.lovelace === output.value.lovelace));
+    const change = sdk.listNotes().find(n => n.kind === 'change');
+    assert.ok(change);
+    const inserted = await sdk.waitForNote(change.id);
+    assert.equal(inserted.status, 'spendable');
+    assert.equal(inserted.value, 7_000_000n);
+    changeId = change.id;
+    t.diagnostic(`TOKEN-21 seller received ${output.value.lovelace} lovelace; leg 2 fee ${view.fee} lovelace`);
+  }
+
+  await t.test('TOKEN-20 deposit and sync in a token pool', async step => {
+    const note = await deposit();
+    assert.equal(note.status, 'spendable');
+    assert.equal(note.value, 10_000_000n);
+    const before = await store.load();
+    const getPool = options.indexer.getPool.bind(options.indexer);
+    const pool = step.mock.method(options.indexer, 'getPool', async () => ({ ...await getPool(), asset: 'lovelace' }));
+    const leaves = step.mock.method(options.indexer, 'getLeaves');
+    try {
+      await assert.rejects(sdk.sync(), /Indexer serves another pool asset/);
+      assert.equal(leaves.mock.callCount(), 0);
+      assert.deepEqual(await store.load(), before);
+    } finally { pool.mock.restore(); leaves.mock.restore(); }
+  });
+
+  await t.test('TOKEN-22 too little ADA on the payout', async step => {
+    await deposit();
+    const guardedStore = sdkModule.memoryStore();
+    await guardedStore.save((await store.load())!);
+    const relay: RelayerApi = {
+      getPool: () => options.relayer.getPool(), getSettle: id => options.relayer.getSettle(id),
+      settle: request => options.relayer.settle(request),
+      quote: async payouts => ({ ...await options.relayer.quote(payouts), payoutLovelace: 100_000n }),
+    };
+    let proving = 0;
+    const artifacts = { get spend(): never { proving++; throw new Error('Proving started'); },
+      get ragequit(): never { throw new Error('Unexpected exit'); } };
+    const guarded = sdkModule.createZbaseCardano({ ...options, store: guardedStore, relayer: relay, artifacts });
+    await guarded.sync();
+    const before = (await guardedStore.load())!;
+    await step.test('TOKEN-22 direct settlement refuses insufficient payout lovelace before proving', async () => {
+      await assert.rejects(guarded.settlePrivately({ payouts: [{ address: seller, amount: 2_000_000n }],
+        minPayoutLovelace: 1_500_000n }), /Relayer attaches too little ADA to the payout/);
+      assert.equal(proving, 0);
+      assert.deepEqual(await guardedStore.load(), before);
+    });
+    await step.test('TOKEN-22 the signer preserves the reserved key index and leaves notes unchanged', async () => {
+      await assert.rejects(async () => guarded.x402Signer().buildAndSignPaymentTransaction(input), error => {
+        assert.ok(error instanceof Error);
+        assert.match(error.message, new RegExp(`one-time key index ${before.nextOneTimeIndex}`));
+        assert.ok(error.cause instanceof Error);
+        assert.equal(error.cause.message, 'Relayer attaches too little ADA to the payout');
+        return true;
+      });
+      const after = (await guardedStore.load())!;
+      assert.equal(proving, 0);
+      assert.deepEqual(after.notes, before.notes);
+      assert.ok(after.notes.every(n => !n.pending && n.kind !== 'change'));
+      assert.equal(after.nextChangeIndex, before.nextChangeIndex);
+      assert.equal(after.nextOneTimeIndex, before.nextOneTimeIndex + 1);
+    });
+  });
+
+  await t.test('TOKEN-21 a token pool refuses lovelace without reserving a one-time index', async () => {
+    const guardedStore = sdkModule.memoryStore();
+    await guardedStore.save((await store.load())!);
+    // An invalid asset must stop before proving, even when the pool can fund the amount.
+    const artifacts = { get spend(): never { throw new Error('Unexpected proving'); },
+      get ragequit(): never { throw new Error('Unexpected exit'); } };
+    const guarded = sdkModule.createZbaseCardano({ ...options, store: guardedStore, artifacts });
+    const before = await guardedStore.load();
+    await assert.rejects(async () => guarded.x402Signer().buildAndSignPaymentTransaction({ ...input, asset: 'lovelace' }),
+      /Payment asset does not match the pool asset/);
+    assert.deepEqual(await guardedStore.load(), before);
+  });
+
+  await t.test('TOKEN-21 token payouts accept one base unit and reject zero before proving', async () => {
+    const proving = new Error('Proving started');
+    const artifacts = { get spend(): never { throw proving; }, get ragequit(): never { throw proving; } };
+    const guarded = sdkModule.createZbaseCardano({ ...options, store, artifacts });
+    const before = await store.load();
+    await assert.rejects(guarded.settlePrivately({ payouts: [{ address: seller, amount: 0n }] }), /minimum.*1.*pool asset units/);
+    await assert.rejects(guarded.settlePrivately({ payouts: [{ address: seller, amount: 1n }] }), error => error === proving);
+    assert.deepEqual(await store.load(), before);
+  });
+
+  await t.test('TOKEN-21 a stock x402 payment in the pool token', pay);
+
+  await t.test('TOKEN-24 exit in a token pool', async () => {
+    // Reuse the real payment change so this exit covers its inherited deposit origin.
+    await pay();
+    const wallet = enterpriseAddress(walletSeed, network);
+    const tokens = async () => (await chain.getUtxosAt(wallet)).reduce((sum, u) => sum + (u.value.assets[unit] ?? 0n), 0n);
+    const before = await tokens();
+    const result = await sdk.ragequit({ noteId: changeId!, refundSeed: walletSeed, payTo: wallet });
+    await confirm();
+    await sdk.sync();
+    const view = decodeTx(await chain.getTransactionCbor(result.txId));
+    const payout = view.outputs.find(u => u.address === wallet && u.value.assets[unit] === 7_000_000n);
+    assert.ok(payout);
+    assert.deepEqual(payout.value.assets, { [unit]: 7_000_000n });
+    assert.ok(payout.value.lovelace >= await sellerMinimumLovelace({ provider: chain, network },
+      { payTo: wallet, price: 7_000_000n, asset: tokenAsset }));
+    assert.equal(await tokens() - before, 7_000_000n);
+    const note = sdk.listNotes().find(n => n.id === changeId)!;
+    assert.equal(note.status, 'exited');
+    assert.equal(note.pending, undefined);
+  });
+});
+
+test('TOKEN-23 recover one-time funds in a token pool', async () => {
+  const { chain, ctx, keys } = await startDevnet({ asset: tokenAsset });
+  const network = ctx.deployment.network;
+  const unit = assetUnit(tokenAsset);
+  const seed = new Uint8Array(32).fill(152);
+  const key = deriveOneTimeKey(seed, 5);
+  const address = enterpriseAddress(key, network);
+  key.fill(0);
+  const payTo = enterpriseAddress(keys.users[0]!, network);
+  const add = (amount: bigint, lovelace: bigint) => chain.addUtxo({ address,
+    value: { lovelace, assets: { [unit]: amount } }, inlineDatum: null, datumHash: null, scriptRef: null });
+  // The richer ADA output must not outrank the larger token balance.
+  const small = add(1_000_000n, 5_000_000n);
+  const large = add(3_000_000n, 2_000_000n);
+  const indexer = new Indexer({ ctx, history: chain });
+  const relayer = new Relayer({ ctx, indexer, seed: keys.relayer, vkey: await loadDevVkey('spend', root) });
+  const artifacts = { get spend(): never { throw new Error('Unexpected proving'); }, get ragequit(): never { throw new Error('Unexpected proving'); } };
+  const store = sdkModule.memoryStore();
+  const saved = { notes: [], nextDepositIndex: 0, nextChangeIndex: 0, nextOneTimeIndex: 9 };
+  await store.save(saved);
+  const sdk = sdkModule.createZbaseCardano({ seed, ctx, indexer, relayer, artifacts, store });
+  const recovered = await sdk.recoverOneTimeFunds({ index: 5, payTo });
+  assert.ok(recovered);
+  assert.equal(recovered.amount, 3_000_000n);
+  chain.mineBlock();
+  const view = decodeTx(await chain.getTransactionCbor(recovered.txId));
+  assert.deepEqual(view.inputs, [large]);
+  assert.equal(view.outputs.length, 1);
+  assert.equal(view.outputs[0]!.address, payTo);
+  assert.deepEqual(view.outputs[0]!.value.assets, { [unit]: 3_000_000n });
+  assert.equal(view.outputs[0]!.value.lovelace, 2_000_000n - view.fee);
+  assert.ok(view.outputs[0]!.value.lovelace >= 1_000_000n);
+  assert.deepEqual((await chain.getUtxosAt(address)).map(u => u.ref), [small]);
+  assert.deepEqual(await store.load(), saved);
+});
 
 test('SDK-03: a protocol fee rate from the indexer alone cannot raise the withdrawn amount', {
   timeout: 1_800_000,
@@ -655,7 +850,7 @@ test('SDK-01 through SDK-08: local agent story with real validators and proofs',
       amount: '2000000', maxTimeoutSeconds: 300 };
     const before = requests.length;
     await assert.rejects(async () => signer.buildAndSignPaymentTransaction({ ...input, network: 'cardano:mainnet' }), /network/i);
-    await assert.rejects(async () => signer.buildAndSignPaymentTransaction({ ...input, asset: 'token' }), /lovelace/i);
+    await assert.rejects(async () => signer.buildAndSignPaymentTransaction({ ...input, asset: 'token' }), /Payment asset does not match the pool asset/);
     await assert.rejects(async () => signer.buildAndSignPaymentTransaction({ ...input, maxTimeoutSeconds: 1 }), /timeout/i);
     assert.equal(requests.length, before);
   });
@@ -949,6 +1144,7 @@ test('SDK-03, SDK-04: hardening rejects untrusted fees and seller prices before 
   }] });
   let quotedFee = 1_000_000n;
   let protocolDelta = 0n;
+  let payoutLovelace = 0n;
   let quotes = 0;
   let submissions = 0;
   const wrapper: RelayerApi = {
@@ -956,7 +1152,7 @@ test('SDK-03, SDK-04: hardening rejects untrusted fees and seller prices before 
     quote: async payouts => {
       quotes++;
       const quote = await relayer.quote(payouts);
-      return { ...quote, relayerFee: quotedFee, protocolFee: quote.protocolFee + protocolDelta,
+      return { ...quote, payoutLovelace, relayerFee: quotedFee, protocolFee: quote.protocolFee + protocolDelta,
         withdrawn: quote.withdrawn - quote.relayerFee + quotedFee + protocolDelta };
     },
     settle: async () => { submissions++; throw new Error('Unexpected settlement'); },
@@ -991,6 +1187,15 @@ test('SDK-03, SDK-04: hardening rejects untrusted fees and seller prices before 
     quotedFee = 3_000_000n;
     await assert.rejects(sdkModule.createZbaseCardano({ ...options, maxRelayerFee: 3_000_000n })
       .settlePrivately({ payouts }), error => error === proving);
+  });
+  await t.test('SDK-03: an ADA pool rejects a quote that attaches payout lovelace before proving', async () => {
+    quotedFee = 1_000_000n;
+    payoutLovelace = 1n;
+    const before = await store.load();
+    try {
+      await assert.rejects(sdkModule.createZbaseCardano(options).settlePrivately({ payouts }), /ADA.*payoutLovelace/);
+      assert.deepEqual(await store.load(), before);
+    } finally { payoutLovelace = 0n; }
   });
   await t.test('SDK-04: an excessive seller price does not reserve a key or request a quote', async () => {
     const sdk = sdkModule.createZbaseCardano(options);

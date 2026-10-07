@@ -45,7 +45,8 @@ export class Crank {
     } while (leaves.length < pool.datum.size);
     const tree = MerkleTree.fromLeaves(leaves);
     if (tree.size !== pool.datum.size || tree.root !== pool.datum.roots[0]) return null;
-    const plan = planInsert({ poolId: this.ctx.deployment.poolId, pool, config: config.datum, deposits });
+    // The plan must count the same asset as the pool, or the proof's slot values never match the chain.
+    const plan = planInsert({ poolId: this.ctx.deployment.poolId, pool, config: config.datum, deposits, asset: this.ctx.deployment.asset });
     if (plan === null) return null;
     const witness = insertWitness({ tree, slots: plan.slots });
     const proof = await prove(this.artifacts, witness.input);

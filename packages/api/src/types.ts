@@ -52,6 +52,8 @@ export interface Quote {
   withdrawn: bigint;
   protocolFee: bigint;
   relayerFee: bigint;
+  // Lovelace the relayer attaches to every payout output in a token pool. 0 in an ADA pool.
+  payoutLovelace: bigint;
   relayerKeyHash: string;
   validUntil: number; // POSIX milliseconds.
 }

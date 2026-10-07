@@ -16,9 +16,10 @@ coverage/
 *.r1cs
 
 # runtime state of the node and the demo
-deployments/*/asp-store.json
-deployments/*/asp-store.json.tmp
-deployments/*/demo-store.json
+# Local service and demo stores, one per pool.
+deployments/*/asp-store*.json
+deployments/*/asp-store*.json.tmp
+deployments/*/demo-store*.json
 
 # local tooling
 .DS_Store

@@ -13,6 +13,7 @@ Everything runs from the repository root with npm. The [Preprod runbook](/refere
 - A Blockfrost project for Preprod. The free plan is enough.
 - A new 32-byte operator key: `openssl rand -hex 32`.
 - About 300 test ADA from the Preprod faucet for that key.
+- At least 10 tUSDM for the `user` role. Use the Masumi test USDM unit shown below.
 
 CAUTION: use a new key. Never put the key of a real wallet into this project.
 
@@ -31,6 +32,19 @@ The TypeScript tests include a local test chain in `packages/txlib/src/testing/`
 
 ## Deploy a pool
 
+Set `POOL_ASSET` in `.env` to select the asset for `ops:deploy`. Unset means ADA.
+For the M0 tUSDM pool on Preprod, use:
+
+```text
+POOL_ASSET=16a55b2a349361ff88c03788f93e1e966e5d689605d044fef722ddde.0014df10745553444d
+```
+
+tUSDM has 6 decimals. The limits stay at 5,000,000, 50,000,000 and 500,000,000 base units: 5, 50 and 500 tUSDM.
+The validators stay unchanged, and an ADA pool remains supported. A new asset parameter gives the token pool a new pool ID.
+
+The repository holds the record of the tUSDM pool deployed on 2026-10-07, pool ID `d433ba1cc677f8771f22b0ecbbbdcda504022b96f34eeaed39fae78c`. To use it you need its proving keys, which are not in the repository. To deploy your own, move that record away first.
+The circuits do not depend on the asset, so the existing proving keys stay valid when only the asset changes.
+
 1. Copy `.env.example` to `.env`.
 2. Set `NETWORK=preprod`, `BLOCKFROST_PROJECT_ID` and `OPERATOR_SEED_HEX`.
 3. Print the addresses and the cost: `npm run ops:deploy -- --dry-run`
@@ -42,21 +56,50 @@ CAUTION: `.env` holds a signing key and the Blockfrost project ID. Git ignores i
 
 CAUTION: back up `circuits/build/keys-preprod/` after step 5. No setup can make the same keys twice. Without them, nobody can insert, pay or exit, and the notes in the pool stay locked.
 
-Step 6 sends four transactions in about 3.5 minutes and writes `deployments/preprod.json`. A deployment costs about 245 test ADA: 160 goes to the role keys of the crank, the relayer, the ASP and the test user, and 73.6 stays in the four reference script outputs. The repository already holds the record of the pool from 2026-10-06, pool ID `082e65fea945bdca5e1c70fc99f7b74aee0e8b0826a034725a437b5c`. To use it you need its proving keys, which are not in the repository. To deploy your own, add `-- --force`.
+Step 6 sends four transactions and writes `deployments/preprod.json`.
+The earlier ADA deployment took about 3.5 minutes and cost about 245 test ADA.
+Of that, 160 went to the role keys and 73.6 stayed in the four reference script outputs.
+Use the dry run to check the current deployment cost.
+
+Deployment funds the role keys with ADA only. Send at least 10 tUSDM to the `user` address printed in step 3.
+Keep ADA there too, because token deposits and exits need minimum ADA and network fees from that wallet.
+The ADA pool from 2026-10-06 is retired, and its record moved to `deployments/retired/`.
+Keep that record, its proving keys and its note stores. The [retirement procedure](/reference/runbook-preprod#10-retiring-a-pool) explains how to sweep its reference outputs.
 
 ## Run the node, the seller and the demo
 
-Three terminals.
+Set the seller's environment to the pool's exact asset and a price of 2 tUSDM:
+
+```sh
+export SELLER_PRICE_ASSET=16a55b2a349361ff88c03788f93e1e966e5d689605d044fef722ddde.0014df10745553444d
+export SELLER_PRICE_AMOUNT=2000000
+```
+
+The x402 package's default Preprod USDM policy starts with `e675b46e`. It is not the pool's tUSDM asset.
+The demo selects an offer in the pool's exact unit and includes it in `allowedAssets`.
+For an ADA pool, use `SELLER_PRICE_ASSET=lovelace` and keep the price amount in lovelace.
+
+Start one command in each of three terminals. Use the seller settings in the second terminal.
 
 ```sh
 npm run node -w ops                                              # indexer on 4010, relayer on 4011
-SELLER_ADDRESS=<address> npm run seller -w examples/x402-seller  # stock x402 seller on 4021, 2 ADA per forecast
+SELLER_ADDRESS=<address> npm run seller -w examples/x402-seller  # stock x402 seller on 4021, 2 tUSDM per forecast
 npm run demo -w ops                                              # the whole story
 ```
 
-The demo deposits 10 test ADA, waits for the insert and the approval, asks the seller for the weather, gets a 402, pays through the stock x402 client with the SDK's signer, prints the forecast, and exits the change in public. It prints every transaction hash. The user ends with about 5 ADA less: 2 for the weather, 1 for the relayer, 0.3 for the crank, and the network fees.
+The demo deposits 10 tUSDM, then waits for the insert and approval.
+It asks the seller for the weather, gets a 402, and pays through the stock x402 client with the SDK's signer.
+It prints the forecast and every transaction hash, then exits the change in public.
+The user pays 2 tUSDM for the weather and a 1 tUSDM relayer fee, leaving 7 tUSDM to exit with M0's zero protocol fee.
+The fee is per payout because the relayer supplies 2 ADA for each payout output by default.
+Leg 2 pays the seller the tokens and all attached ADA minus its fee. It has no change output.
 
-The demo keeps its notes in `deployments/preprod/demo-store.json`. Without that file it still works, because the SDK finds its old deposits on chain and takes new secrets, but a change note that was still in the pool is out of reach.
+The deposit wallet supplies about 1.4 ADA for the deposit output plus its network fee. The crank keeps that ADA and takes no tokens.
+The exit wallet also supplies minimum ADA for its output.
+
+The demo keeps its notes in `deployments/<network>/demo-store-<first 8 hex of the pool ID>.json`.
+Each pool gets its own store, so the demo cannot load the retired pool's notes into the new pool.
+Keep that file. Without it, the SDK finds old deposits and takes new secrets, but unspent change notes remain out of reach.
 
 ## Admin actions
 
@@ -64,7 +107,9 @@ The demo keeps its notes in `deployments/preprod/demo-store.json`. Without that 
 
 ## The live runs
 
-The pool on Preprod was deployed on 2026-10-06. The demo ran six times against it, and all six ended with HTTP 200 and the forecast.
+The retired ADA pool on Preprod was deployed on 2026-10-06.
+The demo ran six times against it, and all six ended with HTTP 200 and the forecast.
+The table below records those ADA runs. The lead will add live tUSDM measurements separately.
 
 | Run | What was special | Payment, in seconds | Whole demo |
 |---|---|---|---|

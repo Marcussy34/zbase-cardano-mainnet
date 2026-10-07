@@ -221,7 +221,8 @@ async function main(): Promise<void> {
   if (settings.network === 'mainnet') log('CAUTION: the node spends real ADA. Submitted transactions cannot be undone.');
   const node = await startNode({ ctx: { provider, deployment }, history: provider, seeds, intervalMs, idleRetryMs, ports,
     insertArtifacts: await keys.load('insert'), spendVkey: keys.spendVkey,
-    aspStorePath: join(root, `deployments/${settings.network}/asp-store.json`), log });
+    // One approval store per pool, so a new pool never reads the labels of an old one.
+    aspStorePath: join(root, `deployments/${settings.network}/asp-store-${deployment.poolId.slice(0, 8)}.json`), log });
   log(`Indexer ${node.urls.indexer}; relayer ${node.urls.relayer}`);
   const stop = () => {
     void node.close().then(shutdown).catch(error => { log(message(error)); process.exitCode = 1; }).finally(() => {

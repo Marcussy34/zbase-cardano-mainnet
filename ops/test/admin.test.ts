@@ -1,23 +1,28 @@
 import assert from 'node:assert/strict';
+import { execFile } from 'node:child_process';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
+import { fileURLToPath } from 'node:url';
+import { promisify } from 'node:util';
 import type { SnarkjsVk } from '@zbase-cardano/crypto';
-import { decodeTx, readConfig, type Network, type Utxo } from '@zbase-cardano/txlib';
+import { decodeTx, readConfig, type AssetClass, type Network, type Utxo } from '@zbase-cardano/txlib';
 import { FakeChain } from '@zbase-cardano/txlib/testing/fake-chain';
 import { deploy } from '../src/deploy.js';
 import { ROLES, roleAddress, roleKeyHash, roleSeed } from '../src/roles.js';
 
 const operatorSeed = new Uint8Array(32).fill(29);
+const tokenAsset = { policy: '16a55b2a349361ff88c03788f93e1e966e5d689605d044fef722ddde', name: '0014df10745553444d' };
+const tokenUnit = `${tokenAsset.policy}.${tokenAsset.name}`;
 const sum = (utxos: Utxo[]): bigint => utxos.reduce((total, u) => total + u.value.lovelace, 0n);
 
-async function setup(network: Network = 'preprod') {
+async function setup(network: Network = 'preprod', asset: AssetClass = { policy: '', name: '' }) {
   const chain = new FakeChain({ network });
   chain.addUtxo({ address: roleAddress(operatorSeed, 'operator', network), value: { lovelace: 400_000_000n, assets: {} },
     inlineDatum: null, datumHash: null, scriptRef: null });
   const keys = await Promise.all(['spend', 'insert', 'ragequit'].map(async name =>
     JSON.parse(await readFile(new URL(`../../artifacts/dev/${name}_vkey.json`, import.meta.url), 'utf8')) as SnarkjsVk));
   const confirm = async (id: string) => { assert.deepEqual(chain.mineBlock().txIds, [id]); };
-  const deployment = await deploy({ provider: chain, network, operatorSeed, confirm, log: () => {},
+  const deployment = await deploy({ provider: chain, network, operatorSeed, asset, confirm, log: () => {},
     vkeys: { spend: keys[0]!, insert: keys[1]!, ragequit: keys[2]! } });
   const logs: string[] = [];
   const confirmed: string[] = [];
@@ -41,6 +46,8 @@ test('OPS-ADM-01: pause is idempotent, uses role signatures, and status exposes 
   assert.equal((await chain.getUtxosAt(roleAddress(operatorSeed, 'admin', 'preprod'))).length, 0);
   const lines = await status(o);
   const text = lines.join('\n');
+  assert.match(text, /"balance":"6000000 lovelace"/);
+  assert.ok(lines.includes('pool ada: 6000000 lovelace'));
   assert.match(text, /depositsPaused.*true/);
   for (const field of ['poolId', 'balance', 'roots', 'size', 'queue', 'nullifierRoot', 'feesAccrued',
     'admins', 'adminThreshold', 'treasury', 'minDeposit', 'maxDeposit', 'poolCap', 'depositFeeBps', 'settleFeeBps', 'crankFee']) assert.ok(text.includes(field), field);
@@ -55,6 +62,41 @@ test('OPS-ADM-01: pause is idempotent, uses role signatures, and status exposes 
   assert.deepEqual(confirmed, [result.txId], 'Status and repeated pauses cannot submit');
   assert.ok(await setDepositsPaused({ ...o, paused: false }));
   assert.equal((await readConfig(o.ctx)).datum.depositsPaused, false);
+});
+
+test('TOKEN-19: status of a token pool', { timeout: 180_000 }, async () => {
+  const { status } = await import('../src/admin.js');
+  const { chain, o, logs, confirmed } = await setup('preprod', tokenAsset);
+  const user = roleAddress(operatorSeed, 'user', 'preprod');
+  chain.addUtxo({ address: user,
+    value: { lovelace: 2_000_000n, assets: { [tokenAsset.policy + tokenAsset.name]: 12_345_678n, ['ab'.repeat(28)]: 99n } },
+    inlineDatum: null, datumHash: null, scriptRef: null });
+  const before = chain.allUtxos();
+  const lines = await status(o);
+  assert.ok(lines[0]!.includes(`"balance":"0 ${tokenUnit}"`));
+  assert.ok(lines.includes('pool ada: 6000000 lovelace'));
+  assert.ok(lines.includes(`user: ${user} balance 67000000 lovelace, 12345678 ${tokenUnit}`));
+  const admin = roleAddress(operatorSeed, 'admin', 'preprod');
+  assert.ok(lines.includes(`admin: ${admin} balance 0 lovelace, 0 ${tokenUnit}`));
+  assert.deepEqual(logs, lines);
+  assert.deepEqual(confirmed, []);
+  assert.deepEqual(chain.allUtxos(), before);
+  for (const role of ROLES) assert.ok(!lines.join('\n').includes(Buffer.from(roleSeed(operatorSeed, role)).toString('hex')));
+});
+
+test('TOKEN-19: collect-fees usage and invalid amounts name pool asset units', async () => {
+  const script = fileURLToPath(new URL('../src/admin.ts', import.meta.url));
+  for (const args of [[], ['collect-fees', 'abc'], ['collect-fees', '0']]) {
+    // Parsing fails before credentials or a provider are needed.
+    await assert.rejects(promisify(execFile)(process.execPath, ['--import', 'tsx', script, ...args], { env: {} }),
+      (error: unknown) => {
+        const failure = error as { code: number; stderr: string };
+        assert.equal(failure.code, 1);
+        assert.match(failure.stderr, /pool asset units/);
+        assert.doesNotMatch(failure.stderr, /lovelace/);
+        return true;
+      });
+  }
 });
 
 test('OPS-ADM-02: empty accrued fees return null without submission or confirmation', { timeout: 180_000 }, async () => {

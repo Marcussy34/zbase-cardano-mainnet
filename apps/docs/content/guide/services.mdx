@@ -47,7 +47,11 @@ The SDK and the crank never trust a page on its own. They rebuild the tree from 
 
 The crank turns waiting deposits and queued change notes into tree leaves. On each tick it reads the pool, the config and the deposit outputs from the chain, downloads the leaves from the indexer, rebuilds the tree and checks the root. Then it plans an Insert: up to 4 slots, queued notes first, then deposits that pass the config limits. It makes the insert proof, builds the transaction, evaluates it, signs it with the crank key and submits it.
 
-The crank remembers the pool output it spent. While that spend waits for a block it does nothing, and after 3 minutes without a confirmation it tries again. It takes the crank fee of 0.3 ADA from each deposit it absorbs. Note inserts earn nothing, and the relayer fee is meant to cover them.
+The crank remembers the pool output it spent. While that spend waits for a block it does nothing, and after 3 minutes without a confirmation it tries again.
+In a token pool, it keeps the deposit output's minimum ADA, about 1.4 ADA, and takes no crank fee in tokens.
+The note receives `v = gross - fee`, where `fee` is the protocol deposit fee, zero in M0.
+In an ADA pool, it takes the configured crank fee, 0.3 ADA per deposit.
+Note inserts earn nothing, and the relayer fee is meant to cover them.
 
 ## The ASP service
 
@@ -61,10 +65,15 @@ The relayer submits Settle transactions for agents. It serves over HTTP on port 
 
 | Route | What it does |
 |---|---|
-| `POST /v1/quote` | Takes the payouts. Returns the protocol fee, the relayer fee, the relayer key and a `valid_until` deadline |
+| `POST /v1/quote` | Takes the payouts. Returns `withdrawn`, `protocolFee`, total `relayerFee`, `payoutLovelace`, `relayerKeyHash` and the `validUntil` deadline |
 | `POST /v1/settle` | Takes the proof, the public inputs and the intent. Checks the proof, builds and submits the Settle transaction. Returns an ID |
 | `GET /v1/settle/:id` | Returns `submitted` or `confirmed` with the transaction hash |
 | `GET /v1/pool` | The same pool view as the indexer |
+
+The quote's `payoutLovelace` is the ADA the relayer attaches to every token payout, expressed in lovelace.
+It defaults to 2,000,000 (2 ADA) in a token pool and is zero in an ADA pool.
+The relayer's own wallet supplies that ADA and the transaction fee. Each output receives exactly its requested tokens plus that ADA.
+The payout floor is 1 token base unit in a token pool and 1,000,000 lovelace (1 ADA) in an ADA pool.
 
 Before it submits, the relayer checks the proof against the spend verification key, checks that the state root is one of the 16 in the datum, that the ASP root is current, that the nullifier is unspent, that the queue has room, and that the quote has not expired. Each failure has its own error code.
 
@@ -84,7 +93,11 @@ Before it submits, the relayer checks the proof against the spend verification k
 
 The `uncertain` code matters for money. Once the relayer has called submit, it never reports a definite failure, because the transaction may still land. The SDK keeps its note reserved after an `uncertain` answer, polls the settle ID, and lets the chain decide. Only the ten definite refusals release a note for a new attempt.
 
-The relayer earns 1 ADA per settle in the demo. The agent fixes that fee inside the proof, so a relayer cannot raise it after the fact.
+In a token pool, the relayer charges its configured `relayerFee * payoutCount`, which defaults to 1 tUSDM per payout.
+Each payout costs it `payoutLovelace` of its own ADA, so two payouts earn 2 tUSDM and require 4 ADA before the network fee.
+The quote's `relayerFee` contains the total charge. The withdrawn amount is the sum of the payouts, the protocol fee and that charge.
+An ADA pool charges once per quote, 1 ADA by default.
+The agent fixes the withdrawn amount inside the proof, so a relayer cannot raise the fee after the fact.
 
 ## The node
 
@@ -100,7 +113,8 @@ The services are convenient, not trusted. The SDK trusts its own seed and its ow
 - It rebuilds the state tree and the ASP tree from the indexer's leaves and compares the roots.
 - It reads the fee rate from the config output on chain, not from the quote.
 - It refuses a quote whose deadline is past or more than 15 minutes after the tip.
-- It refuses a relayer fee above its own limit, 2 ADA by default.
+- It refuses a total relayer fee above its own limit, 2,000,000 pool asset base units by default (2 tUSDM or 2 ADA).
+- For token x402 payments, it refuses payout ADA below the seller output's minimum plus the second transaction's fee, about 1.4 ADA.
 - It follows the exact output of a deposit it sent itself, so a copied precommitment cannot take its place.
 
 The [SDK page](/guide/sdk-and-x402) shows how an agent uses all this.
