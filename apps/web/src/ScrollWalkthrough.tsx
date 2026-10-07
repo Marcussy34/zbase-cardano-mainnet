@@ -11,47 +11,72 @@ import {
 } from "./BrandIcons";
 import "./scroll-walkthrough.css";
 
-const description = "Your wallet deposits ADA into one shared pool. The pool funds a one-time key, and that key pays the x402 seller. Your agent keeps its private note secrets local and generates a proof on your device. Only proof and intent go to the relayer. The relayer submits the proof to the shared pool.";
+// The spoken description walks the real flow in order, the same order the packet loop plays.
+const description = "Your wallet deposits into one shared pool and can withdraw from it at any time. Your agent asks the x402 seller for a price, checks its private balance, gets a fee quote from the relayer, and proves on your device: note secrets stay local. Only the proof goes to the relayer. The relayer submits the proof to the shared pool, and the pool pays out to a one-time key with no link to your wallet. The one-time key pays the x402 seller, and the seller delivers to your agent. The pool keeps the change private.";
 
-function FlowNode({ name, label, icon: Icon }: { name: string; label: string; icon?: BrandIcon }) {
+type FlowNodeProps = { name: string; label: string; note: string; icon?: BrandIcon };
+
+function FlowNode({ name, label, note, icon: Icon }: FlowNodeProps) {
   return (
     <div className={`overview-node overview-node-${name}`}>
       <span className="overview-symbol">
         {Icon ? <Icon /> : <span className="overview-agent-portrait" />}
       </span>
       <strong>{label}</strong>
-      {name === "agent" && <small><LockIcon size={10} />Private note stays local</small>}
+      {/* The agent's note keeps the lock: its secrets never leave the device. */}
+      <small>{name === "agent" && <LockIcon size={10} />}{note}</small>
     </div>
   );
 }
 
-const desktopRoutes = [
-  "M134 90H306",
-  "M414 90H586",
-  "M694 90H866",
-  "M314 295H586",
-  "M640 243V216Q640 200 624 200H376Q360 200 360 184V169",
+// Solid routes are on-chain transactions, dashed routes are web requests.
+// Lavender marks every route with no link to the wallet. Mint is the agent's talk with the seller.
+type Tone = "neutral" | "lavender" | "mint";
+type Leg = { name: string; reverse?: boolean };
+type Route = { name: string; kind: "chain" | "web"; tone: Tone; twoWay?: boolean; legs: Leg[]; desktop: string; mobile: string };
+
+const routes: Route[] = [
+  { name: "deposit", kind: "chain", tone: "neutral", legs: [{ name: "deposit" }], desktop: "M214 72H446", mobile: "M238 212V342" },
+  { name: "withdraw", kind: "chain", tone: "neutral", legs: [{ name: "withdraw" }], desktop: "M446 96H214", mobile: "M218 342V212" },
+  { name: "payout", kind: "chain", tone: "lavender", legs: [{ name: "payout" }], desktop: "M554 84H786", mobile: "M228 504V632" },
+  { name: "pay", kind: "chain", tone: "lavender", legs: [{ name: "pay" }], desktop: "M840 200V260", mobile: "M186 680H132" },
+  { name: "proof", kind: "web", tone: "lavender", legs: [{ name: "proof" }], desktop: "M214 310H446", mobile: "M90 212V342" },
+  { name: "submit", kind: "chain", tone: "lavender", legs: [{ name: "submit" }], desktop: "M500 260V200", mobile: "M132 390H186" },
+  // Drawn from the agent to the seller. The price quote and the delivery travel back along it.
+  { name: "seller", kind: "web", tone: "mint", twoWay: true, legs: [{ name: "ask" }, { name: "quote", reverse: true }, { name: "deliver", reverse: true }], desktop: "M160 426V462H840V426", mobile: "M48 100H14V680H48" },
 ];
-const mobileRoutes = [
-  "M220 147V207",
-  "M220 334V432",
-  "M220 560V644",
-  "M66 245V323",
-  "M103 370H129Q145 370 145 354V266Q145 250 161 250H185",
-];
+const tones: Tone[] = ["neutral", "lavender", "mint"];
+
+// Short labels next to the routes. Positions live in the stylesheet, one set per layout.
+const labels = [
+  ["deposit", "Deposit"],
+  ["withdraw", "Withdraw"],
+  ["payout", "Pays out"],
+  ["unlinkable", "unlinkable"],
+  ["pay", "Pays the seller"],
+  ["fee", "Fee quote"],
+  ["proof", "Proof"],
+  ["submit", "Submits the proof"],
+  ["ask", "Agent asks, seller quotes a price"],
+  ["deliver", "Seller is paid and delivers"],
+] as const;
 
 function Routes({ mobile = false }: { mobile?: boolean }) {
   const id = useId();
-  const routes = mobile ? mobileRoutes : desktopRoutes;
   return (
-    <svg className={`overview-routes overview-routes-${mobile ? "mobile" : "desktop"}`} viewBox={mobile ? "0 0 300 760" : "0 0 1000 420"} preserveAspectRatio="none" aria-hidden="true" focusable="false">
+    <svg className={`overview-routes overview-routes-${mobile ? "mobile" : "desktop"}`} viewBox={mobile ? "0 0 300 800" : "0 0 1000 500"} preserveAspectRatio="none" aria-hidden="true" focusable="false">
       <defs>
-        {["funds", "proof"].map((kind) => <marker key={kind} id={`${id}-${kind}`} markerWidth="7" markerHeight="8" refX="6" refY="4" orient="auto" markerUnits="userSpaceOnUse"><path className={`overview-arrow-${kind}`} d="m1 1 5 3-5 3" fill="none" strokeWidth="1.5" /></marker>)}
+        {/* auto-start-reverse lets the two-way seller route carry an arrowhead at both ends. */}
+        {tones.map((tone) => <marker key={tone} id={`${id}-${tone}`} markerWidth="7" markerHeight="8" refX="6" refY="4" orient="auto-start-reverse" markerUnits="userSpaceOnUse"><path className={`overview-arrow-${tone}`} d="m1 1 5 3-5 3" fill="none" strokeWidth="1.5" /></marker>)}
       </defs>
-      {routes.map((d, i) => <g key={d} className={`overview-route overview-route-${i} ${i > 2 ? "overview-route-proof" : "overview-route-funds"}`}>
-        <path className="overview-wire" d={d} markerEnd={`url(#${id}-${i > 2 ? "proof" : "funds"})`} />
-        <path className="overview-packet" d={d} pathLength="100" />
-      </g>)}
+      {routes.map((route) => {
+        const d = mobile ? route.mobile : route.desktop;
+        const arrow = `url(#${id}-${route.tone})`;
+        return <g key={route.name} className={`overview-route overview-route-${route.kind} overview-tone-${route.tone}`}>
+          <path className="overview-wire" d={d} markerEnd={arrow} markerStart={route.twoWay ? arrow : undefined} />
+          {route.legs.map((leg) => <path key={leg.name} className={`overview-packet overview-leg-${leg.name}`} d={d} pathLength="100" />)}
+        </g>;
+      })}
     </svg>
   );
 }
@@ -82,28 +107,25 @@ export default function ScrollWalkthrough() {
       <div className="overview-panel" role="region" aria-label="Payment overview">
         <div className="overview-atmosphere" aria-hidden="true"><SoffitBackdrop /></div>
         <div className="overview-meta">
-          <span className="overview-preview"><i aria-hidden="true" />Planned flow</span>
+          <span className="overview-preview"><i aria-hidden="true" />Live on Preprod</span>
           <span className="overview-boundary"><LockIcon size={12} />Note secrets stay local</span>
         </div>
         <figure className="overview-diagram" ref={diagram} role="img" aria-label={description}>
           <Routes />
           <Routes mobile />
-          <FlowNode name="wallet" label="Your wallet" icon={WalletIcon} />
-          <FlowNode name="pool" label="Shared pool" icon={PoolIcon} />
-          <FlowNode name="key" label="One-time key" icon={KeyIcon} />
-          <FlowNode name="seller" label="x402 seller" icon={SellerIcon} />
-          <FlowNode name="agent" label="Your agent" />
-          <FlowNode name="relayer" label="Relayer" icon={RelayerIcon} />
-          <span className="overview-route-label overview-label-deposit">ADA deposit</span>
-          <span className="overview-route-label overview-label-fund">Price + fee</span>
-          <span className="overview-route-label overview-label-pay">x402 payment</span>
-          <span className="overview-route-label overview-label-proof">Proof + intent</span>
-          <span className="overview-route-label overview-label-submit">Submit proof</span>
+          <FlowNode name="wallet" label="Your wallet" note="Holds your agent's funds" icon={WalletIcon} />
+          <FlowNode name="pool" label="Shared pool" note="Shared by many agents" icon={PoolIcon} />
+          <FlowNode name="key" label="One-time key" note="A fresh address, used once" icon={KeyIcon} />
+          <FlowNode name="agent" label="Your agent" note="Private note stays local" />
+          <FlowNode name="relayer" label="Relayer" note="Never sees your secrets" icon={RelayerIcon} />
+          <FlowNode name="seller" label="x402 seller" note="A normal paid API. Nothing changes." icon={SellerIcon} />
+          {labels.map(([key, text]) => <span key={key} className={`overview-route-label overview-label-${key}`}>{text}</span>)}
           <span className="overview-local-label">Proves on your device</span>
         </figure>
         <div className="overview-legend" aria-hidden="true">
-          <span><i />Funds</span>
-          <span><i />Proof &amp; authorization</span>
+          <span><i className="overview-key-chain" />On chain</span>
+          <span><i className="overview-key-web" />Web request</span>
+          <span><i className="overview-key-unlinkable" />No link to your wallet</span>
         </div>
       </div>
     </section>
