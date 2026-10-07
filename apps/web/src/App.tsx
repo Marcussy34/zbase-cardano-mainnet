@@ -348,7 +348,7 @@ export default function App() {
         >
           <div className="footer-landscape" data-parallax aria-hidden="true">
             <img
-              src="/images/privacy-companion-horizon.png"
+              src="/images/privacy-stealth-horizon.png"
               alt=""
               width="1983"
               height="793"
