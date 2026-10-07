@@ -28,7 +28,7 @@ Test IDs are stable. Use them in test names, commit messages, and reviews.
 | Transaction builders | Node test runner, local script evaluation with the pinned Aiken | `packages/txlib` | None, with a fake chain |
 | Services and SDK | Node test runner | `services/*`, `packages/sdk` | None, with a fake chain |
 | Rehearsal | Node test runner, real HTTP, the stock x402 seller | `ops` | None, with a fake chain |
-| End to end | The runbooks | Preprod first, then mainnet | Preprod, then mainnet with capped funds |
+| End to end | The runbook | Preprod first, then mainnet | Preprod, then mainnet with capped funds |
 
 No pool UTXO exists on mainnet before deployment, so the transaction builder tests cannot evaluate against mainnet state.
 They run against an in-memory chain and evaluate scripts locally. Evaluation through a mainnet provider is part of the runbook.

@@ -70,7 +70,7 @@ The crank keeps the attached ADA and takes no crank fee in tokens. An exit also 
 
 If `deployments/preprod.json` already exists, step 6 stops.
 This repository holds the record of the tUSDM pool from 2026-10-07, pool ID `60279ebfb8db22bbe0cb2a1b7a61702ab36ade074a3866ac836df3ed`. To use that pool you need its proving keys, which are not in the repository. To deploy your own pool, move the record away first.
-The ADA pool of 2026-10-06 and the first tUSDM pool of 2026-10-07 are retired; their records are in `deployments/retired/`.
+The ADA pool of 2026-10-06 and the first tUSDM pool of 2026-10-07, both deployed before the protocol strings took the name zx402, are retired; their records are in `deployments/retired/`.
 Archive a retired pool's record before deploying its replacement. Section 10 explains how the record selects the reference outputs for a sweep.
 
 ## 4. Run the node
@@ -190,8 +190,8 @@ For both Preprod and mainnet, retire a pool in this order:
 2. Refund pending deposits.
 3. Exit every note with settle or ragequit.
 4. Collect accrued fees, if any.
-
-Then move its record from `deployments/<network>.json` to a distinct file under `deployments/retired/`.
+5. Move its record from `deployments/<network>.json` to a distinct file under `deployments/retired/`.
+6. Sweep the reference script outputs back to the operator wallet, as described below.
 
 CAUTION: a reference script sweep disables the pool's normal transaction path. Complete every refund, exit and fee collection before sweeping.
 

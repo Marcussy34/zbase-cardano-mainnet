@@ -107,7 +107,7 @@ What works, with tests and a live run:
 
 What is left before the mainnet canary:
 
-1. A mainnet Blockfrost project and a funded operator key. Then the commands of the Preprod runbook with `NETWORK=mainnet`.
+1. A mainnet Blockfrost project and a funded operator key. Then the commands of the runbook with `NETWORK=mainnet`.
 2. A key setup with several parties, before anyone outside the team deposits. [CEREMONY.md](./CEREMONY.md) describes it. The setup command in this repository has one party.
 3. The proving keys of a pool are not in the repository. Publish them, for example as release files, so that other people can use the pool.
 4. The solvency monitor of the runbook is not built.
@@ -122,7 +122,7 @@ Known limits of M0, each a deliberate cut:
 - The pool does not refuse a repeated precommitment on chain, as the Base implementation does. The SDK prevents it. A wallet without the SDK must do the same.
 - The association service approves every absorbed deposit at once, unless a deny function refuses it. No screening data source is connected.
 - The indexer treats confirmed data as final. It does not wait for a number of blocks.
-- A deploy that stops midway has no resume command. Section 9 of the Preprod runbook says what to do.
+- A deploy that stops midway has no resume command. Section 9 of the runbook says what to do.
 - `npm audit` reports findings in packages that the Cardano libraries pull in. None was reviewed.
 - The deployer writes the first pool datum, the first config and the first association datum. The token policy checks only the seed and the three names. The indexer checks the tree, the queue and the nullifier root of the first pool datum. It does not check the rest of the root history, the fee counter, or the bounds of the first config. A dishonest deployer could plant a second root, a fee balance or a negative fee rate, and take deposits later.
 - The agent's chain provider sees the deposit wallet, every one-time address and every seller payment of that agent. The demo shares one provider project with the node. An agent that wants privacy from its provider needs its own node.
