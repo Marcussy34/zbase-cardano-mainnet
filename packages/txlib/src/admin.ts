@@ -1,4 +1,5 @@
 import { addressToBech32, assertCanonical } from '@zbase-cardano/crypto';
+import { addAssetAmount, isAdaAsset, meshAsset } from './asset.js';
 import { encodeAspDatum, encodeConfigDatum, encodePoolDatum, encodePoolRedeemer, encodeVoid, type ConfigDatum } from './codec.js';
 import { complete, newTxBuilder, readAsp, readConfig, readPool, type ChainContext, type Payer } from './context.js';
 import { utxoToMesh } from './providers/blockfrost.js';
@@ -65,18 +66,20 @@ export async function buildConfigUpdate(ctx: ChainContext, a: { payer: Payer; co
 export async function buildCollectFees(ctx: ChainContext, a: { payer: Payer; amount: bigint }): Promise<BuiltTx> {
   if (typeof a.amount !== 'bigint' || a.amount <= 0n) throw new Error('Fee collection amount must be positive');
   const { network, scripts, refScripts, asset } = ctx.deployment;
-  if (asset.policy !== '' || asset.name !== '') throw new Error('M0 fee collections support ADA only');
   const { utxo, datum } = await readPool(ctx);
   if (a.amount > datum.feesAccrued) throw new Error('Fee collection amount exceeds accrued fees');
   const config = await readConfig(ctx);
   const builder = await newTxBuilder({ provider: ctx.provider, network });
+  const amount = [meshAsset(asset, a.amount)];
+  // A lovelace entry lets the treasury top-up draw its ADA from the payer.
+  if (!isAdaAsset(asset)) amount.unshift({ unit: 'lovelace', quantity: '0' });
   builder.spendingPlutusScriptV3().txIn(utxo.ref.txId, utxo.ref.index, utxoToMesh(utxo).output.amount, utxo.address, utxo.scriptRef?.size ?? 0)
     .spendingTxInReference(refScripts.pool.txId, refScripts.pool.index, String(scripts.pool.size), scripts.pool.hash)
     .txInInlineDatumPresent().txInRedeemerValue(encodePoolRedeemer({ kind: 'CollectFees', amount: a.amount }), 'CBOR')
     .readOnlyTxInReference(config.utxo.ref.txId, config.utxo.ref.index)
-    .txOut(utxo.address, utxoToMesh({ ...utxo, value: { ...utxo.value, lovelace: utxo.value.lovelace - a.amount } }).output.amount)
+    .txOut(utxo.address, utxoToMesh({ ...utxo, value: addAssetAmount(utxo.value, asset, -a.amount) }).output.amount)
     .txOutInlineDatumValue(encodePoolDatum({ ...datum, feesAccrued: datum.feesAccrued - a.amount }), 'CBOR')
-    .txOut(addressToBech32(config.datum.treasury, network), [{ unit: 'lovelace', quantity: String(a.amount) }]);
+    .txOut(addressToBech32(config.datum.treasury, network), amount);
   // Only the treasury receives a top-up: the pool must lose exactly the collected amount.
   topUpMinimum(builder, 1);
   const references = await ctx.provider.getUtxos([refScripts.pool]);
