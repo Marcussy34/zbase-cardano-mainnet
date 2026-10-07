@@ -74,6 +74,8 @@ export async function buildInsert(ctx: ChainContext, a: { payer: Payer; pool: Po
   // Recompute monetary amounts from inputs and current config, not caller-supplied credits.
   const fees = plan.deposits.reduce((sum, d) => sum + assetAmount(d.utxo.value, asset) * BigInt(config.datum.depositFeeBps) / 10_000n, 0n);
   const growth = plan.deposits.reduce((sum, d) => sum + assetAmount(d.utxo.value, asset) - crankFee, 0n);
+  // A plan made for another asset would carry slot values the validator cannot derive.
+  if (plan.credited.reduce((sum, c) => sum + c.value, 0n) !== growth - fees) throw new Error('Insert plan does not match the pool asset');
   const next = { ...datum, roots: [a.newRoot, ...datum.roots].slice(0, 16),
     size: datum.size + plan.flush + plan.deposits.length, queue: datum.queue.slice(plan.flush), feesAccrued: datum.feesAccrued + fees };
   builder.spendingPlutusScriptV3().txIn(utxo.ref.txId, utxo.ref.index, utxoToMesh(utxo).output.amount, utxo.address, utxo.scriptRef?.size ?? 0)
