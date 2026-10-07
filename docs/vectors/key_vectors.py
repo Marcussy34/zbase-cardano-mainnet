@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Reference key derivation for zBase Cardano (SPEC section 4.7).
+"""Reference key derivation for zx402 Cardano (SPEC section 4.7).
 
 Uses only the Python standard library, so it is independent of the
 TypeScript implementation in packages/crypto.
@@ -37,7 +37,7 @@ def note_secret(seed: bytes, tag: str, index: int) -> int:
 
 def one_time_key(seed: bytes, index: int) -> bytes:
     """32 bytes of HKDF output: an Ed25519 seed."""
-    info = ("zbase/onetime/v1/" + str(index)).encode("ascii")
+    info = ("zx402/onetime/v1/" + str(index)).encode("ascii")
     return hkdf_sha256(seed, info, 32)
 
 
@@ -53,17 +53,17 @@ def main() -> None:
             cases.append({
                 "seed": seed.hex(),
                 "index": index,
-                "nullifier": str(note_secret(seed, "zbase/nullifier/v1/", index)),
-                "secret": str(note_secret(seed, "zbase/secret/v1/", index)),
+                "nullifier": str(note_secret(seed, "zx402/nullifier/v1/", index)),
+                "secret": str(note_secret(seed, "zx402/secret/v1/", index)),
                 "oneTimeKey": one_time_key(seed, index).hex(),
             })
     doc = {
         "description": "Key derivation known answers, SPEC section 4.7. HKDF-SHA256, empty salt.",
         "r": str(R),
         "info": {
-            "nullifier": "zbase/nullifier/v1/<decimal index>",
-            "secret": "zbase/secret/v1/<decimal index>",
-            "oneTimeKey": "zbase/onetime/v1/<decimal index>",
+            "nullifier": "zx402/nullifier/v1/<decimal index>",
+            "secret": "zx402/secret/v1/<decimal index>",
+            "oneTimeKey": "zx402/onetime/v1/<decimal index>",
         },
         "cases": cases,
     }

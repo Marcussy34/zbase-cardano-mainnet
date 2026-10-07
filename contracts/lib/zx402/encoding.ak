@@ -14,7 +14,7 @@ pub fn label(
   expect builtin.length_of_bytearray(pool_id) == 28
   expect builtin.length_of_bytearray(deposit_ref.transaction_id) == 32
   expect builtin.length_of_bytearray(refund) == 28
-  "zbase/label/v1"
+  "zx402/label/v1"
     |> builtin.append_bytearray(pool_id)
     |> builtin.append_bytearray(deposit_ref.transaction_id)
     |> builtin.append_bytearray(
@@ -35,7 +35,7 @@ pub fn intent_bytes(intent: SettleIntent) -> ByteArray {
     builtin.integer_to_bytearray(True, 8, intent.valid_until),
   )
   let payouts = list.foldr(intent.payouts, suffix, payout_bytes)
-  "zbase/intent/v1"
+  "zx402/intent/v1"
     |> builtin.append_bytearray(intent.pool_id)
     |> builtin.append_bytearray(count)
     |> builtin.append_bytearray(payouts)

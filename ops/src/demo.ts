@@ -2,6 +2,7 @@ import { mkdir, readFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { fileURLToPath } from 'node:url';
+import { parseArgs } from 'node:util';
 import { ExactCardanoScheme } from '@x402/cardano/exact/client';
 import { decodePaymentRequiredHeader } from '@x402/core/http';
 import { decodePaymentResponseHeader, wrapFetchWithPaymentFromConfig } from '@x402/fetch';
@@ -23,12 +24,14 @@ export interface DemoOptions {
   /** Keep the old amount option for ADA callers only. */
   depositLovelace?: bigint;
   storePath?: string;
+  /** Pay from a note that is already spendable when the store has one. A staged demo skips the deposit wait. */
+  reuseNote?: boolean;
   exit?: boolean;
   poll?: { intervalMs?: number; timeoutMs?: number; onPoll?: () => void | Promise<void> };
   log?: (line: string) => void;
 }
 export interface DemoResult {
-  depositTx: string; noteValue: bigint;
+  depositTx: string | null; noteValue: bigint;
   paid: { status: number; body: string; settlementTx: string | null; leg1Tx: string; oneTimeAddress: string };
   exitTx: string | null;
   seconds: { toSpendable: number; payment: number; total: number };
@@ -45,12 +48,22 @@ export async function runDemo(o: DemoOptions): Promise<DemoResult> {
     relayer: new RelayerClient(o.relayerUrl), artifacts: o.artifacts,
     ...(o.storePath ? { store: fileStore(o.storePath) } : {}), poll: o.poll });
   const amount = o.depositAmount ?? (unit === 'lovelace' ? o.depositLovelace : undefined) ?? 10_000_000n;
-  const deposit = await sdk.deposit({ amount, walletSeed: o.walletSeed });
-  log(`Deposit ${deposit.txId} submitted in ${elapsed(start).toFixed(3)} seconds`);
-  const note = await sdk.waitForNote(deposit.prepared.noteId);
+  let depositTx: string | null = null;
+  // The largest spendable note, when the caller asked to reuse one.
+  let note = o.reuseNote ? (await sdk.sync(), sdk.listNotes()
+    .filter(n => n.status === 'spendable' && !n.pending && n.value !== null)
+    .sort((a, b) => a.value! < b.value! ? 1 : a.value! > b.value! ? -1 : 0)[0]) : undefined;
+  if (note) {
+    log(`Reusing spendable note ${note.id}: ${note.value} ${unit}`);
+  } else {
+    const deposit = await sdk.deposit({ amount, walletSeed: o.walletSeed });
+    depositTx = deposit.txId;
+    log(`Deposit ${depositTx} submitted in ${elapsed(start).toFixed(3)} seconds`);
+    note = await sdk.waitForNote(deposit.prepared.noteId);
+  }
   if (note.value === null) throw new Error('Spendable deposit has no value');
   const toSpendable = elapsed(start);
-  log(`Deposit ${deposit.txId} spendable: ${note.value} ${unit} in ${toSpendable.toFixed(3)} seconds`);
+  log(`${depositTx ? `Deposit ${depositTx}` : `Note ${note.id}`} spendable: ${note.value} ${unit} in ${toSpendable.toFixed(3)} seconds`);
 
   const paymentStart = performance.now();
   const network = `cardano:${o.ctx.deployment.network}` as const;
@@ -96,7 +109,9 @@ export async function runDemo(o: DemoOptions): Promise<DemoResult> {
     const changeStart = performance.now();
     await sdk.waitForNote(change.id);
     log(`Change from ${leg1Tx} spendable in ${elapsed(changeStart).toFixed(3)} seconds`);
-    if (o.exit ?? true) {
+    if (!(o.exit ?? true)) {
+      log(`Change ${change.id} stays in the pool for the next payment`);
+    } else {
       const exitStart = performance.now();
       exitTx = (await sdk.ragequit({ noteId: change.id, refundSeed: o.walletSeed })).txId;
       log(`Exit ${exitTx} submitted in ${elapsed(exitStart).toFixed(3)} seconds`);
@@ -113,12 +128,14 @@ export async function runDemo(o: DemoOptions): Promise<DemoResult> {
   }
   const total = elapsed(start);
   log(`Demo complete in ${total.toFixed(3)} seconds`);
-  return { depositTx: deposit.txId, noteValue: note.value,
+  return { depositTx, noteValue: note.value,
     paid: { status: response.status, body, settlementTx, leg1Tx, oneTimeAddress }, exitTx,
     seconds: { toSpendable, payment, total } };
 }
 
 async function main(): Promise<void> {
+  // --reuse pays from a note that is already in the pool; --no-exit leaves the change there for the next run.
+  const { values: flags } = parseArgs({ options: { reuse: { type: 'boolean' }, 'no-exit': { type: 'boolean' } } });
   const settings = readSettings();
   const root = fileURLToPath(new URL('../../', import.meta.url));
   const deployment = JSON.parse(await readFile(join(root, `deployments/${settings.network}.json`), 'utf8')) as Deployment;
@@ -139,7 +156,8 @@ async function main(): Promise<void> {
       sellerUrl: process.env.SELLER_URL ?? 'http://127.0.0.1:4021', walletSeed, agentSeed,
       artifacts: { spend: await keys.load('spend'), ragequit: await keys.load('ragequit') },
       // A new pool must never load notes that belong to the previous pool.
-      storePath: join(root, `deployments/${settings.network}/demo-store-${deployment.poolId.slice(0, 8)}.json`), log });
+      storePath: join(root, `deployments/${settings.network}/demo-store-${deployment.poolId.slice(0, 8)}.json`),
+      reuseNote: flags.reuse ?? false, exit: !(flags['no-exit'] ?? false), log });
     log(result.paid.body);
   } finally {
     walletSeed.fill(0);
