@@ -2,12 +2,13 @@
 
 | Field | Value |
 |---|---|
-| Status | v1.0, 2026-10-06 |
+| Status | v1.1, 2026-10-07. M0 tUSDM settings |
 | Goal | Run the whole product on the Preprod test network |
 | Companions | [RUNBOOK-M0.md](./RUNBOOK-M0.md), [measurements.md](./measurements.md), [SETUP.md](./SETUP.md) |
 
-Every step below ran on Preprod on 2026-10-06 with the code of this repository.
+The ADA flow ran on Preprod on 2026-10-06 with the code of this repository.
 The transaction hashes of that run are in [measurements.md](./measurements.md), section 3.
+M0 now uses tUSDM. The deploy command, SDK signer, demo and seller support the pool's asset.
 The mainnet canary in [RUNBOOK-M0.md](./RUNBOOK-M0.md) uses the same commands with `NETWORK=mainnet`.
 
 ## 1. What you need
@@ -16,6 +17,7 @@ The mainnet canary in [RUNBOOK-M0.md](./RUNBOOK-M0.md) uses the same commands wi
 - A Blockfrost project for Preprod. The free plan is enough. Section 8 explains the quota.
 - A new 32-byte key for the operator. `openssl rand -hex 32` makes one.
 - About 300 test ADA from the Preprod faucet for that key. Step 3 of section 3 shows its address.
+- At least 10 tUSDM for the `user` role in the token demo. Section 3 identifies the exact asset.
 
 CAUTION: use a new key. Never put the key of a real wallet into this project.
 
@@ -28,6 +30,15 @@ CAUTION: use a new key. Never put the key of a real wallet into this project.
 Step 3 takes about 30 minutes the first time. It also makes the phase 1 file that the network key setup reuses.
 
 ## 3. Deploy a pool
+
+The token deployment setting is `POOL_ASSET=<unit>` in `.env`. For the tUSDM pool, use:
+
+```text
+POOL_ASSET=16a55b2a349361ff88c03788f93e1e966e5d689605d044fef722ddde.0014df10745553444d
+```
+
+This is the Masumi test USDM, with 6 decimals. An unset `POOL_ASSET` selects ADA.
+The limits stay at 5,000,000, 50,000,000 and 500,000,000 base units: 5, 50 and 500 tUSDM.
 
 1. Copy `.env.example` to `.env`.
 2. Set `NETWORK=preprod`, `BLOCKFROST_PROJECT_ID`, and `OPERATOR_SEED_HEX` in `.env`.
@@ -47,12 +58,19 @@ Without the proving keys of a pool, nobody can insert, pay or exit, and the note
 A deposit that is not inserted yet can still be refunded, because a refund needs no proof.
 
 Step 5 never replaces a complete set of keys. If the folder already holds the three key files, the command keeps them and says so.
+Changing only the pool asset keeps those proving keys valid, because the circuits do not depend on the asset.
+The validators stay unchanged, but a new asset parameter gives the token pool a new pool ID.
 To make keys for another pool, move the folder away first. Keep it for as long as the old pool holds funds.
 Step 6 submits four transactions and takes about 3.5 minutes. It writes the record `deployments/preprod.json`.
 A deployment costs about 245 test ADA. Of that, 160 goes to the role keys of the crank, the relayer, the association service and the test user, and 73.6 stays in the four reference script outputs.
 
-If `deployments/preprod.json` already exists, step 6 stops. This repository holds the record of the pool from 2026-10-06.
-To use that pool you need its proving keys, which are not in the repository. To deploy your own pool, add `-- --force` to step 6.
+For the token demo, send at least 10 tUSDM to the `user` address printed in step 3. Deployment funds role keys with ADA only.
+Keep ADA in that wallet too. A token deposit needs about 1.4 ADA for its output plus the network fee.
+The crank keeps the attached ADA and takes no crank fee in tokens. An exit also needs the wallet to supply its output's minimum ADA.
+
+If `deployments/preprod.json` already exists, step 6 stops.
+The ADA pool from 2026-10-06 is retired; its record moved to `deployments/retired/`.
+Archive a retired pool's record before deploying its replacement. Section 10 explains how the record selects the reference outputs for a sweep.
 
 ## 4. Run the node
 
@@ -73,11 +91,22 @@ The node reads four optional settings from the environment:
 
 ## 5. Run a seller
 
+The token seller settings are:
+
+```text
+SELLER_PRICE_ASSET=16a55b2a349361ff88c03788f93e1e966e5d689605d044fef722ddde.0014df10745553444d
+SELLER_PRICE_AMOUNT=2000000
+```
+
+Set these in the seller's environment for a price of 2 tUSDM.
+The x402 package's default Preprod USDM policy starts with `e675b46e`; it is not this asset.
+The seller must price in the pool's exact unit, and the buyer must list that unit in `allowedAssets`.
+
 1. Start the example seller in a second terminal: `SELLER_ADDRESS=<address> npm run seller -w examples/x402-seller`
 
 Use the `seller` address that step 3 of section 3 printed, or any Preprod address you own.
 The seller is the stock x402 server with its stock facilitator. It knows nothing about the pool.
-It sells `GET /weather` for 2 ADA on `http://127.0.0.1:4021`.
+It sells `GET /weather` on `http://127.0.0.1:4021`.
 
 ## 6. Play the story
 
@@ -85,15 +114,19 @@ It sells `GET /weather` for 2 ADA on `http://127.0.0.1:4021`.
 
 The demo does this, and prints each transaction:
 
-1. It deposits 10 test ADA from the `user` role key.
+1. It deposits 10 tUSDM from the `user` role key, with minimum ADA from that wallet.
 2. It waits until the crank inserted the deposit and the association service approved it.
 3. It asks the seller for the weather, gets HTTP 402, and pays through the stock x402 client with the SDK's stealth signer. The pool pays a new one-time address, and that address pays the seller.
 4. It prints the weather.
 5. It exits the rest of the note in public, back to the `user` key.
 
-One run took 3.5 minutes on Preprod with the final code. Slow blocks can double that.
-The user ends with about 5 ADA less: 2 ADA for the weather, 1 ADA for the relayer, 0.3 ADA for the crank, and the network fees.
-You can run the demo again at any time. It keeps its notes in `deployments/preprod/demo-store.json`.
+The retired ADA demo took 3.5 minutes on Preprod. Slow blocks can double that.
+The user pays 2 tUSDM for the weather and a 1 tUSDM relayer fee.
+The relayer funds each payout with 2 ADA by default. Leg 2 sends the seller the tokens and all that ADA minus its fee.
+The relayer spends about 0.73 ADA on its network fee, in addition to the payout ADA. Live token measurements are still pending.
+Before proving, the SDK rejects a quote below the seller output's minimum ADA plus the leg 2 fee, about 1.4 ADA.
+
+The token demo keeps its notes in `deployments/<network>/demo-store-<first 8 hex of the pool ID>.json`.
 Keep that file and back it up. Without it the demo still works, because the SDK finds its old deposits on chain and takes new secrets. But a change note that was still in the pool is then out of reach.
 If you changed a port, set `INDEXER_URL`, `RELAYER_URL` or `SELLER_URL` for the demo.
 
@@ -108,6 +141,7 @@ If you changed a port, set `INDEXER_URL`, `RELAYER_URL` or `SELLER_URL` for the 
 CAUTION: `sweep-references` spends the reference script outputs of the pool back to the operator. After it, nobody can use the pool. Pause deposits and exit every note first.
 
 Exits cannot be paused. A paused pool still serves private payments and Ragequit.
+In a token pool, fee collection sends tokens to the treasury. The submitter supplies the treasury output's minimum ADA.
 
 ## 8. Provider quota
 
@@ -135,3 +169,19 @@ For a busy pool, use a paid plan or your own chain backend.
 - **The demo stops after the pool paid the one-time address:** the error names the index of the one-time key. The funds sit at that key's address until you move them. The SDK method `recoverOneTimeFunds({ index, payTo })` sends them to an address of your choice.
 - **The node logs `Pool history has not reached the current pool UTXO`:** the provider's history is a moment behind its UTXO view. The next round succeeds.
 - **A payment waits for minutes:** Preprod sometimes makes no block for a minute or more. The services wait for confirmed data before each step.
+
+## 10. Retiring a pool
+
+The ADA pool from 2026-10-06 is retired. Its deployment record moved to `deployments/retired/`.
+Keep a retired pool's record, proving keys and note stores. The record identifies its reference script outputs.
+Moving a record does not move funds or change a pool on chain.
+
+Before retiring another pool, pause deposits, refund pending deposits, exit every note, and collect accrued fees.
+Then move its record from `deployments/<network>.json` to a distinct file under `deployments/retired/`.
+
+CAUTION: a reference script sweep disables the pool's normal transaction path. Complete every refund, exit and fee collection before sweeping.
+
+The admin CLI reads only `deployments/<network>.json`; it has no option to select a retired record.
+To sweep that pool, call `sweepReferences` from `ops/src/admin.ts` with the retired record as `ctx.deployment` and its original operator seed.
+Use a provider for the record's network. The function selects only the reference outputs named in that record and returns their ADA to the operator.
+Do not run the active pool's `sweep-references` command to retire an older pool.

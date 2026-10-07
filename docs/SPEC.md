@@ -19,7 +19,7 @@ This document is the single source of truth for the design. If code and this doc
 
 In scope for v1:
 
-- One shielded pool per asset. The first pool holds ADA.
+- One shielded pool per asset. M0 uses tUSDM on Preprod. ADA pools remain supported by the same validators.
 - Deposit, tree insert, private settle, public exit (ragequit), fee collection.
 - A compliance gate through an ASP root (approved-deposit list).
 - x402 integration in three modes, with stealth mode first.
@@ -315,7 +315,7 @@ Constraints:
 9. `newRoot` equals the last running root.
 
 The validator supplies `oldRoot`, `startIndex`, and every slot value from chain data.
-That is how a deposit's value is bound to the ADA that was really paid (D5).
+That is how a deposit's value is bound to the pool asset that was really paid (D5).
 
 Size: about 64,000 constraints (estimate). Setup power: 2^17.
 
@@ -379,13 +379,17 @@ Config values live in the config UTXO. M0 values:
 
 | Field | M0 value |
 |---|---|
-| `min_deposit` | 5 ADA |
-| `max_deposit` | 50 ADA |
-| `pool_cap` | 500 ADA |
+| `min_deposit` | 5,000,000 pool asset base units (5 tUSDM or 5 ADA) |
+| `max_deposit` | 50,000,000 pool asset base units (50 tUSDM or 50 ADA) |
+| `pool_cap` | 500,000,000 pool asset base units (500 tUSDM or 500 ADA) |
 | `deposit_fee_bps` | 0 |
 | `settle_fee_bps` | 0 |
-| `crank_fee` | 0.3 ADA |
+| `crank_fee` | 300,000 lovelace (0.3 ADA), used only in an ADA pool |
 | `deposits_paused` | false |
+
+A tUSDM has 6 decimals, so 1,000,000 base units equal 1 tUSDM.
+In a token pool, the crank keeps the deposit output's ADA and deducts no token crank fee.
+Section 16 explains the separate ADA funding for token outputs.
 
 ### 6.3 Datums and redeemers
 
@@ -517,7 +521,7 @@ Let `m` be `flush`.
 - I9. The proof verifies under the insert key.
 - I10. New datum: `roots = take(ROOT_HISTORY, [new_root, ..roots])`, `size = size + m + k`, `queue = drop(m, queue)`, `fees_accrued` grows by the sum of deposit fees. `nullifier_root` is unchanged.
 - I11. The pool asset balance grows by exactly the sum of `v + fee` over the deposits.
-- I12. If `k > 0`, the new balance minus `fees_accrued` is at most `pool_cap`. The reserve counts as balance here.
+- I12. If `k > 0`, the new balance minus `fees_accrued` is at most `pool_cap`. The ADA reserve counts only in an ADA pool.
 
 #### Settle
 
@@ -677,7 +681,7 @@ Sync privacy (FR-S3): the SDK downloads leaves in pages and never asks about one
 | Endpoint | Purpose |
 |---|---|
 | `GET /v1/pool` | Pool state: roots, size, queue, config, ASP root. |
-| `POST /v1/quote` | Fee quote for a set of payouts, with `valid_until` and the relayer key. |
+| `POST /v1/quote` | Fee quote for a set of payouts, with `validUntil`, the relayer key, and `payoutLovelace`. |
 | `POST /v1/settle` | Takes proof, public inputs, and intent. Builds, submits, and tracks the settle. |
 | `GET /v1/settle/:id` | Status and transaction hash. |
 
@@ -688,8 +692,14 @@ Behavior:
 - The relayer keeps a local copy of the pool state and chains transactions. One relayer can advance the pool several times per block.
 - It rebuilds a transaction when another party spends the pool UTXO first.
 - It holds hot keys with small balances only: a fee wallet and a collateral UTXO.
-- M0 status: the relayer does not chain. It waits for a confirmation between pool transactions, and it rebuilds when another party wins the block. The proof fixes the withdrawn amount, and the validator fixes only the protocol fee, so the wallet must refuse a relayer fee that is too high. The SDK refuses a quote above 2 ADA unless the caller raises the limit.
+- M0 status: the relayer does not chain. It waits for confirmation between pool transactions and rebuilds when another party wins the block. The proof fixes `withdrawn`; the validator fixes only the protocol fee. The SDK caps the quoted relayer fee at 2,000,000 pool asset base units unless the caller raises `maxRelayerFee`.
+- The SDK and relayer use a payout floor of 1 base unit in a token pool. An ADA pool requires 1,000,000 lovelace (1 ADA).
+- `payoutLovelace` is the ADA attached to each token payout, in lovelace. It defaults to 2,000,000 in a token pool and is 0 in an ADA pool.
+- In a token pool, the relayer charges `relayerFee * payoutCount`, with a default rate of 1 tUSDM per payout. Each payout costs the relayer `payoutLovelace` of its own ADA. The quote's `relayerFee` is the total charge, included in `withdrawn` with the payout amounts and protocol fee.
 - It stores no note secrets. In default mode it never receives any.
+
+The relayer passes `payoutLovelace` to `buildSettle` when it builds a settlement.
+The ADA pool keeps one fee per quote.
 
 ### 8.3 Crank
 
@@ -778,7 +788,8 @@ GET /v1/pool
 POST /v1/quote
   body: { "payouts": [ { "address": bech32, "amount": dec, "datumHash": hex64 | null } ] }
   200:  { "quoteId": string, "poolId": hex56, "withdrawn": dec, "protocolFee": dec,
-          "relayerFee": dec, "relayerKeyHash": hex56, "validUntil": number }
+          "relayerFee": dec, "payoutLovelace": dec,
+          "relayerKeyHash": hex56, "validUntil": number }
 
 POST /v1/settle
   body: { "quoteId": string,
@@ -915,7 +926,7 @@ sequenceDiagram
   A->>A: derive one-time key K, build intent paying K
   A->>R: spend proof and intent
   R->>P: Settle (pool pays K)
-  P-->>A: K holds price plus leg-2 fee
+  P-->>A: K holds price and ADA for leg 2
   A->>A: build plain payment from K to payTo, sign with K
   A->>S: retry with PAYMENT-SIGNATURE
   S->>F: verify, then settle
@@ -925,10 +936,16 @@ sequenceDiagram
 
 Steps:
 
-1. The SDK computes the exact fee of the second transaction. Cardano fees are deterministic. It adds a small fixed buffer, 2,000 lovelace by default.
-2. Leg 1 is a Settle that pays `price + leg-2 fee` to a fresh key address `K`.
-3. Leg 2 spends that one UTXO, pays `price` to the seller, and leaves the rest as the fee. It has one input and one output.
+1. The SDK estimates the second transaction's fee with a size margin of at least 2,000 lovelace.
+2. Leg 1 is a Settle to a fresh key address `K`. An ADA pool pays `price + leg-2 fee`. A token pool pays exactly `price` tokens plus `payoutLovelace` ADA from the relayer, 2 ADA by default.
+3. Leg 2 spends that one UTXO and pays `price` to the seller. For tokens, it also sends all attached ADA minus the fee to the seller. For ADA, the remainder is the fee. Both forms have one input, one output, and no change output.
 4. The SDK returns leg 2 through its `ClientCardanoSigner`. The nonce is the `K` UTXO.
+
+For tokens, the SDK checks that `payoutLovelace` covers the seller output's minimum ADA plus the leg 2 fee, about 1.4 ADA.
+It refuses a smaller quote before proving. The seller must price in the pool's exact unit, and the buyer must include it in `allowedAssets`.
+
+The SDK accepts the pool's asset unit for token seller payments. The transaction builders support both token and ADA payments.
+`buildSettle` checks each token payout's ledger minimum, and `buildStealthPayment` checks the seller minimum plus its fee.
 
 Properties:
 
@@ -1152,14 +1169,41 @@ CAUTION: evaluate every transaction through the provider before you submit it. A
 
 All deposit and payment amounts are public. The monitor recomputes INV-1 from chain data after every pool transaction and alerts on any gap.
 
-## 16. Stablecoin pools (M2)
+## 16. Stablecoin pools
 
-The same validators serve a token pool. Only the `asset` parameter changes.
+Status: M0 on Preprod uses tUSDM, the Masumi test USDM. ADA remains a supported pool configuration.
+The ADA pool from 2026-10-06 is retired. Its record moved to `deployments/retired/`.
 
-- The pool UTXO holds the token plus a fixed ADA reserve.
-- A deposit carries the token plus its minimum ADA. The cranker keeps that ADA as its fee.
-- A payout carries the exact token amount. The relayer adds the minimum ADA for each payout output.
-- The relayer is repaid in tokens from `withdrawn - paid - fee`. Its quote needs an ADA price for the token.
+| Field | Preprod pool asset |
+|---|---|
+| Token | tUSDM |
+| Policy ID | `16a55b2a349361ff88c03788f93e1e966e5d689605d044fef722ddde` |
+| Asset name (hex) | `0014df10745553444d` |
+| API and x402 unit | `16a55b2a349361ff88c03788f93e1e966e5d689605d044fef722ddde.0014df10745553444d` |
+| Precision | 6 decimals |
+
+The x402 package's default Preprod USDM policy starts with `e675b46e`. It is a different asset.
+The seller must use the pool's unit. The buyer must list that unit in `allowedAssets`.
+The API and x402 use `policy.nameHex`; transaction values join the policy and asset name without a dot.
+
+The validators did not change. The pool script takes `asset` as a parameter, so the tUSDM pool has a new pool ID.
+The circuits do not depend on the asset. Their proving keys stay valid when only the asset changes.
+
+- The pool balance counts tokens, excluding ADA. The builders preserve the pool UTXO's 6 ADA reserve.
+- A deposit carries its tokens plus the ledger's minimum ADA, about 1.4 ADA. The depositor supplies that ADA and the network fee.
+- The crank keeps the deposit's ADA. The note receives `v = gross - fee`, with no crank fee in tokens.
+- Each payout carries exactly its tokens plus `payoutLovelace` from the relayer's ADA wallet, 2 ADA by default.
+- The relayer receives tokens from `withdrawn - paid - fee`. The fee policy charges 1 tUSDM per payout, as described in section 8.2.
+- A Ragequit output carries the note's tokens plus minimum ADA from the depositor's wallet. The pool's ADA stays unchanged in the builder.
+- CollectFees pays the treasury in tokens. The submitter supplies the treasury output's minimum ADA.
+
+For one private payment of 2 tUSDM, the agent pays a 1 tUSDM relayer fee. M0 sets the protocol fee to zero.
+The relayer earns 1 tUSDM and spends about 0.73 ADA in network fees plus the 2 ADA attached to the payout.
+These are working cost estimates for the token flow. The lead will add live measurements separately; existing measurement tables describe earlier runs.
+
+Privacy and trust stay the same. The validators do not pin the token pool's ADA reserve to 6 ADA.
+The relayer or crank could lower it to the ledger minimum, about 5.2 ADA, while preserving all token balance rules.
+Neither can take the pool's tokens without satisfying those rules.
 
 Mainnet assets:
 
@@ -1280,7 +1324,7 @@ That measurement is the reason for decision D3.
 | Hosted x402 facilitator | Stealth mode by default. Facilitator mode in M1 |
 | ERC-5564 stealth recipients | One-time keys now. Seedelf registers later |
 | Upgradeable proxy | Immutable scripts and versioned pools |
-| USDC | ADA first. USDM and USDCx in M2 |
+| USDC | tUSDM on Preprod in M0. ADA pools remain supported. Mainnet stablecoins follow later |
 
 ## Appendix C. Corrections to the earlier zbase-cardano notes
 
@@ -1305,3 +1349,4 @@ That measurement is the reason for decision D3.
 | 1.0.3 | 2026-10-06 | Build findings. The first live run is on Preprod, and all off-chain code takes a network setting (section 15). Script parameters use the Evolution SDK, because the Mesh function truncates long byte strings (8.6). The indexer serves `GET /v1/pool`, and two error codes were added (8.8). The code layout matches the repository (8.9). The Preprod pool uses a single-contributor setup (11). |
 | 1.0.4 | 2026-10-07 | Findings from the first live runs on Preprod. The SDK treats its own marks as tentative until the chain confirms them, and exits and refunds carry an expiry (8.7). A copied precommitment is resolved by the refund key (12.2). M0 status notes for the relayer, the indexer and the association service (8.2, 8.4, 8.5). |
 | 1.0.5 | 2026-10-07 | Findings from a comparison with zBase on Base. The pool has no rule against a repeated precommitment, so the SDK never uses a note secret twice and follows the exact output of its own deposit (12.2). The SDK reads the fee rate and the tip from its own provider, limits the lifetime of a quote, and releases a note only on a known refusal (8.7). The relayer has the error code `uncertain` (8.8). M0 status of the privacy defaults, and two more leaks (13.2). |
+| 1.0.6 | 2026-10-07 | Added the M0 tUSDM pool rules, asset units, payout ADA, per-payout relayer fee, and token stealth flow. Recorded token payout checks and the unpinned ADA reserve. |

@@ -17,22 +17,29 @@ An agent that pays per request pays many times a day. Every payment leaves the s
 
 zBase Cardano is a port of zBase on Base, which uses the Privacy Pools design. It works in three steps.
 
-1. The agent deposits ADA into the pool. The deposit carries a hidden commitment to a secret note.
+1. The agent deposits tUSDM into the pool on Preprod. The deposit carries a hidden commitment to a secret note.
 2. An approval service checks the deposit and adds it to an approved set. Only approved deposits can pay.
 3. To pay, the agent proves in zero knowledge that it owns an approved deposit, that it has not spent it, and that the amount fits. The chain checks the proof and pays a fresh one-time address. That address pays the seller with a stock x402 payment.
 
 The proof hides which deposit paid. The pool holds every deposit in one place, so the link between a deposit and a payment never appears on chain. A depositor who wants out can always exit in public with a signature.
 
+The pool holds one asset. M0 uses tUSDM on Preprod, the Masumi test USDM with 6 decimals.
+The same validators also support ADA pools. Changing the asset gives a new pool ID, but the circuits and proving keys stay valid.
+Token outputs still need ADA. The depositor funds the deposit's minimum ADA, and the crank keeps it without taking a token crank fee.
+The relayer attaches ADA to each payout and charges its fee in tUSDM.
+
 ## Status
 
 | What | State |
 |---|---|
-| Network | Preprod. Six full live runs, all ended with HTTP 200 from the seller |
+| Network | Preprod. M0 uses tUSDM. Six full runs on the retired ADA pool ended with HTTP 200 from the seller |
 | Tests | 1,019 TypeScript tests, 51 frontend tests and 354 contract checks, all run in CI |
-| Time for one private payment | About 80 seconds on Preprod, most of it waiting for blocks |
-| Cost on top of the price | About 1.2 ADA: 1 ADA relayer fee and 0.17 ADA for the second transaction |
+| Time for one private payment | About 80 seconds in the earlier ADA runs, mostly waiting for blocks. Token timings await the live measurements |
+| Cost on top of the price | 1 tUSDM relayer fee per payout. The relayer supplies 2 ADA per payout by default, including the second transaction's fee |
 | Audit | None. The circuits and validators are new code. Read [Trust and limits](/guide/trust-and-limits) before you deposit real money |
 | Mainnet | Not deployed. The mainnet canary waits for a go-ahead |
+
+The ADA pool from 2026-10-06 is retired. Its record moved to `deployments/retired/`.
 
 ## Where to go
 

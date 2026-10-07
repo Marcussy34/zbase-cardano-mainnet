@@ -13,7 +13,9 @@ Each thing has one name in this site, in the code and in the documents. This lis
 | Seller | An HTTP server that charges per request with x402. It knows nothing about the pool |
 | x402 | A payment protocol over HTTP status 402. The server names a price, the client answers with a signed payment, the server's facilitator submits it |
 | Facilitator | The service that checks and submits x402 payments for a seller |
-| Pool | One UTXO at the pool script address that holds all deposited ADA and the state of the pool |
+| Pool | One UTXO at the pool script address that holds the deposited pool asset and the state of the pool |
+| Pool asset | The asset selected at deployment: tUSDM on Preprod, or lovelace for an ADA pool |
+| tUSDM | The Masumi test USDM used on Preprod, with 6 decimals. Its [exact unit](/reference/spec#16-stablecoin-pools) differs from x402's default Preprod USDM |
 | Pool ID | The policy ID of the pool NFT, 28 bytes. It names the pool in every label and context |
 | Pool NFT | Three tokens, `pool`, `config` and `asp`, minted once. Each marks the real state output |
 | Note | Four numbers: value, label, nullifier and secret. The owner keeps the last two |
@@ -28,7 +30,7 @@ Each thing has one name in this site, in the code and in the documents. This lis
 | Nullifier trie | A Merkle Patricia trie of spent nullifier hashes. The pool holds only its root |
 | ASP | The association set provider. The service that approves deposits and publishes the root of the approved set |
 | Approved set | A Poseidon Merkle tree of approved labels. A private payment proves membership in it |
-| Deposit | A transaction that sends ADA to the deposit script with a precommitment and a refund key |
+| Deposit | A transaction that sends the pool asset to the deposit script with a precommitment and refund key, plus minimum ADA for tokens |
 | Insert | The pool action that absorbs deposits and queued notes into the state tree, with an insert proof |
 | Settle | The pool action that spends one note in private and pays the payouts, with a spend proof |
 | Ragequit | The pool action that spends one note in public to the refund key, with a ragequit proof |
@@ -38,21 +40,22 @@ Each thing has one name in this site, in the code and in the documents. This lis
 | Context | A hash of the pool ID, the payouts, the relayer key and the expiry. It ties a spend proof to one payment |
 | Intent | The payouts, the relayer key and the expiry that a Settle carries in the clear |
 | Payout | One address and one amount that a Settle pays. At most 4 per Settle |
+| Payout ADA | The relayer's ADA attached to each token payout, quoted as `payoutLovelace` in lovelace. It defaults to 2 ADA; ADA pools quote zero |
 | One-time address | A fresh address derived from the agent's seed and a counter. The pool pays it, and it pays the seller |
 | Second leg | The plain payment from the one-time address to the seller. A stock x402 payment |
 | Withdrawn amount | The value a Settle takes out of a note: the payouts, the protocol fee and the relayer's share |
-| Crank | The service that makes Insert transactions. It takes 0.3 ADA from each deposit |
-| Crank fee | The part of a deposit that pays the crank. 0.3 ADA on Preprod |
+| Crank | The service that makes Insert transactions and keeps the attached ADA of token deposits |
+| Crank fee | ADA that pays the crank: the attached minimum for token deposits, or the configured 0.3 ADA deduction for ADA deposits |
 | Relayer | The service that submits Settle transactions for agents and earns a fee fixed inside the proof |
-| Relayer fee | What is left of the withdrawn amount after the payouts and the protocol fee. 1 ADA in the demo |
+| Relayer fee | The total charge inside the withdrawn amount, after payouts and protocol fees. Defaults to 1 tUSDM per payout, or 1 ADA per quote |
 | Protocol fee | A share in basis points of each deposit or settle, kept in the pool for the treasury. 0 on Preprod |
 | Indexer | The service that rebuilds the tree, the labels and the nullifiers from the chain and serves them |
 | Node | One process that runs the indexer, the crank, the ASP service and the relayer |
 | Config | The output that holds the admin keys, the limits, the fee rates and the pause flag |
 | Admin | A key that may change the config, within hard bounds, with a threshold of signatures |
 | Treasury | The address that receives collected protocol fees |
-| Pool cap | The most ADA the pool may hold. 500 ADA on Preprod |
-| Reserve | 6 ADA that stays in the pool UTXO so it always meets the minimum output |
+| Pool cap | The limit on the pool asset balance minus accrued fees. 500 tUSDM on Preprod; the token balance excludes the ADA reserve |
+| Reserve | 6 ADA that builders retain in the pool UTXO. Token pool validators enforce only the ledger minimum |
 | Spend circuit | The proof behind a Settle. 16,828 constraints |
 | Insert circuit | The proof behind an Insert. 62,950 constraints |
 | Ragequit circuit | The proof behind a Ragequit. 8,423 constraints |
