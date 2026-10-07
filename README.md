@@ -2,6 +2,15 @@
 
 <a href="https://zx402.org"><img alt="The zx402.org landing page: Private payments. Unknown origins. Private funding for AI agents on Cardano." src="docs/images/landing.png"></a>
 
+| Link | Where |
+|---|---|
+| Website | [zx402.org](https://zx402.org) |
+| Documentation | [docs.zx402.org](https://docs.zx402.org) |
+| Pool contract (Preprod) | [addr_test1wpz3...cpd4d](https://preprod.cardanoscan.io/address/addr_test1wpz3ul73ektd57lzg7glcuz8xs3767dyqs2e8duyltf0r6c2cpd4d) |
+| Deposit contract (Preprod) | [addr_test1wzg0...588grk](https://preprod.cardanoscan.io/address/addr_test1wzg094eeszpsn9uwspqg82gz0e3cr0vy23wlm75sggcckwq588grk) |
+| Pool ID (Preprod) | [`60279ebf...f3ed`](https://preprod.cardanoscan.io/tokenPolicy/60279ebfb8db22bbe0cb2a1b7a61702ab36ade074a3866ac836df3ed) |
+| Every script hash and address | [deployments/preprod.json](deployments/preprod.json) |
+
 zx402 is private payments for AI agents on Cardano. An agent deposits tUSDM into a shared pool once, then pays x402 sellers from the pool with a zero-knowledge proof. The chain shows the pool as the payer, not the agent's wallet, and nothing links a payment to the deposit behind it. The seller runs stock x402 code and sees an ordinary payment. zx402 is live on the Preprod test network.
 
 ## The problem
