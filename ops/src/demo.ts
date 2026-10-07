@@ -7,9 +7,9 @@ import { ExactCardanoScheme } from '@x402/cardano/exact/client';
 import { decodePaymentRequiredHeader } from '@x402/core/http';
 import { decodePaymentResponseHeader, wrapFetchWithPaymentFromConfig } from '@x402/fetch';
 import { IndexerClient, RelayerClient } from '@zx402/api';
-import { createZx402, fileStore } from '@zx402/core';
+import { createZx402, fileStore, type NoteRecord } from '@zx402/core';
 import { shutdown, type CircuitArtifacts } from '@zx402/prover';
-import { assetWireUnit, blockfrostProvider, type ChainContext, type Deployment } from '@zx402/txlib';
+import { assetWireUnit, blockfrostProvider, enterpriseAddress, type ChainContext, type Deployment } from '@zx402/txlib';
 import { readSettings } from './env.js';
 import { deploymentArtifacts, redactedLog } from './node.js';
 import { roleSeed } from './roles.js';
@@ -37,6 +37,30 @@ export interface DemoResult {
   seconds: { toSpendable: number; payment: number; total: number };
 }
 
+/** Cardanoscan base URL for the deployment's network. */
+export function explorerUrl(network: Deployment['network']): string {
+  return network === 'mainnet' ? 'https://cardanoscan.io' : `https://${network}.cardanoscan.io`;
+}
+
+/** The lines that let an audience check on the explorer what the chain shows and what it does not. */
+export function proofLines(deployment: Deployment, p: { depositTx: string | null; wallet: string; leg1Tx: string;
+  oneTimeAddress: string; settlementTx: string | null; seller: string; exitTx: string | null }): string[] {
+  const base = explorerUrl(deployment.network);
+  const tx = (hash: string) => `${base}/transaction/${hash}`;
+  const addr = (address: string) => `${base}/address/${address}`;
+  const lines = ['', 'What the chain shows, on the explorer:',
+    `  Pool            ${addr(deployment.scripts.pool.address)}`];
+  if (p.depositTx) lines.push(`  Deposit         ${tx(p.depositTx)}`, `                  from the agent's wallet ${p.wallet}, in public like any deposit`);
+  else lines.push(`  Agent's wallet  ${addr(p.wallet)}`, '                  funded the pool earlier; it does not appear below');
+  lines.push(`  Private payment ${tx(p.leg1Tx)}`, `                  the pool pays one-time address ${p.oneTimeAddress} with a proof; no deposit is named`,
+    `  One-time addr   ${addr(p.oneTimeAddress)}`);
+  if (p.settlementTx) lines.push(`  Seller payment  ${tx(p.settlementTx)}`, `                  the one-time address pays the seller ${p.seller} through stock x402`);
+  lines.push(`  Seller          ${addr(p.seller)}`);
+  if (p.exitTx) lines.push(`  Exit            ${tx(p.exitTx)}`, `                  the change returns to the agent's wallet in public`);
+  lines.push('Not on the chain: any link from the agent\'s wallet or its deposit to the one-time address or the seller.');
+  return lines;
+}
+
 export async function runDemo(o: DemoOptions): Promise<DemoResult> {
   const start = performance.now();
   const elapsed = (since: number) => (performance.now() - since) / 1000;
@@ -44,18 +68,36 @@ export async function runDemo(o: DemoOptions): Promise<DemoResult> {
   const log = redactedLog(o.log ?? (() => {}), [o.walletSeed, o.agentSeed].map(seed => Buffer.from(seed).toString('hex')));
   if (o.storePath) await mkdir(dirname(o.storePath), { recursive: true });
   const indexer = new IndexerClient(o.indexerUrl);
-  const sdk = createZx402({ seed: o.agentSeed, ctx: o.ctx, indexer,
-    relayer: new RelayerClient(o.relayerUrl), artifacts: o.artifacts,
+  const relayer = new RelayerClient(o.relayerUrl);
+  const sdk = createZx402({ seed: o.agentSeed, ctx: o.ctx, indexer, relayer, artifacts: o.artifacts,
     ...(o.storePath ? { store: fileStore(o.storePath) } : {}), poll: o.poll });
   const amount = o.depositAmount ?? (unit === 'lovelace' ? o.depositLovelace : undefined) ?? 10_000_000n;
+
+  // The seller's price comes first, so a reused note can be checked against the price plus the fees.
+  const network = `cardano:${o.ctx.deployment.network}` as const;
+  const weather = new URL('/weather', o.sellerUrl);
+  const challenge = await fetch(weather, { redirect: 'error' });
+  const required = challenge.headers.get('PAYMENT-REQUIRED');
+  await challenge.body?.cancel();
+  if (challenge.status !== 402 || !required) throw new Error('Seller did not advertise an x402 price');
+  const offer = decodePaymentRequiredHeader(required).accepts.find(a => a.scheme === 'exact'
+    && a.network === network && a.asset === unit && /^[1-9][0-9]*$/.test(a.amount));
+  if (!offer) throw new Error(`Seller did not offer a ${unit} payment on this network`);
+  log(`Seller asks ${offer.amount} ${unit} for the weather`);
+
   let depositTx: string | null = null;
-  // The largest spendable note, when the caller asked to reuse one.
-  let note = o.reuseNote ? (await sdk.sync(), sdk.listNotes()
-    .filter(n => n.status === 'spendable' && !n.pending && n.value !== null)
-    .sort((a, b) => a.value! < b.value! ? 1 : a.value! > b.value! ? -1 : 0)[0]) : undefined;
-  if (note) {
-    log(`Reusing spendable note ${note.id}: ${note.value} ${unit}`);
-  } else {
+  let note: NoteRecord | undefined;
+  if (o.reuseNote) {
+    await sdk.sync();
+    // One Settle spends one note, so a single note must cover the price plus the fees.
+    const quote = await relayer.quote([{ address: offer.payTo, amount: BigInt(offer.amount), datumHash: null }]);
+    note = sdk.listNotes()
+      .filter(n => n.status === 'spendable' && !n.pending && n.value !== null && n.value >= quote.withdrawn)
+      .sort((a, b) => a.value! < b.value! ? -1 : a.value! > b.value! ? 1 : 0)[0];
+    log(note ? `Note ${note.id} in the pool covers the price plus fees ${quote.withdrawn - BigInt(offer.amount)} ${unit}; no deposit`
+      : `No note in the pool covers ${quote.withdrawn} ${unit}; depositing`);
+  }
+  if (!note) {
     const deposit = await sdk.deposit({ amount, walletSeed: o.walletSeed });
     depositTx = deposit.txId;
     log(`Deposit ${depositTx} submitted in ${elapsed(start).toFixed(3)} seconds`);
@@ -66,15 +108,6 @@ export async function runDemo(o: DemoOptions): Promise<DemoResult> {
   log(`${depositTx ? `Deposit ${depositTx}` : `Note ${note.id}`} spendable: ${note.value} ${unit} in ${toSpendable.toFixed(3)} seconds`);
 
   const paymentStart = performance.now();
-  const network = `cardano:${o.ctx.deployment.network}` as const;
-  const weather = new URL('/weather', o.sellerUrl);
-  const challenge = await fetch(weather, { redirect: 'error' });
-  const required = challenge.headers.get('PAYMENT-REQUIRED');
-  await challenge.body?.cancel();
-  if (challenge.status !== 402 || !required) throw new Error('Seller did not advertise an x402 price');
-  const offer = decodePaymentRequiredHeader(required).accepts.find(a => a.scheme === 'exact'
-    && a.network === network && a.asset === unit && /^[1-9][0-9]*$/.test(a.amount));
-  if (!offer) throw new Error(`Seller did not offer a ${unit} payment on this network`);
   const signer = sdk.x402Signer({ mode: 'stealth' });
   let leg1Tx = '';
   let oneTimeAddress = '';
@@ -101,7 +134,9 @@ export async function runDemo(o: DemoOptions): Promise<DemoResult> {
   const payment = elapsed(paymentStart);
   log(`Seller payment ${settlementTx ?? 'none'} returned HTTP ${response.status} in ${payment.toFixed(3)} seconds`);
   if (response.status !== 200 || !settlement?.success || !settlementTx || !leg1Tx) {
-    throw new Error(`Seller payment failed with HTTP ${response.status}; leg 1 transaction ${leg1Tx || 'none'}`);
+    // The facilitator's reason tells a verify failure from a submit failure.
+    const reason = settlement ? ` (${settlement.errorReason ?? 'no reason'}: ${settlement.errorMessage ?? 'no message'})` : '';
+    throw new Error(`Seller payment failed with HTTP ${response.status}${reason}; leg 1 transaction ${leg1Tx || 'none'}`);
   }
   const change = sdk.listNotes().find(n => n.kind === 'change' && !before.has(n.id));
   let exitTx: string | null = null;
@@ -128,6 +163,8 @@ export async function runDemo(o: DemoOptions): Promise<DemoResult> {
   }
   const total = elapsed(start);
   log(`Demo complete in ${total.toFixed(3)} seconds`);
+  for (const line of proofLines(o.ctx.deployment, { depositTx, wallet: enterpriseAddress(o.walletSeed, o.ctx.deployment.network),
+    leg1Tx, oneTimeAddress, settlementTx, seller: offer.payTo, exitTx })) log(line);
   return { depositTx, noteValue: note.value,
     paid: { status: response.status, body, settlementTx, leg1Tx, oneTimeAddress }, exitTx,
     seconds: { toSpendable, payment, total } };
