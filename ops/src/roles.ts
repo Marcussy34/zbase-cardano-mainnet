@@ -1,5 +1,5 @@
 import { hkdfSync } from 'node:crypto';
-import { enterpriseAddress, keyHash, type Network } from '@zbase-cardano/txlib';
+import { enterpriseAddress, keyHash, type Network } from '@zx402/txlib';
 
 export type Role = 'operator' | 'holder' | 'admin' | 'asp' | 'crank' | 'relayer' | 'user' | 'agent' | 'seller';
 export const ROLES: readonly Role[] = ['operator', 'holder', 'admin', 'asp', 'crank', 'relayer', 'user', 'agent', 'seller'];

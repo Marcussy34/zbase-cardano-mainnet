@@ -2,8 +2,8 @@
 
 use cardano/address.{Address, Script, VerificationKey}
 use cardano/transaction.{OutputReference}
-use zbase/groth16
-use zbase/types.{ConfigDatum, PoolDatum}
+use zx402/groth16
+use zx402/types.{ConfigDatum, PoolDatum}
 
 /// Development verification key. Never use for real funds.
 pub const vk_spend: groth16.VerificationKey =

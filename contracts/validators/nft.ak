@@ -4,8 +4,8 @@ use aiken/interval
 use cardano/address
 use cardano/assets.{PolicyId}
 use cardano/transaction.{Input, OutputReference, Transaction}
-use zbase/constants
-use zbase/testkit
+use zx402/constants
+use zx402/testkit
 
 validator nft(seed: OutputReference) {
   mint(_redeemer: Data, policy_id: PolicyId, self: Transaction) {

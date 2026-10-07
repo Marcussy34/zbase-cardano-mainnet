@@ -8,10 +8,10 @@ use cardano/assets.{PolicyId}
 use cardano/transaction.{
   DatumHash, InlineDatum, Input, NoDatum, Output, OutputReference, Transaction,
 }
-use zbase/constants
-use zbase/groth16.{fr_order, in_field}
-use zbase/testkit
-use zbase/types.{AspDatum}
+use zx402/constants
+use zx402/groth16.{fr_order, in_field}
+use zx402/testkit
+use zx402/types.{AspDatum}
 
 validator asp(nft_policy: PolicyId) {
   spend(

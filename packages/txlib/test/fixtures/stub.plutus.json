@@ -1,6 +1,6 @@
 {
   "preamble": {
-    "title": "zbase/settle-spike",
+    "title": "zx402/settle-spike",
     "description": "Offline transaction shape probe, never deploy",
     "version": "0.0.0",
     "plutusVersion": "v3",

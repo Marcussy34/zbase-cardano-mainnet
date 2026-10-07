@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import {
   commitment, deriveNoteSecrets, insertWitness, labelFor, MerkleTree, precommitment,
-} from "@zbase-cardano/crypto";
-import type { InsertSlot } from "@zbase-cardano/crypto";
+} from "@zx402/crypto";
+import type { InsertSlot } from "@zx402/crypto";
 import {
   bytes, configDatum, genesisDatum, int, list, m0Config, outputReference, poolDatum,
   proof, proveCached, samples,
@@ -118,7 +118,7 @@ export default async function build(): Promise<FixtureModule> {
   }
   return {
     uses: ["use cardano/address.{Address, VerificationKey}", "use cardano/transaction.{OutputReference}",
-      "use zbase/groth16", "use zbase/types.{ConfigDatum, DepositDatum, PoolDatum}"],
+      "use zx402/groth16", "use zx402/types.{ConfigDatum, DepositDatum, PoolDatum}"],
     constants,
   };
 }

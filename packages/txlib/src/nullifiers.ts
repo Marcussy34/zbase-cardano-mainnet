@@ -1,5 +1,5 @@
 import { Trie } from '@aiken-lang/merkle-patricia-forestry';
-import { nullifierKey } from '@zbase-cardano/crypto';
+import { nullifierKey } from '@zx402/crypto';
 
 const root = (trie: Trie): string => (trie.hash ?? Buffer.alloc(32)).toString('hex');
 

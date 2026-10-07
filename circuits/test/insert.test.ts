@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
 import { test } from "node:test";
-import { MerkleTree, R, ZERO_HASHES, h3, rootFromPath } from "@zbase-cardano/crypto";
+import { MerkleTree, R, ZERO_HASHES, h3, rootFromPath } from "@zx402/crypto";
 import { INSERT_BATCH, insertWitness, slotLeaf } from "../../packages/crypto/src/witness/insert.js";
 import type { InsertCircuitInput, InsertSlot } from "../../packages/crypto/src/witness/insert.js";
 import { checkWitness, compileCircuit, constraintCount, expectNoWitness, witness } from "./harness.js";

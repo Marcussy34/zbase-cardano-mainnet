@@ -3,7 +3,7 @@ import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { promisify, stripVTControlCharacters } from 'node:util';
 import { Address, AssetId, CborWriter, CredentialType, toTxUnspentOutput, Transaction, TxCBOR, type CredentialCore } from '@meshsdk/core-cst';
-import { NETWORKS, type Network } from '@zbase-cardano/crypto';
+import { NETWORKS, type Network } from '@zx402/crypto';
 import { ScriptFailure, type Utxo, type RedeemerUnits, type RedeemerTag } from '../types.js';
 
 const execute = promisify(execFile);

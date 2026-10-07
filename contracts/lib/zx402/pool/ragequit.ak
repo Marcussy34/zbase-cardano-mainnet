@@ -2,11 +2,11 @@ use aiken/collection/list
 use aiken/crypto.{VerificationKeyHash}
 use aiken/merkle_patricia_forestry as mpf
 use cardano/transaction.{OutputReference}
-use zbase/constants
-use zbase/encoding
-use zbase/groth16.{Proof, VerificationKey}
-use zbase/pool/common.{PoolContext}
-use zbase/types.{PoolDatum}
+use zx402/constants
+use zx402/encoding
+use zx402/groth16.{Proof, VerificationKey}
+use zx402/pool/common.{PoolContext}
+use zx402/types.{PoolDatum}
 
 /// The deposit label and signer authorize a full exit without ASP approval.
 pub fn validate(

@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import * as Data from '@evolution-sdk/evolution/Data';
 import { applyParamsToScript } from '@evolution-sdk/evolution/UPLC';
 import { normalizePlutusScript, toScriptRef } from '@meshsdk/core-cst';
-import { addressToBech32, type CardanoVk } from '@zbase-cardano/crypto';
+import { addressToBech32, type CardanoVk } from '@zx402/crypto';
 import type { Network, UtxoRef } from './types.js';
 
 export interface ScriptInfo {

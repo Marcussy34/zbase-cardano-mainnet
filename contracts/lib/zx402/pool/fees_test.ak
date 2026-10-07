@@ -1,11 +1,11 @@
 use cardano/address
 use cardano/assets
 use cardano/transaction.{Input, Output, Transaction}
-use zbase/pool
-use zbase/pool/common.{PoolParams}
-use zbase/pool/kit
-use zbase/testkit
-use zbase/types.{AssetClass, CollectFees, DepositDatum, PoolDatum}
+use zx402/pool
+use zx402/pool/common.{PoolParams}
+use zx402/pool/kit
+use zx402/testkit
+use zx402/types.{AssetClass, CollectFees, DepositDatum, PoolDatum}
 
 fn validate(tx: Transaction, amount: Int) -> Bool {
   pool.validate(

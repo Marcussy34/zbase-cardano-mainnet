@@ -168,7 +168,7 @@ It made a Settle or a Ragequit up to 139 bytes larger or smaller from one run to
 
 ### Two runs after the comparison with Base
 
-A comparison with zBase on Base then led to five fixes in the SDK and the relayer. Two more demo runs checked them on Preprod. Both ended with HTTP 200 and the weather body.
+A comparison with the Base implementation then led to five fixes in the SDK and the relayer. Two more demo runs checked them on Preprod. Both ended with HTTP 200 and the weather body.
 
 The fifth run, at 20:50 UTC on 2026-10-06, started without the demo's note store and with the same seed. Before the fix, that run would have used an old note secret again and locked its deposit.
 The SDK found the four old deposits on chain. It took the fifth deposit secret and the fifth change secret, paid the seller and exited the change.

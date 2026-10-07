@@ -121,7 +121,7 @@ The [life of a payment](/guide/life-of-a-payment) page follows run 6 transaction
 
 ## Provider quota
 
-Every read of the chain is a request to Blockfrost, and the free plan allows 50,000 a day. An idle node uses about 1,100 to 1,600 requests an hour, so 27,000 to 39,000 a day, and one demo run adds 150 to 200 in the node. That fits the free plan with room for some dozens of demo runs. A longer round with `ZBASE_INTERVAL_MS` spends fewer requests and makes payments slower. A busy pool needs a paid plan or an own chain backend.
+Every read of the chain is a request to Blockfrost, and the free plan allows 50,000 a day. An idle node uses about 1,100 to 1,600 requests an hour, so 27,000 to 39,000 a day, and one demo run adds 150 to 200 in the node. That fits the free plan with room for some dozens of demo runs. A longer round with `ZX402_INTERVAL_MS` spends fewer requests and makes payments slower. A busy pool needs a paid plan or an own chain backend.
 
 ## If something goes wrong
 

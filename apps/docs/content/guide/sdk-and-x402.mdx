@@ -5,15 +5,15 @@ description: How an agent deposits, pays a stock x402 seller in private, and exi
 
 # The agent SDK and x402
 
-The SDK is the package `@zbase-cardano/core`. An agent needs nothing else: it gives the SDK a seed, a chain provider, the indexer and relayer URLs and the circuit files, and gets back deposits, private payments and exits. The code below follows the token demo in `ops/src/demo.ts`, trimmed.
+The SDK is the package `@zx402/core`. An agent needs nothing else: it gives the SDK a seed, a chain provider, the indexer and relayer URLs and the circuit files, and gets back deposits, private payments and exits. The code below follows the token demo in `ops/src/demo.ts`, trimmed.
 
 ## Setting it up
 
 ```ts
-import { createZbaseCardano, fileStore } from '@zbase-cardano/core';
-import { IndexerClient, RelayerClient } from '@zbase-cardano/api';
+import { createZx402, fileStore } from '@zx402/core';
+import { IndexerClient, RelayerClient } from '@zx402/api';
 
-const sdk = createZbaseCardano({
+const sdk = createZx402({
   seed: agentSeed,                       // 32 bytes. Everything derives from it
   ctx,                                   // the chain context: provider, network, deployment
   indexer: new IndexerClient('http://localhost:4010'),
@@ -31,7 +31,7 @@ An ADA pool uses lovelace instead. The same SDK and validators support both conf
 ## The interface
 
 ```ts
-interface ZbaseCardano {
+interface Zx402 {
   prepareDeposit(a: { amount: bigint; refundKeyHash: string }): Promise<PreparedDeposit>;
   deposit(a: { amount: bigint; walletSeed: Uint8Array }): Promise<{ txId: string; prepared: PreparedDeposit }>;
   sync(): Promise<void>;

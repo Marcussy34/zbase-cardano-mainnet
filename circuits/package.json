@@ -1,5 +1,5 @@
 {
-  "name": "@zbase-cardano/circuits",
+  "name": "@zx402/circuits",
   "private": true,
   "type": "module",
   "scripts": {
@@ -7,8 +7,8 @@
     "typecheck": "tsc --noEmit -p ."
   },
   "dependencies": {
-    "@zbase-cardano/crypto": "*",
-    "@zbase-cardano/prover": "*",
+    "@zx402/crypto": "*",
+    "@zx402/prover": "*",
     "snarkjs": "0.7.6",
     "circom2": "0.2.23",
     "poseidon-bls12381-circom": "1.0.0"

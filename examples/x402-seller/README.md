@@ -5,7 +5,7 @@ The plain buyer signs with one raw 32-byte Ed25519 seed.
 It has no privacy layer. The facilitator submits the signed transaction.
 
 Use the dependencies already installed at the repository root, and run the commands below from there.
-The example is a workspace package and imports `@zbase-cardano/txlib` by name.
+The example is a workspace package and imports `@zx402/txlib` by name.
 
 ## Preprod settings
 

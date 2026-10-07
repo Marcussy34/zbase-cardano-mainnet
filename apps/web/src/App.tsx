@@ -390,7 +390,7 @@ export default function App() {
               <a href={DOCS}>Read docs</a>
               <a href="/docs/?topic=plan">Build plan</a>
               <a
-                href="https://github.com/Marcussy34/zbase-cardano-mainnet"
+                href="https://github.com/Marcussy34/zx402"
                 target="_blank"
                 rel="noreferrer"
               >

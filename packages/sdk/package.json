@@ -1,5 +1,5 @@
 {
-  "name": "@zbase-cardano/core",
+  "name": "@zx402/core",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -9,16 +9,16 @@
     "typecheck": "tsc --noEmit -p ."
   },
   "dependencies": {
-    "@zbase-cardano/api": "*",
-    "@zbase-cardano/crypto": "*",
-    "@zbase-cardano/prover": "*",
-    "@zbase-cardano/txlib": "*",
+    "@zx402/api": "*",
+    "@zx402/crypto": "*",
+    "@zx402/prover": "*",
+    "@zx402/txlib": "*",
     "@x402/cardano": "2.28.0"
   },
   "devDependencies": {
-    "@zbase-cardano/indexer": "*",
-    "@zbase-cardano/asp": "*",
-    "@zbase-cardano/crank": "*",
-    "@zbase-cardano/relayer": "*"
+    "@zx402/indexer": "*",
+    "@zx402/asp": "*",
+    "@zx402/crank": "*",
+    "@zx402/relayer": "*"
   }
 }

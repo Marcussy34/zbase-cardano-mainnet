@@ -1,4 +1,4 @@
-name = "zbase/settle-spike"
+name = "zx402/settle-spike"
 version = "0.0.0"
 compiler = "v1.1.24"
 plutus = "v3"

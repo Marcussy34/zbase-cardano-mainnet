@@ -34,7 +34,7 @@ export default async function build(): Promise<FixtureModule> {
   );
   return {
     uses: ["use cardano/address.{Address, Script, VerificationKey}",
-      "use cardano/transaction.{OutputReference}", "use zbase/groth16",
-      "use zbase/types.{ConfigDatum, PoolDatum}"], constants,
+      "use cardano/transaction.{OutputReference}", "use zx402/groth16",
+      "use zx402/types.{ConfigDatum, PoolDatum}"], constants,
   };
 }

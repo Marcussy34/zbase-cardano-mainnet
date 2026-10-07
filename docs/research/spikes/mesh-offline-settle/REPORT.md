@@ -222,7 +222,7 @@ All required witnesses must already be present; the facilitator does not sign fo
 The signer interface contains no Evolution or Mesh classes. Only the optional `ResourceInfo` type comes from another package.
 
 A transaction signed using probe 6 can supply these string fields after conversion from hex bytes to base64.
-For zBase's default stealth flow, use this signing technique for the plain leg-2 key payment from the one-time UTXO.
+For the default stealth flow, use this signing technique for the plain leg-2 key payment from the one-time UTXO.
 The four-payout stub transaction is not itself a valid substitute for those requested payment requirements.
 Facilitator acceptance, nonce lookups, confirmation timing, and a complete x402 payment were not tested.
 

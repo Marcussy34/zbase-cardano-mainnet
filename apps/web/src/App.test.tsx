@@ -47,7 +47,7 @@ describe("Landing page", () => {
     ).toBe("/docs/?topic=plan");
     expect(
       resources.getByRole("link", { name: "GitHub" }).getAttribute("href"),
-    ).toBe("https://github.com/Marcussy34/zbase-cardano-mainnet");
+    ).toBe("https://github.com/Marcussy34/zx402");
     expect(footer.getByText(/in development/i)).toBeTruthy();
     expect(
       footer.getAllByRole("link", { name: "Read docs" })[0].getAttribute("href"),

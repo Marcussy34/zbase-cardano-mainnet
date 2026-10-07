@@ -3,17 +3,17 @@ import { mkdir, readFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { isDeepStrictEqual } from 'node:util';
-import { ApiError, relayerRoutes, serveJson } from '@zbase-cardano/api';
-import { AspService } from '@zbase-cardano/asp';
-import { Crank } from '@zbase-cardano/crank';
-import { vkToCardano, type SnarkjsVk } from '@zbase-cardano/crypto';
-import { Indexer, serveIndexer } from '@zbase-cardano/indexer';
+import { ApiError, relayerRoutes, serveJson } from '@zx402/api';
+import { AspService } from '@zx402/asp';
+import { Crank } from '@zx402/crank';
+import { vkToCardano, type SnarkjsVk } from '@zx402/crypto';
+import { Indexer, serveIndexer } from '@zx402/indexer';
 import {
   loadArtifacts, loadDevArtifacts, loadDevVkey, shutdown,
   type CircuitArtifacts, type CircuitManifest, type CircuitName,
-} from '@zbase-cardano/prover';
-import { Relayer } from '@zbase-cardano/relayer';
-import { blockfrostProvider, vkToHex, type ChainContext, type ChainHistory, type Deployment } from '@zbase-cardano/txlib';
+} from '@zx402/prover';
+import { Relayer } from '@zx402/relayer';
+import { blockfrostProvider, vkToHex, type ChainContext, type ChainHistory, type Deployment } from '@zx402/txlib';
 import { readSettings } from './env.js';
 import { roleSeed } from './roles.js';
 
@@ -30,7 +30,7 @@ export interface NodeOptions {
   aspStorePath?: string;
   log?: (line: string) => void;
 }
-export interface ZbaseNode {
+export interface Zx402Node {
   indexer: Indexer; crank: Crank; asp: AspService; relayer: Relayer;
   urls: { indexer: string; relayer: string };
   /** Sync, run pending work, and sync after changes. Concurrent callers share one round. */
@@ -49,7 +49,7 @@ export function redactedLog(log: (line: string) => void, secrets: string[]): (li
 }
 const message = (error: unknown): string => error instanceof Error ? error.message : 'Unknown failure';
 
-export async function startNode(o: NodeOptions): Promise<ZbaseNode> {
+export async function startNode(o: NodeOptions): Promise<Zx402Node> {
   const intervalMs = o.intervalMs ?? 10_000;
   const idleRetryMs = o.idleRetryMs ?? 20_000;
   const now = o.now ?? Date.now;
@@ -205,9 +205,9 @@ async function main(): Promise<void> {
     }
     return Number(value);
   };
-  const intervalMs = integer('ZBASE_INTERVAL_MS', 10_000);
-  const idleRetryMs = integer('ZBASE_IDLE_RETRY_MS', 20_000);
-  const ports = { indexer: integer('ZBASE_INDEXER_PORT', 4010), relayer: integer('ZBASE_RELAYER_PORT', 4011) };
+  const intervalMs = integer('ZX402_INTERVAL_MS', 10_000);
+  const idleRetryMs = integer('ZX402_IDLE_RETRY_MS', 20_000);
+  const ports = { indexer: integer('ZX402_INDEXER_PORT', 4010), relayer: integer('ZX402_RELAYER_PORT', 4011) };
   const settings = readSettings();
   const root = fileURLToPath(new URL('../../', import.meta.url));
   const deployment = JSON.parse(await readFile(join(root, `deployments/${settings.network}.json`), 'utf8')) as Deployment;

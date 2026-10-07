@@ -3,7 +3,7 @@ import { Head } from 'nextra/components';
 import { getPageMap } from 'nextra/page-map';
 import 'nextra-theme-docs/style.css';
 
-const repository = 'https://github.com/Marcussy34/zbase-cardano-mainnet';
+const repository = 'https://github.com/Marcussy34/zx402';
 
 export const metadata = {
   title: { default: 'zx402', template: '%s | zx402' },

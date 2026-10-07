@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { commitment, MerkleTree, nullifierHash, R } from "@zbase-cardano/crypto";
-import type { Note } from "@zbase-cardano/crypto";
-import { ragequitWitness } from "@zbase-cardano/crypto/witness/ragequit";
+import { commitment, MerkleTree, nullifierHash, R } from "@zx402/crypto";
+import type { Note } from "@zx402/crypto";
+import { ragequitWitness } from "@zx402/crypto/witness/ragequit";
 import {
   checkWitness,
   compileCircuit,

@@ -13,9 +13,9 @@ import {
 import { wrapFetchWithPaymentFromConfig } from '@x402/fetch';
 import {
   enterpriseAddress, keyHash, txId, verifyWitnesses, witnessKeyHashes,
-} from '@zbase-cardano/txlib';
-import { PREPROD_PARAMETERS, type Provider, type Utxo } from '@zbase-cardano/txlib';
-import { decodeTx } from '@zbase-cardano/txlib';
+} from '@zx402/txlib';
+import { PREPROD_PARAMETERS, type Provider, type Utxo } from '@zx402/txlib';
+import { decodeTx } from '@zx402/txlib';
 import { keySigner } from '../src/key-signer.js';
 import { startSeller } from '../src/seller.js';
 import { payPlain } from '../src/pay-plain.js';

@@ -3,7 +3,7 @@ use aiken/merkle_patricia_forestry as mpf
 use cardano/address.{Address}
 use cardano/assets.{AssetName, PolicyId}
 use cardano/transaction.{OutputReference}
-use zbase/groth16.{Proof}
+use zx402/groth16.{Proof}
 
 // Field and constructor order is the wire format in SPEC 4.5 and 6.3.
 pub type Payout {

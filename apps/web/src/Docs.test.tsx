@@ -63,7 +63,7 @@ describe("Documentation reader", () => {
         .getByRole("link", { name: "HANDOFF.md" })
         .getAttribute("href"),
     ).toBe(
-      "https://github.com/Marcussy34/zbase-cardano-mainnet/blob/main/docs/HANDOFF.md",
+      "https://github.com/Marcussy34/zx402/blob/main/docs/HANDOFF.md",
     );
     expect(
       within(article).getByRole("heading", { name: "1. Summary" }).id,

@@ -38,7 +38,7 @@ function documentLink(href: string): string {
   const fragment = hash ? `#${hash}` : "";
   if (topic) return `/docs/?topic=${topic}${fragment}`;
   const relativePath = new URL(path, "https://repo.invalid/docs/").pathname;
-  return `https://github.com/Marcussy34/zbase-cardano-mainnet/blob/main${relativePath}${fragment}`;
+  return `https://github.com/Marcussy34/zx402/blob/main${relativePath}${fragment}`;
 }
 
 function headingText(children: ReactNode): string {

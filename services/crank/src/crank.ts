@@ -1,10 +1,10 @@
-import type { IndexerApi } from '@zbase-cardano/api';
-import { MerkleTree, insertWitness } from '@zbase-cardano/crypto';
-import { prove, type CircuitArtifacts } from '@zbase-cardano/prover';
+import type { IndexerApi } from '@zx402/api';
+import { MerkleTree, insertWitness } from '@zx402/crypto';
+import { prove, type CircuitArtifacts } from '@zx402/prover';
 import {
   buildInsert, enterpriseAddress, planInsert, readConfig, readDeposits, readPool, signTx,
   type ChainContext, type UtxoRef,
-} from '@zbase-cardano/txlib';
+} from '@zx402/txlib';
 
 export class Crank {
   private readonly ctx: ChainContext;

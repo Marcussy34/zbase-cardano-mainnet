@@ -5,8 +5,8 @@ import { toTxUnspentOutput } from '@meshsdk/core-cst';
 import {
   NETWORKS, MerkleTree, commitment, contextFor, deriveNoteSecrets, deriveOneTimeKey,
   insertWitness, precommitment, spendWitness, type SettleIntent,
-} from '@zbase-cardano/crypto';
-import { devKeysPresent, loadDevArtifacts, prove, shutdown } from '@zbase-cardano/prover';
+} from '@zx402/crypto';
+import { devKeysPresent, loadDevArtifacts, prove, shutdown } from '@zx402/prover';
 import * as txlib from '../src/index.js';
 import { startDevnet } from '../src/testing/devnet.js';
 

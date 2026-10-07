@@ -2,8 +2,8 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { after, test } from 'node:test';
 import { toTxUnspentOutput } from '@meshsdk/core-cst';
-import { MerkleTree, deriveNoteSecrets, insertWitness, precommitment } from '@zbase-cardano/crypto';
-import { devKeysPresent, loadDevArtifacts, prove, shutdown } from '@zbase-cardano/prover';
+import { MerkleTree, deriveNoteSecrets, insertWitness, precommitment } from '@zx402/crypto';
+import { devKeysPresent, loadDevArtifacts, prove, shutdown } from '@zx402/prover';
 import * as txlib from '../src/index.js';
 import { startDevnet, type Devnet } from '../src/testing/devnet.js';
 

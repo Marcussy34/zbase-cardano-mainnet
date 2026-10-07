@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 import { fromJsonToPlutusData, normalizePlutusScript, toScriptRef } from '@meshsdk/core-cst';
-import type { CardanoVk } from '@zbase-cardano/crypto';
+import type { CardanoVk } from '@zx402/crypto';
 import { buildScripts, type ScriptParams } from '../src/scripts.js';
 
 const root = fileURLToPath(new URL('../../../', import.meta.url));

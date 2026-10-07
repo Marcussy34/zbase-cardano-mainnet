@@ -3,8 +3,8 @@
 use aiken/merkle_patricia_forestry as mpf
 use aiken/merkle_patricia_forestry.{Branch, Leaf}
 use cardano/transaction.{OutputReference}
-use zbase/groth16
-use zbase/types.{PoolDatum}
+use zx402/groth16
+use zx402/types.{PoolDatum}
 
 pub const deposit_note_nullifier_hash: Int =
   51159548109750475599435799479590492881122703901008001917297835484729978915398

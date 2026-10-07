@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import { before, test } from "node:test";
-import { commitment, h1, h2, h3, MerkleTree, R } from "@zbase-cardano/crypto";
-import type { Note } from "@zbase-cardano/crypto";
-import { spendWitness } from "@zbase-cardano/crypto/witness/spend";
-import type { SpendArgs, SpendCircuitInput } from "@zbase-cardano/crypto/witness/spend";
+import { commitment, h1, h2, h3, MerkleTree, R } from "@zx402/crypto";
+import type { Note } from "@zx402/crypto";
+import { spendWitness } from "@zx402/crypto/witness/spend";
+import type { SpendArgs, SpendCircuitInput } from "@zx402/crypto/witness/spend";
 import { checkWitness, compileCircuit, constraintCount, expectNoWitness, witness } from "./harness.js";
 import type { CompiledCircuit } from "./harness.js";
 

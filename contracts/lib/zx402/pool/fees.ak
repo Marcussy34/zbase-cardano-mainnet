@@ -1,6 +1,6 @@
 use aiken/collection/list
-use zbase/pool/common.{PoolContext}
-use zbase/types.{PoolDatum}
+use zx402/pool/common.{PoolContext}
+use zx402/types.{PoolDatum}
 
 /// Collect fees only when a separate output pays the configured treasury.
 pub fn validate(ctx: PoolContext, amount: Int) -> Bool {

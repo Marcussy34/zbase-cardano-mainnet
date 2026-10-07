@@ -4,15 +4,15 @@ import { bls12_381 } from '@noble/curves/bls12-381.js';
 import {
   ApiError, type IndexerApi, type IntentRequest, type PayoutRequest, type PoolView, type ProofHex,
   type Quote, type RelayerApi, type SettleRequest, type SettleStatus,
-} from '@zbase-cardano/api';
+} from '@zx402/api';
 import {
   addressFromBech32, contextFor, type CardanoProof, type SettleIntent, type SnarkjsProof, type SnarkjsVk,
-} from '@zbase-cardano/crypto';
-import { verify } from '@zbase-cardano/prover';
+} from '@zx402/crypto';
+import { verify } from '@zx402/prover';
 import {
   assetWireUnit, buildSettle, enterpriseAddress, isAdaAsset, keyHash, nullifierInsertion, readPool, signTx, slotToTime,
   type ChainContext, type PoolState, type UtxoRef,
-} from '@zbase-cardano/txlib';
+} from '@zx402/txlib';
 
 interface StoredQuote { quote: Quote; payouts: PayoutRequest[] }
 interface Submission { status: SettleStatus; nullifier: bigint; validUntil: number; sent: boolean }

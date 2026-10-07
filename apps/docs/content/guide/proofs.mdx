@@ -62,7 +62,7 @@ The value and the label are public, which is the point of ragequit: it is a publ
 
 ## The verifier on chain
 
-The verifier lives in `contracts/lib/zbase/groth16.ak`. It uncompresses the three proof points, recompresses them and compares, so a malformed point is refused. It then folds the public inputs into the verification key with scalar multiplications and checks the pairing equation with `bls12_381_miller_loop` and `bls12_381_final_verify`.
+The verifier lives in `contracts/lib/zx402/groth16.ak`. It uncompresses the three proof points, recompresses them and compares, so a malformed point is refused. It then folds the public inputs into the verification key with scalar multiplications and checks the pairing equation with `bls12_381_miller_loop` and `bls12_381_final_verify`.
 
 Before any curve operation it range-checks every public input: `0 <= x < r`, where `r` is the scalar field modulus. This check is the first hard rule of the repository. Without it a nullifier hash could be presented as `x` and as `x + r`, two different integers that the circuit treats as one, and a note could be spent twice.
 

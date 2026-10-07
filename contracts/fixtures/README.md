@@ -14,7 +14,7 @@ npm run check:budgets
 
 With no names, the generator discovers every `scenarios/*.ts` file and runs them in sorted order.
 Names select only those scenarios. Unknown names and flags fail before generation.
-Each scenario writes `contracts/lib/zbase/fixtures/<name>.ak` with a source header.
+Each scenario writes `contracts/lib/zx402/fixtures/<name>.ak` with a source header.
 The writer preserves identical files without rewriting them.
 
 `--check` never writes modules or caches. It exits 1 for changed output or a missing, stale, or invalid cached proof.
@@ -25,7 +25,7 @@ Run without `--check` to generate missing proofs.
 
 1. Create `contracts/fixtures/scenarios/<name>.ts` with a lowercase name containing letters, digits, or underscores.
 2. Export `default async function build(): Promise<FixtureModule>`.
-3. Build witnesses with `@zbase-cardano/crypto` and sample values from `lib.ts`.
+3. Build witnesses with `@zx402/crypto` and sample values from `lib.ts`.
 4. Call `proveCached(name, key, circuit, witness.input)` once for each proof.
 5. Assert that `result.publicInputs` equals `witness.publicInputs` to guard public signal order.
 6. Return the module's `uses` and `constants` lists.
@@ -57,7 +57,7 @@ import type { FixtureModule } from "../lib.js";
 // Inside build(), after constructing a witness:
 const result = await proveCached("my_case", "insert_one", "insert", witness.input);
 const module: FixtureModule = {
-  uses: ["use zbase/groth16"],
+  uses: ["use zx402/groth16"],
   constants: [
     { name: "insert_proof", type: "groth16.Proof", expression: proof(result.proof) },
     { name: "insert_inputs", type: "List<Int>", expression: list(result.publicInputs.map(int)),
@@ -86,7 +86,7 @@ const module: FixtureModule = {
 | `configDatum` | fixture `ConfigDatum` | `ConfigDatum` |
 | `trieProof` | JavaScript trie `Proof` | `mpf.Proof` |
 
-The fixture datum interfaces use camelCase fields. The emitters write the snake_case fields from `zbase/types.ak`.
+The fixture datum interfaces use camelCase fields. The emitters write the snake_case fields from `zx402/types.ak`.
 Import required Aiken constructors in `uses`. Addresses need `Address`, `VerificationKey` or `Script`, and `Inline` when staking is present.
 Proofs and verification keys use the qualified `groth16` module to avoid the address constructor's name collision.
 The scenarios are executable examples of complete imports.

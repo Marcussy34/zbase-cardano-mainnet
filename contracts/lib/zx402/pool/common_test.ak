@@ -5,13 +5,13 @@ use cardano/assets
 use cardano/transaction.{
   DatumHash, InlineDatum, Input, NoDatum, Output, OutputReference, Transaction,
 }
-use zbase/constants
-use zbase/groth16.{Proof, fr_order}
-use zbase/pool
-use zbase/pool/common
-use zbase/pool/kit
-use zbase/testkit
-use zbase/types.{
+use zx402/constants
+use zx402/groth16.{Proof, fr_order}
+use zx402/pool
+use zx402/pool/common
+use zx402/pool/kit
+use zx402/testkit
+use zx402/types.{
   AssetClass, CollectFees, Insert, PoolDatum, Ragequit, Settle, SettleIntent,
 }
 

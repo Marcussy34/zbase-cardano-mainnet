@@ -1,10 +1,10 @@
 use aiken/collection/list
 use cardano/transaction.{InlineDatum}
-use zbase/constants
-use zbase/encoding
-use zbase/groth16.{Proof, VerificationKey}
-use zbase/pool/common.{PoolContext}
-use zbase/types.{DepositDatum, PoolDatum}
+use zx402/constants
+use zx402/encoding
+use zx402/groth16.{Proof, VerificationKey}
+use zx402/pool/common.{PoolContext}
+use zx402/types.{DepositDatum, PoolDatum}
 
 pub fn validate(
   ctx: PoolContext,

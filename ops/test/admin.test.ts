@@ -4,9 +4,9 @@ import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
-import type { SnarkjsVk } from '@zbase-cardano/crypto';
-import { decodeTx, readConfig, type AssetClass, type Network, type Utxo } from '@zbase-cardano/txlib';
-import { FakeChain } from '@zbase-cardano/txlib/testing/fake-chain';
+import type { SnarkjsVk } from '@zx402/crypto';
+import { decodeTx, readConfig, type AssetClass, type Network, type Utxo } from '@zx402/txlib';
+import { FakeChain } from '@zx402/txlib/testing/fake-chain';
 import { deploy } from '../src/deploy.js';
 import { ROLES, roleAddress, roleKeyHash, roleSeed } from '../src/roles.js';
 

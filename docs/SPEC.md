@@ -35,7 +35,7 @@ Each decision lists the main alternative and why it lost.
 | ID | Decision | Rejected alternative | Reason |
 |---|---|---|---|
 | D1 | Groth16 over BLS12-381, circuits in circom, proofs with snarkjs | PLONK, Halo2 | Groth16 has the cheapest verifier on Cardano: 2.0B to 2.7B CPU (measured). PLONK measures about 5B. |
-| D2 | Keep the Privacy Pools note model of zBase on Base | A new 2-in 2-out note model | Smallest change from the audited design. Fewer public inputs. |
+| D2 | Keep the Privacy Pools note model of the Base implementation | A new 2-in 2-out note model | Smallest change from the audited design. Fewer public inputs. |
 | D3 | The validator never computes Poseidon. A proof covers each tree update | Hash the tree on-chain | One Poseidon hash costs 1.27B CPU and 3.7M memory (measured). A depth 32 insert cannot fit. |
 | D4 | Tree updates are permissionless and proven (Insert) | A root posted by a trusted operator | A trusted root lets its poster forge notes and drain the pool. |
 | D5 | Deposits are plain payments to a deposit address. Insert binds their value in-circuit | A proof at deposit time | Any wallet can deposit. No contention between depositors. Costs are shared across a batch. |
@@ -54,9 +54,9 @@ Each decision lists the main alternative and why it lost.
 ```mermaid
 flowchart LR
   subgraph Agent["Buyer agent"]
-    SDK["zBase SDK: notes, local prover, x402 signer"]
+    SDK["zx402 SDK: notes, local prover, x402 signer"]
   end
-  subgraph Ops["zBase services"]
+  subgraph Ops["zx402 services"]
     REL["Relayer: builds and submits pool transactions"]
     CRK["Crank: proves and submits Insert"]
     IDX["Indexer: tree leaves, labels, nullifiers"]
@@ -132,7 +132,7 @@ nullifierHash = H1(nullifier)
 - `label` identifies the original deposit. A change note keeps the label of the note it came from.
 - `nullifier` and `secret` are random field elements that only the owner knows.
 
-This matches the note model of zBase on Base.
+This matches the note model of the Base implementation.
 
 ### 4.4 Label
 
@@ -638,31 +638,31 @@ Notes:
 
 ### 8.1 SDK
 
-Package name: `@zbase-cardano/core`. TypeScript, Node 22 or later.
+Package name: `@zx402/core`. TypeScript, Node 22 or later.
 
 ```ts
-const zbase = createZbaseCardano({
+const zx402 = createZx402({
   network: 'cardano:mainnet',
   relayerUrl: 'https://relayer.example',
   seed,                       // 32-byte master seed
 });
 
 // Deposit: returns the address and inline datum for one ordinary payment.
-const prep = zbase.prepareDeposit({ amount: 20_000_000n });
+const prep = zx402.prepareDeposit({ amount: 20_000_000n });
 // ...send prep.amount to prep.address with prep.inlineDatum from any wallet...
-const note = await zbase.waitForNote(prep);     // resolves after Insert
+const note = await zx402.waitForNote(prep);     // resolves after Insert
 
 // Private payment straight from the pool, submitted by the relayer.
-const receipt = await zbase.settlePrivately({
+const receipt = await zx402.settlePrivately({
   note,
   payouts: [{ address: sellerAddress, amount: 5_000_000n }],
 });
 
 // x402 in stealth mode: a ClientCardanoSigner for @x402/cardano.
-client.register('cardano:*', new ExactCardanoScheme(zbase.x402Signer({ mode: 'stealth' })));
+client.register('cardano:*', new ExactCardanoScheme(zx402.x402Signer({ mode: 'stealth' })));
 
 // Public exit.
-await zbase.ragequit({ note, wallet });
+await zx402.ragequit({ note, wallet });
 ```
 
 Responsibilities:
@@ -720,7 +720,7 @@ The ADA pool keeps one fee per quote.
 
 - Watches new deposits and screens the funding addresses.
 - Builds the ASP tree of approved labels and posts the root.
-- Approves by default after a delay unless a deposit is flagged. This mirrors zBase on Base. M0 status: it approves at once, and a deny function can refuse a deposit. No delay and no data source are built.
+- Approves by default after a delay unless a deposit is flagged. This mirrors the Base implementation. M0 status: it approves at once, and a deny function can refuse a deposit. No delay and no data source are built.
 - Auto-approves deposits funded only by pool payouts, such as returned one-time funds.
 - The screening data source for Cardano is an open question (PRD section 14).
 
@@ -849,13 +849,13 @@ The relayer verifies every proof locally before it builds a transaction.
 ```text
 apps/web           public landing page and documentation reader
 circuits/          circom sources, circuit tests, build and key setup scripts
-contracts/         one Aiken project: lib/zbase/* modules and validators/*
+contracts/         one Aiken project: lib/zx402/* modules and validators/*
 contracts/fixtures generator that turns scenarios with real proofs into Aiken test modules
 packages/crypto    field helpers, Poseidon255 wrappers, notes, trees, encodings, point compression, witness builders
 packages/prover    snarkjs wrapper: file hash checks, prove, verify, conversion for Cardano
 packages/txlib     chain provider, Blockfrost adapter, codecs, script loader, and the transaction builders of section 7
 packages/api       request and response types of section 8.8, JSON converters, HTTP clients and server
-packages/sdk       @zbase-cardano/core: notes, sync, settle, x402 signer
+packages/sdk       @zx402/core: notes, sync, settle, x402 signer
 services/indexer   chain follower and read API
 services/relayer   quote and settle
 services/crank     insert prover and submitter
@@ -894,7 +894,7 @@ It has no wallet connection, deposit, proof generation, or transaction submissio
 - Give the hero a distinct display type treatment. Render `Unknown` in an italic editorial face with a graphite and silver finish, a fine offset shadow, and a slow automatic light sweep. Keep the word fully readable at all times. The headline has no hover response or decoding glyphs. The light and shadow are decorative and cannot intercept input. Keep the accessible headline stable. Pause freezes the light sweep; static and reduced motion modes show still lettering.
 - Add a scroll-driven payment path scene inspired by Skydive's integration orbit. An anonymous portrait from the same set as the hero stays at the center as six nodes appear: Wallet, Shared pool, Local proof, Relayer, One-time key, and x402 seller. Scrolling highlights successive nodes and changes an illustrative detail card. Each node is also a keyboard-accessible button. User selection holds until scrolling reaches another stage. Native page scrolling remains intact.
 - Mark the orbit scene as a design preview in development. Keep its planned status and privacy limits visible. Reduced motion, paused motion, or missing browser APIs leave all six node controls and a readable detail card available without automatic changes.
-- End with a short invitation over an original character landscape and two concise footer link groups for Explore and Resources. Use an oversized zBase wordmark above the project status and copyright. Omit repeated descriptions and taglines. Use existing destinations only. Do not imply legal policies, certifications, or live services that the project does not have.
+- End with a short invitation over an original character landscape and two concise footer link groups for Explore and Resources. Use an oversized zx402 wordmark above the project status and copyright. Omit repeated descriptions and taglines. Use existing destinations only. Do not imply legal policies, certifications, or live services that the project does not have.
 
 Run the frontend with `npm run dev` at the repo root. `npm test -w apps/web` runs its Vitest and React Testing Library checks. `npm test` runs all workspace tests. `npm run build` checks frontend types and creates the production build.
 Frontend tests use the `FE` IDs in [TEST-PLAN.md](./TEST-PLAN.md).
@@ -958,8 +958,8 @@ Properties:
 
 ### 9.3 Facilitator mode (M1)
 
-- The seller points its x402 stack at a zBase facilitator, or installs our facilitator scheme.
-- The buyer's payload carries the spend proof and intent under a custom transfer method named `zbase`.
+- The seller points its x402 stack at a zx402 facilitator, or installs our facilitator scheme.
+- The buyer's payload carries the spend proof and intent under a custom transfer method named `zx402`.
 - At settle time our facilitator builds and submits the pool transaction. The seller is paid straight from the pool in one transaction.
 - No handoff gap exists, so the relayer can chain payments.
 
@@ -1084,7 +1084,7 @@ Measured: a first full setup takes about 28 minutes, of which the phase 1 prepar
 
 - **Circuit or verifier bug.** It can drain the pool. Caps bound the loss. An audit comes before caps rise.
 - **Duplicate precommitment.** Two notes with the same nullifier cannot both be spent. If someone copies a pending deposit, the copier loses their deposit. The SDK follows the deposit that carries the refund key it used itself, because only that note can also exit in public. Among deposits with that key, or when the SDK was restored from the seed alone and no longer knows the key, it prefers an absorbed deposit and then the larger one. A copy can also carry the owner's refund key and be absorbed first. So a deposit that the SDK submitted itself is followed by its exact output reference, and a copy cannot take its place.
-- **No rule on chain against a repeated precommitment.** zBase on Base refuses a second deposit with the same precommitment. This pool does not, because that needs a second set in the pool datum. So every wallet must make sure that it never uses a note secret twice in one pool. The SDK derives secrets from the seed and a counter in its store. It syncs before it deposits, and it skips every index whose precommitment is already on chain or whose nullifier is already spent. That holds for deposits and for change notes, also after a lost store. A wallet that builds deposits without the SDK must apply the same rule, or its deposit is locked for good.
+- **No rule on chain against a repeated precommitment.** the Base implementation refuses a second deposit with the same precommitment. This pool does not, because that needs a second set in the pool datum. So every wallet must make sure that it never uses a note secret twice in one pool. The SDK derives secrets from the seed and a counter in its store. It syncs before it deposits, and it skips every index whose precommitment is already on chain or whose nullifier is already spent. That holds for deposits and for change notes, also after a lost store. A wallet that builds deposits without the SDK must apply the same rule, or its deposit is locked for good.
 - **Malformed deposits.** They are lost (section 6.6).
 - **Rollbacks.** Cardano finality is probabilistic. The indexer and relayer handle rollbacks and rebuild.
 - **Seed loss.** The system is non-custodial. A lost seed means lost notes.
@@ -1234,7 +1234,7 @@ x402 on Cardano defaults to USDM. Masumi names USDCx on mainnet.
 - **Poseidon builtin.** A draft CIP proposes a Poseidon permutation builtin at about 24M CPU per call. Its registry includes the width-3 instance we use for tree nodes. The width-4 instance we use for commitments is only a candidate there. If the builtin ships, a later pool version can hash tree nodes on-chain and shrink or drop the Insert proof.
 - **Nullifier sharding.** Several nullifier UTXOs keyed by the first byte let settles run in parallel.
 - **Bigger insert batches.** Compress public inputs with a witness-bound random combination.
-- **Multi-input notes.** Port the 2-in 2-out design from zBase's `note_spend` circuit.
+- **Multi-input notes.** Port the 2-in 2-out design from the Base implementation's `note_spend` circuit.
 - **Hidden recipients.** Pay into Seedelf registers.
 - **Aggregated settles.** Many payments in one proof and one transaction.
 - **Payer-agnostic receive.** A sender pays the deposit address with the receiver's precommitment.
@@ -1287,7 +1287,7 @@ That measurement is the reason for decision D3.
 
 | Project | Link |
 |---|---|
-| zBase on Base (source architecture) | `github.com/goheesheng/zBase` |
+| the Base implementation (source architecture) | the Privacy Pools rail on Base, vendored 0xbow contracts |
 | Privacy Pools reference | `github.com/0xbow-io/privacy-pools-core` |
 | Cardano Foundation BLS repo | `github.com/cardano-foundation/bls` |
 | Aiken primitives post | `cardanofoundation.org/blog/aiken-primitives-explained` |
@@ -1305,9 +1305,9 @@ That measurement is the reason for decision D3.
 | Subbit x402 | `github.com/loveaihq/subbit-x402` |
 | Powers of tau for Cardano | `github.com/p0tion-tools/cardano-ppot` |
 
-## Appendix B. Mapping from zBase on Base
+## Appendix B. Mapping from the Base implementation
 
-| zBase on Base | zx402 |
+| the Base implementation | zx402 |
 |---|---|
 | `Entrypoint.deposit` pulls USDC and hashes the commitment on-chain | A plain payment to the deposit address. Insert computes the commitment in-circuit |
 | LeanIMT with on-chain Poseidon, dynamic depth | Fixed depth 32 tree, updated only by Insert proofs |
@@ -1326,7 +1326,7 @@ That measurement is the reason for decision D3.
 | Upgradeable proxy | Immutable scripts and versioned pools |
 | USDC | tUSDM on Preprod in M0. ADA pools remain supported. Mainnet stablecoins follow later |
 
-## Appendix C. Corrections to the earlier zbase-cardano notes
+## Appendix C. Corrections to the earlier notes
 
 1. The notes spent a per-deposit UTXO at payment. That reveals the link. Funds now sit in one pool UTXO.
 2. The notes let an off-chain indexer post the root. Roots now change only with a proof.
@@ -1348,5 +1348,5 @@ That measurement is the reason for decision D3.
 | 1.0.2 | 2026-10-06 | Rule P3 also forbids a reference script on the continuing pool output. |
 | 1.0.3 | 2026-10-06 | Build findings. The first live run is on Preprod, and all off-chain code takes a network setting (section 15). Script parameters use the Evolution SDK, because the Mesh function truncates long byte strings (8.6). The indexer serves `GET /v1/pool`, and two error codes were added (8.8). The code layout matches the repository (8.9). The Preprod pool uses a single-contributor setup (11). |
 | 1.0.4 | 2026-10-07 | Findings from the first live runs on Preprod. The SDK treats its own marks as tentative until the chain confirms them, and exits and refunds carry an expiry (8.7). A copied precommitment is resolved by the refund key (12.2). M0 status notes for the relayer, the indexer and the association service (8.2, 8.4, 8.5). |
-| 1.0.5 | 2026-10-07 | Findings from a comparison with zBase on Base. The pool has no rule against a repeated precommitment, so the SDK never uses a note secret twice and follows the exact output of its own deposit (12.2). The SDK reads the fee rate and the tip from its own provider, limits the lifetime of a quote, and releases a note only on a known refusal (8.7). The relayer has the error code `uncertain` (8.8). M0 status of the privacy defaults, and two more leaks (13.2). |
+| 1.0.5 | 2026-10-07 | Findings from a comparison with the Base implementation. The pool has no rule against a repeated precommitment, so the SDK never uses a note secret twice and follows the exact output of its own deposit (12.2). The SDK reads the fee rate and the tip from its own provider, limits the lifetime of a quote, and releases a note only on a known refusal (8.7). The relayer has the error code `uncertain` (8.8). M0 status of the privacy defaults, and two more leaks (13.2). |
 | 1.0.6 | 2026-10-07 | Added the M0 tUSDM pool rules, asset units, payout ADA, per-payout relayer fee, and token stealth flow. Recorded token payout checks and the unpinned ADA reserve. |

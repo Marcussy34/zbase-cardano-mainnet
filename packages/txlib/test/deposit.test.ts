@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { Ed25519KeyHashHex, Hash, Transaction, TxCBOR } from '@meshsdk/core-cst';
-import { R } from '@zbase-cardano/crypto';
+import { R } from '@zx402/crypto';
 import { buildDeposit, buildRefund } from '../src/deposit.js';
 import { encodeDepositDatum } from '../src/codec.js';
 import { readDeposits } from '../src/context.js';

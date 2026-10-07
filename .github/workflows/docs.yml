@@ -34,7 +34,7 @@ jobs:
       # The site lives under the repository name on GitHub Pages.
       - run: npm run docs:build
         env:
-          NEXT_PUBLIC_BASE_PATH: /zbase-cardano-mainnet
+          NEXT_PUBLIC_BASE_PATH: /zx402
       # Pages must serve the _next folder as is. Jekyll would skip it.
       - run: touch apps/docs/out/.nojekyll
       - uses: actions/upload-pages-artifact@v3

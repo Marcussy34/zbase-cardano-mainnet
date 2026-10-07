@@ -1,5 +1,5 @@
 import { readFile } from 'node:fs/promises';
-import { vkToCardano } from '@zbase-cardano/crypto';
+import { vkToCardano } from '@zx402/crypto';
 import { assetUnit, isAdaAsset, type AssetClass } from '../asset.js';
 import { vkToHex, type ChainContext } from '../context.js';
 import { buildInit, buildPublishScripts, genesisPoolDatum } from '../init.js';

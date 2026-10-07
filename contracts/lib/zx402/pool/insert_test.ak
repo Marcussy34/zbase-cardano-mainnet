@@ -7,15 +7,15 @@ use cardano/transaction.{
   Datum, DatumHash, InlineDatum, Input, NoDatum, Output, OutputReference,
   Transaction,
 }
-use zbase/constants
-use zbase/fixtures/common as fixture_keys
-use zbase/fixtures/insert as f
-use zbase/groth16
-use zbase/pool
-use zbase/pool/common.{PoolParams}
-use zbase/pool/kit
-use zbase/testkit
-use zbase/types.{AssetClass, ConfigDatum, DepositDatum, Insert, PoolDatum}
+use zx402/constants
+use zx402/fixtures/common as fixture_keys
+use zx402/fixtures/insert as f
+use zx402/groth16
+use zx402/pool
+use zx402/pool/common.{PoolParams}
+use zx402/pool/kit
+use zx402/testkit
+use zx402/types.{AssetClass, ConfigDatum, DepositDatum, Insert, PoolDatum}
 
 type Case {
   datum: PoolDatum,

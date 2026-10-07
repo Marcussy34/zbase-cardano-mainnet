@@ -15,7 +15,7 @@ An agent that pays per request pays many times a day. Every payment leaves the s
 
 ## The idea
 
-zx402 is a port of zBase on Base, which uses the Privacy Pools design. It works in three steps.
+zx402 is a port of the Base implementation, which uses the Privacy Pools design. It works in three steps.
 
 1. The agent deposits tUSDM into the pool on Preprod. The deposit carries a hidden commitment to a secret note.
 2. An approval service checks the deposit and adds it to an approved set. Only approved deposits can pay.
@@ -60,4 +60,4 @@ The **How it works** section explains the design in plain words. The **Reference
 
 ## The repository
 
-The code is public at [github.com/Marcussy34/zbase-cardano-mainnet](https://github.com/Marcussy34/zbase-cardano-mainnet) under the MIT license. The on-chain code is written in Aiken. The circuits are written in Circom and proven with Groth16 on BLS12-381. The off-chain code is TypeScript.
+The code is public at [github.com/Marcussy34/zx402](https://github.com/Marcussy34/zx402) under the MIT license. The on-chain code is written in Aiken. The circuits are written in Circom and proven with Groth16 on BLS12-381. The off-chain code is TypeScript.

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { randomBytes } from 'node:crypto';
 import { test } from 'node:test';
 import { Transaction, TxCBOR } from '@meshsdk/core-cst';
-import { addressToBech32, deriveOneTimeKey } from '@zbase-cardano/crypto';
+import { addressToBech32, deriveOneTimeKey } from '@zx402/crypto';
 import { enterpriseAddress, keyHash, verifyWitnesses } from '../src/keys.js';
 import { buildStealthPayment, stealthFee } from '../src/stealth.js';
 import * as stealth from '../src/stealth.js';

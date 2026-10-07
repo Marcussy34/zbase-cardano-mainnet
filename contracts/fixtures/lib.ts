@@ -6,10 +6,10 @@ import { groth16 } from "snarkjs";
 import type { CircuitSignals, Groth16Proof } from "snarkjs";
 import {
   R, ZERO_HASHES, proofToCardano, vkToCardano,
-} from "@zbase-cardano/crypto";
+} from "@zx402/crypto";
 import type {
   CardanoProof, CardanoVk, Credential, Payout, PayoutAddress, SettleIntent, SnarkjsVk,
-} from "@zbase-cardano/crypto";
+} from "@zx402/crypto";
 import type { Proof as TrieProof } from "@aiken-lang/merkle-patricia-forestry";
 
 export const repoRoot = fileURLToPath(new URL("../../", import.meta.url));
@@ -170,7 +170,7 @@ export async function writeModule(name: string, module: FixtureModule): Promise<
     module.uses.join("\n"), ...constants,
   ].join("\n\n") + "\n";
   if (/[\u2013\u2014]/u.test(content)) throw new Error("Generated fixtures must not contain long dash punctuation");
-  await writeGenerated(join(repoRoot, "contracts/lib/zbase/fixtures", `${name}.ak`), content);
+  await writeGenerated(join(repoRoot, "contracts/lib/zx402/fixtures", `${name}.ak`), content);
 }
 
 export async function readVerificationKey(circuit: Circuit): Promise<SnarkjsVk> {

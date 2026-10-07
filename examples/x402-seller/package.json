@@ -1,5 +1,5 @@
 {
-  "name": "@zbase-cardano/example-x402-seller",
+  "name": "@zx402/example-x402-seller",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -15,6 +15,6 @@
     "@x402/cardano": "2.28.0",
     "@x402/core": "2.28.0",
     "@x402/fetch": "2.28.0",
-    "@zbase-cardano/txlib": "0.0.0"
+    "@zx402/txlib": "0.0.0"
   }
 }

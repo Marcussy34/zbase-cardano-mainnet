@@ -12,7 +12,7 @@
 zx402 lets an AI agent pay on Cardano mainnet without showing which wallet paid.
 The agent deposits into a shared pool, then pays from the pool with a zero-knowledge proof.
 The first release is a capped pool for team funds, called M0. It uses tUSDM on Preprod; the same validators support ADA pools.
-It adapts zBase, which runs on Base today, to Cardano's limits.
+It adapts the Privacy Pools rail that runs on Base today to Cardano's limits.
 
 The transaction builders and quote field support token payouts.
 The SDK signer, deploy command, demo and seller support the pool's asset. SPEC 8.2, 9.2 and 16 describe the token rules.
@@ -38,7 +38,7 @@ The retired ADA pool's record moved to `deployments/retired/`. The Preprod runbo
 The owner approved the design on 2026-10-06. SPEC section 2 lists each decision with its reason. The main ones:
 
 - Groth16 over BLS12-381, with circom and snarkjs.
-- The Privacy Pools note model, the same as zBase on Base.
+- The Privacy Pools note model, the same as the Base implementation.
 - The validator never computes Poseidon. A second proof covers each tree update.
 - Deposits are ordinary payments. Anyone can insert them with a proof.
 - Spent notes are tracked in one Merkle Patricia Forestry root.
@@ -62,7 +62,7 @@ The owner approved the design on 2026-10-06. SPEC section 2 lists each decision 
 | Fees of about 1.0 to 1.2 ADA per private payment | Measured on Preprod: 0.85 ADA for the two legs, plus a share of one Insert | measurements.md, sections 3 and 5 |
 | Circuit sizes | Measured: spend 16,828, insert 62,950 and ragequit 8,423 constraints | measurements.md, section 1 |
 | Mesh can build the Settle transaction | Verified on Preprod. Two defects of Mesh 1.9.1 are worked around in `packages/txlib` | AGENTS.md, Cardano knowledge |
-| The port keeps the safety rules of zBase on Base | Checked on 2026-10-07 by the lead and by two independent reviewers, rule by rule against the Base contracts. They found no way to move value without a valid proof. They found weaknesses outside the validators. Five were fixed, and section 5 lists the others | research/2026-10-07-comparison-with-base.md |
+| The port keeps the safety rules of the Base implementation | Checked on 2026-10-07 by the lead and by two independent reviewers, rule by rule against the Base contracts. They found no way to move value without a valid proof. They found weaknesses outside the validators. Five were fixed, and section 5 lists the others | research/2026-10-07-comparison-with-base.md |
 | The community powers of tau file is usable | Not verified | CEREMONY section 2 |
 
 The three circuits, the validators, the services and the SDK are written and run on Preprod.
@@ -115,7 +115,7 @@ Known limits of M0, each a deliberate cut:
 - The relayer does not chain transactions. One pool transaction confirms before the next is built, so the pool serves about one action per block.
 - A payout with a datum hash is refused by the Settle builder.
 - A change note cannot be recovered from the seed alone. The SDK needs its store file. After a lost store the SDK goes on safely with new secrets, but the unspent change notes of the old store stay out of reach, and the one-time addresses start again at the first one, which links those payments on chain.
-- The pool does not refuse a repeated precommitment on chain, as zBase on Base does. The SDK prevents it. A wallet without the SDK must do the same.
+- The pool does not refuse a repeated precommitment on chain, as the Base implementation does. The SDK prevents it. A wallet without the SDK must do the same.
 - The association service approves every absorbed deposit at once, unless a deny function refuses it. No screening data source is connected.
 - The indexer treats confirmed data as final. It does not wait for a number of blocks.
 - A deploy that stops midway has no resume command. Section 9 of the Preprod runbook says what to do.
@@ -193,7 +193,7 @@ Ask the owner before you change any of these:
 
 | Thing | Location |
 |---|---|
-| zBase on Base, the source architecture | `github.com/goheesheng/zBase` |
+| the Base implementation, the source architecture | the Privacy Pools rail on Base, vendored 0xbow contracts |
 | Privacy Pools reference contracts and circuits | `github.com/0xbow-io/privacy-pools-core` |
 | The Poseidon255 circuits | `github.com/jmagan/poseidon-bls12381-circom` |
 | The x402 scheme for Cardano | `github.com/x402-foundation/x402`, `specs/schemes/exact/scheme_exact_cardano.md` |
@@ -205,4 +205,4 @@ Ask the owner before you change any of these:
 - The plan is a work breakdown. It fixes interfaces and tests, not line-by-line code.
 - Estimates are marked as estimates. M0 replaces them with measurements.
 - The design is new. An external audit is required before the caps are lifted.
-- This repo uses the MIT license. zBase on Base uses Apache-2.0.
+- This repo uses the MIT license. the Base implementation uses Apache-2.0.

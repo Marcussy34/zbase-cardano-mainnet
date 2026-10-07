@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { NETWORKS } from '@zbase-cardano/crypto';
+import { NETWORKS } from '@zx402/crypto';
 import { buildDeposit, buildRefund, decodeTx, enterpriseAddress, keyHash, readDeposits, signTx } from '../src/index.js';
 import { startDevnet } from '../src/testing/devnet.js';
 import { LedgerError } from '../src/testing/fake-chain.js';

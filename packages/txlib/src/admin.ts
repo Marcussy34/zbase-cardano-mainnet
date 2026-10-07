@@ -1,4 +1,4 @@
-import { addressToBech32, assertCanonical } from '@zbase-cardano/crypto';
+import { addressToBech32, assertCanonical } from '@zx402/crypto';
 import { addAssetAmount, isAdaAsset, meshAsset } from './asset.js';
 import { encodeAspDatum, encodeConfigDatum, encodePoolDatum, encodePoolRedeemer, encodeVoid, type ConfigDatum } from './codec.js';
 import { complete, newTxBuilder, readAsp, readConfig, readPool, type ChainContext, type Payer } from './context.js';

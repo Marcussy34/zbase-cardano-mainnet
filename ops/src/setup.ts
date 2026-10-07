@@ -3,7 +3,7 @@ import { constants } from 'node:fs';
 import { access, copyFile, mkdir } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import type { Network } from '@zbase-cardano/txlib';
+import type { Network } from '@zx402/txlib';
 import { readSettings } from './env.js';
 
 /** M0's largest circuit needs the power-16 transcript pinned in artifacts/dev. */

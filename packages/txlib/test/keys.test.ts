@@ -3,7 +3,7 @@ import { randomBytes } from 'node:crypto';
 import { before, test } from 'node:test';
 import { ed25519 } from '@noble/curves/ed25519.js';
 import { blake2b } from '@noble/hashes/blake2.js';
-import { addressToBech32 } from '@zbase-cardano/crypto';
+import { addressToBech32 } from '@zx402/crypto';
 import { MeshTxBuilder } from '@meshsdk/core';
 import {
   CborSet, Ed25519SignatureHex, Transaction, TxCBOR, VkeyWitness, serializeAddress,
@@ -127,7 +127,7 @@ test('TX-05 foundation: slot and time conversions use the mainnet origin and flo
 });
 
 test('TX-05 foundation: preprod enterprise addresses retain the mainnet key hash', async () => {
-  const { addressFromBech32 } = await import('@zbase-cardano/crypto');
+  const { addressFromBech32 } = await import('@zx402/crypto');
   const seed = Uint8Array.from({ length: 32 }, (_, i) => i);
   const mainnet = enterpriseAddress(seed);
   const preprod = enterpriseAddress(seed, 'preprod');

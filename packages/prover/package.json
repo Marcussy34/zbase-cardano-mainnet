@@ -1,5 +1,5 @@
 {
-  "name": "@zbase-cardano/prover",
+  "name": "@zx402/prover",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -9,7 +9,7 @@
     "typecheck": "tsc --noEmit -p ."
   },
   "dependencies": {
-    "@zbase-cardano/crypto": "*",
+    "@zx402/crypto": "*",
     "snarkjs": "0.7.6"
   }
 }

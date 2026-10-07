@@ -2,8 +2,8 @@
 
 use cardano/address.{Address, VerificationKey}
 use cardano/transaction.{OutputReference}
-use zbase/groth16
-use zbase/types.{ConfigDatum, DepositDatum, PoolDatum}
+use zx402/groth16
+use zx402/types.{ConfigDatum, DepositDatum, PoolDatum}
 
 pub const one_deposit_datum: PoolDatum =
   PoolDatum { roots: [34147729537948564452788589313828361831422685361580832702235439851958634889397], size: 0, queue: [], nullifier_root: #"0000000000000000000000000000000000000000000000000000000000000000", fees_accrued: 0 }

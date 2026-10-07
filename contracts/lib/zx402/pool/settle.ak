@@ -4,11 +4,11 @@ use aiken/interval.{Finite}
 use aiken/merkle_patricia_forestry as mpf
 use cardano/assets
 use cardano/transaction.{InlineDatum, NoDatum, Output}
-use zbase/constants
-use zbase/encoding
-use zbase/groth16.{Proof, VerificationKey}
-use zbase/pool/common.{PoolContext}
-use zbase/types.{AssetClass, Payout, PoolDatum, SettleIntent}
+use zx402/constants
+use zx402/encoding
+use zx402/groth16.{Proof, VerificationKey}
+use zx402/pool/common.{PoolContext}
+use zx402/types.{AssetClass, Payout, PoolDatum, SettleIntent}
 
 /// Bind the payment, accounting, and nullifier transition to one spend proof.
 pub fn validate(

@@ -11,7 +11,7 @@ Mainnet is not deployed yet. Nobody outside this project has reviewed the design
 
 **New here? Read [docs/HANDOFF.md](docs/HANDOFF.md) first.**
 
-The documentation site at [marcussy34.github.io/zbase-cardano-mainnet](https://marcussy34.github.io/zbase-cardano-mainnet/) explains how it works in plain words and carries every document from `docs/`. Run it locally with `npm run docs:dev`.
+The documentation site at [marcussy34.github.io/zx402](https://marcussy34.github.io/zx402/) explains how it works in plain words and carries every document from `docs/`. Run it locally with `npm run docs:dev`.
 
 ## Try it
 
@@ -54,7 +54,7 @@ The page has no wallet connection or transaction functions. M0 runs on Preprod; 
 | `packages/prover` | Proving and verifying with snarkjs |
 | `packages/txlib` | Transaction builders, the Blockfrost provider, and a local test chain that runs the real validators |
 | `packages/api` | The HTTP contracts of the indexer and the relayer, with clients |
-| `packages/sdk` | The agent SDK, `@zbase-cardano/core`, with the stealth x402 signer |
+| `packages/sdk` | The agent SDK, `@zx402/core`, with the stealth x402 signer |
 | `services/` | The indexer, the crank, the association set provider service and the relayer |
 | `ops/` | Key setup, deploy, the one-process node, the demo and the admin command |
 | `examples/x402-seller` | A stock x402 seller that knows nothing about the pool |
@@ -95,9 +95,9 @@ The page has no wallet connection or transaction functions. M0 runs on Preprod; 
 
 ## Origin
 
-zBase runs on Base today as a Privacy Pools fork with an x402 facilitator.
+The Base implementation is a Privacy Pools fork with an x402 facilitator.
 This design adapts that architecture to Cardano's ledger limits.
-It replaces the earlier notes in the private `zbase-cardano` repo.
+It replaces the earlier private notes.
 
 ## License
 

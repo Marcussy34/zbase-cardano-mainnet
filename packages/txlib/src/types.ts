@@ -1,6 +1,6 @@
-import { NETWORKS, type Network } from '@zbase-cardano/crypto';
+import { NETWORKS, type Network } from '@zx402/crypto';
 import { PV11_COST_MODELS, type CostModels } from './cost-models.js';
-export type { Network } from '@zbase-cardano/crypto';
+export type { Network } from '@zx402/crypto';
 export type { CostModels } from './cost-models.js';
 
 /** Transaction ID as 64 lowercase hex characters, and an output index. */

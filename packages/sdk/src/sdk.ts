@@ -1,19 +1,19 @@
 import { setTimeout as delay } from 'node:timers/promises';
 import type { ClientCardanoSigner } from '@x402/cardano';
-import { ApiError, type DepositView, type IndexerApi, type PayoutRequest, type RelayerApi, type SettleStatus } from '@zbase-cardano/api';
+import { ApiError, type DepositView, type IndexerApi, type PayoutRequest, type RelayerApi, type SettleStatus } from '@zx402/api';
 import {
   addressFromBech32, commitment, contextFor, deriveNoteSecrets, deriveOneTimeKey, MerkleTree, nullifierHash, precommitment,
   ragequitWitness, spendWitness, type Note, type SettleIntent,
-} from '@zbase-cardano/crypto';
-import { prove, type CircuitArtifacts } from '@zbase-cardano/prover';
+} from '@zx402/crypto';
+import { prove, type CircuitArtifacts } from '@zx402/prover';
 import {
   assetAmount, assetWireUnit, buildDeposit, buildRagequit, buildRefund, buildStealthPayment, decodeTx, encodeDepositDatum, enterpriseAddress, isAdaAsset, keyHash,
   nullifierInsertion, readConfig, readDeposits, readPool, signTx, slotToTime, stealthFee, type ChainContext,
-} from '@zbase-cardano/txlib';
+} from '@zx402/txlib';
 import { memoryStore, type NoteRecord, type NoteStore, type StoreData } from './store.js';
 import { stealthSigner } from './x402.js';
 
-export interface ZbaseOptions {
+export interface Zx402Options {
   seed: Uint8Array;
   ctx: ChainContext;
   indexer: IndexerApi;
@@ -39,7 +39,7 @@ type PaymentArgs = {
   minPayoutLovelace?: bigint;
 };
 type ExitArgs = { noteId: string; refundSeed: Uint8Array; payTo?: string };
-export interface ZbaseCardano {
+export interface Zx402 {
   prepareDeposit(a: { amount: bigint; refundKeyHash: string }): Promise<PreparedDeposit>;
   deposit(a: { amount: bigint; walletSeed: Uint8Array }): Promise<{ txId: string; prepared: PreparedDeposit }>;
   sync(): Promise<void>;
@@ -64,7 +64,7 @@ const hex = (bytes: Uint8Array) => Buffer.from(bytes).toString('hex');
 const fresh = (): StoreData => ({ nextDepositIndex: 0, nextChangeIndex: 0, nextOneTimeIndex: 0, notes: [] });
 const terminal = (note: NoteRecord) => ['spent', 'refunded', 'exited'].includes(note.status);
 
-export function createZbaseCardano(o: ZbaseOptions): ZbaseCardano {
+export function createZx402(o: Zx402Options): Zx402 {
   if (!(o.seed instanceof Uint8Array) || o.seed.length !== 32) throw new RangeError('seed must be exactly 32 bytes');
   const seed = o.seed.slice();
   const { ctx, indexer, relayer } = o;
@@ -389,7 +389,7 @@ export function createZbaseCardano(o: ZbaseOptions): ZbaseCardano {
     if (hex(keyHash(refundSeed)) !== record.origin.refundKeyHash) throw new Error('Refund seed does not match the original refund key');
     return enterpriseAddress(refundSeed, ctx.deployment.network);
   }
-  const sdk: ZbaseCardano = {
+  const sdk: Zx402 = {
     prepareDeposit: a => exclusive(() => prepare(a)),
     deposit: a => exclusive(async () => {
       const refundKeyHash = hex(keyHash(a.walletSeed));

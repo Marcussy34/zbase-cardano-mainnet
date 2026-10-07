@@ -1,10 +1,10 @@
 use aiken/crypto.{ScriptHash}
 use cardano/assets.{PolicyId}
 use cardano/transaction.{OutputReference, Transaction}
-use zbase/groth16.{VerificationKey}
-use zbase/pool as rules
-use zbase/pool/common.{PoolParams}
-use zbase/types.{AssetClass, PoolDatum, PoolRedeemer}
+use zx402/groth16.{VerificationKey}
+use zx402/pool as rules
+use zx402/pool/common.{PoolParams}
+use zx402/types.{AssetClass, PoolDatum, PoolRedeemer}
 
 validator pool(
   nft_policy: PolicyId,

@@ -7,8 +7,8 @@ import { join } from "node:path";
 import { after, before, describe, test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
-import { commitment, MerkleTree, R, ragequitWitness } from "@zbase-cardano/crypto";
-import type { Note } from "@zbase-cardano/crypto";
+import { commitment, MerkleTree, R, ragequitWitness } from "@zx402/crypto";
+import type { Note } from "@zx402/crypto";
 import {
   devKeysPresent, loadArtifacts, loadDevArtifacts, loadDevVkey, prove, shutdown, verify,
 } from "../src/index.js";
@@ -167,7 +167,7 @@ test("CIR-R00: shutdown is repeatable and a proving process exits naturally", pr
   const script = `
     (async () => {
       const { loadDevArtifacts, prove, shutdown } = await import(${JSON.stringify(moduleUrl)});
-      const { commitment, MerkleTree, ragequitWitness } = await import("@zbase-cardano/crypto");
+      const { commitment, MerkleTree, ragequitWitness } = await import("@zx402/crypto");
       const note = { value: 42000000n, label: 91n, nullifier: 101n, secret: 202n };
       const built = ragequitWitness({ note, stateTree: MerkleTree.fromLeaves([commitment(note)]), stateIndex: 0 });
       try {

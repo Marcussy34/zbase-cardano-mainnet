@@ -16,7 +16,7 @@ Later it pays sellers, escrows, or payment channels from the pool with a zero-kn
 The chain shows the pool as the payer.
 A compliance list blocks flagged deposits from private use.
 
-The product adapts the zBase architecture that runs on Base.
+The product adapts the Privacy Pools architecture of the Base implementation.
 The cryptography is the same family.
 The on-chain design is new, because Cardano has different limits.
 
@@ -90,7 +90,7 @@ Listed in priority order.
 | U2 | Pay any stock x402 seller privately, 1 ADA or more, through a one-time stealth address (two steps). | M0 |
 | U3 | Exit publicly (ragequit) if the deposit is not approved, or if the user wants out. | M0 |
 | U4 | Fund a Masumi escrow privately. | M1 |
-| U5 | Pay straight from the pool in one transaction, through a zBase-aware facilitator. | M1 |
+| U5 | Pay straight from the pool in one transaction, through a zx402-aware facilitator. | M1 |
 | U6 | Fund a payment channel or tab privately (x402 batch settlement, Tab402). | M1 |
 | U7 | Export a disclosure receipt for an auditor. | M1 |
 | U8 | Receive from a privacy-unaware payer straight into the pool. | M2 |
@@ -132,7 +132,7 @@ Each requirement has an ID and a first release. The SPEC shows how each one is m
 |---|---|---|
 | FR-X1 | The SDK ships a stealth mode. It funds a one-time key from the pool, then pays with the stock `@x402/cardano` client signer. | M0 |
 | FR-X2 | Settle transactions contain no mint, no reward withdrawal, and no certificate. | M0 |
-| FR-X3 | A zBase facilitator mode builds the pool transaction at settle time (facilitator mode). | M1 |
+| FR-X3 | A zx402 facilitator mode builds the pool transaction at settle time (facilitator mode). | M1 |
 | FR-X4 | A direct handoff signer returns the pool transaction itself. It is experimental, because some facilitators reject script-funded inputs. | M1 |
 | FR-M1 | The stealth mode can lock a Masumi `vested_pay` escrow with the stock `masumi` method. | M1 |
 
@@ -169,7 +169,7 @@ Each requirement has an ID and a first release. The SPEC shows how each one is m
 | FR-S1 | The SDK proves on the agent's machine by default. Note secrets never leave it. | M0 |
 | FR-S2 | A user can recover all notes from one seed plus chain data. | M0 |
 | FR-S3 | The SDK syncs the tree without telling the server which notes it owns. | M0 |
-| FR-S4 | The SDK is TypeScript for Node 22 or later. Its API mirrors `@zbase-protocol/core` where that makes sense. | M0 |
+| FR-S4 | The SDK is TypeScript for Node 22 or later. Its API mirrors the Base implementation's core package where that makes sense. | M0 |
 | FR-O1 | A solvency monitor checks pool balance against public deposits and payments. | M0 |
 | FR-O2 | A public status page shows pool balance, anonymity set, and queue depth. | M1 |
 
@@ -214,7 +214,7 @@ Estimate: M0 is one to two weeks of focused build. This is an estimate, not a co
 ## 11. Pricing
 
 - The relayer quotes a fee that covers network cost. Expect about 1.0 to 1.2 ADA per private x402 payment in stealth mode. This is an estimate until M0 measures it.
-- The protocol fee is 0 in M0 and M1. zBase on Base charges 5% per settle. We decide before M2.
+- The protocol fee is 0 in M0 and M1. the Base implementation charges 5% per settle. We decide before M2.
 - The deposit fee is 0. Each deposit pays a 0.3 ADA crank fee.
 
 A fee near 1 ADA is large against a 2 ADA payment and small against a 100 ADA escrow.
@@ -254,11 +254,11 @@ None of these blocks M0. Each has a default that the builder can assume.
 | 2 | What is the protocol fee? | 0 | M2 |
 | 3 | Which entity operates the pool, and which jurisdiction reviews it? | Not needed for a canary with team funds | M1 |
 | 4 | Which TypeScript transaction library do we standardize on? | Mesh SDK. The first build task confirms it | First week of M0 |
-| 5 | Do we propose a `zbase` transfer method upstream in x402? | Not needed for stealth mode | M1 |
+| 5 | Do we propose a `zx402` transfer method upstream in x402? | Not needed for stealth mode | M1 |
 | 6 | How does the relayer quote and fund the minimum ADA for stablecoin payouts? | The relayer fronts the ADA and is repaid in tokens | M2 |
 | 7 | Does an auditor accept the Poseidon parameter set (56 partial rounds)? | Use `poseidon-bls12381-circom` 1.0.0 | The M2 audit |
 | 8 | Which stablecoin pool ships first, USDM or USDCx? | USDCx if Masumi is the main target, otherwise USDM | M2 |
-| 9 | Which license does this repo use? | Not set. zBase on Base uses Apache-2.0 | The repo goes public |
+| 9 | Which license does this repo use? | Not set. the Base implementation uses Apache-2.0 | The repo goes public |
 
 ## 15. Landscape
 
