@@ -10,7 +10,7 @@ import {
 } from '@zbase-cardano/crypto';
 import { verify } from '@zbase-cardano/prover';
 import {
-  buildSettle, enterpriseAddress, keyHash, nullifierInsertion, readPool, signTx, slotToTime,
+  assetWireUnit, buildSettle, enterpriseAddress, isAdaAsset, keyHash, nullifierInsertion, readPool, signTx, slotToTime,
   type ChainContext, type PoolState, type UtxoRef,
 } from '@zbase-cardano/txlib';
 
@@ -51,6 +51,7 @@ export class Relayer implements RelayerApi {
   private readonly seed: Uint8Array;
   private readonly vkey: SnarkjsVk;
   private readonly relayerFee: bigint;
+  private readonly payoutLovelace: bigint;
   private readonly quoteTtlMs: number;
   private readonly retryDelayMs: number;
   private readonly maxQuotes: number;
@@ -67,7 +68,9 @@ export class Relayer implements RelayerApi {
 
   constructor(a: {
     ctx: ChainContext; indexer: IndexerApi; seed: Uint8Array; vkey: SnarkjsVk;
-    relayerFee?: bigint; quoteTtlMs?: number; retryDelayMs?: number; now?: () => number;
+    /** The relayer fee is in pool asset units. */
+    relayerFee?: bigint;
+    payoutLovelace?: bigint; quoteTtlMs?: number; retryDelayMs?: number; now?: () => number;
     maxQuotes?: number; submissionTtlMs?: number; maxQueued?: number;
     log?: (message: string, error?: unknown) => void;
   }) {
@@ -76,6 +79,11 @@ export class Relayer implements RelayerApi {
     this.seed = a.seed.slice();
     this.vkey = a.vkey;
     this.relayerFee = a.relayerFee ?? 1_000_000n;
+    const adaPool = isAdaAsset(this.ctx.deployment.asset);
+    this.payoutLovelace = a.payoutLovelace ?? (adaPool ? 0n : 2_000_000n);
+    if (this.payoutLovelace < 0n || (adaPool ? this.payoutLovelace !== 0n : this.payoutLovelace < 1_000_000n)) {
+      throw new RangeError('payoutLovelace must be 0 in an ADA pool or at least 1000000 in a token pool');
+    }
     this.quoteTtlMs = a.quoteTtlMs ?? 300_000;
     this.retryDelayMs = a.retryDelayMs ?? 20_000;
     this.maxQuotes = a.maxQuotes ?? 1000;
@@ -101,23 +109,29 @@ export class Relayer implements RelayerApi {
     if (!Array.isArray(payouts) || payouts.length < 1 || payouts.length > 4) {
       throw new ApiError('bad_request', 'A quote requires one to four payouts');
     }
+    // The relayer funds token outputs with ADA, so token amounts can be smaller.
+    const minimumPayout = isAdaAsset(this.ctx.deployment.asset) ? 1_000_000n : 1n;
     const saved = payouts.map(payout => {
       try {
         addressFromBech32(payout.address, this.ctx.deployment.network);
-        if (typeof payout.amount !== 'bigint' || payout.amount < 1_000_000n) throw new Error('Invalid amount');
+        if (typeof payout.amount !== 'bigint' || payout.amount < minimumPayout) throw new Error('Invalid amount');
         if (payout.datumHash !== null && !/^[0-9a-f]{64}$/.test(payout.datumHash)) throw new Error('Invalid datum hash');
       } catch {
-        throw new ApiError('bad_request', 'Payouts need a valid network address, datum hash, and at least 1000000 lovelace');
+        throw new ApiError('bad_request', `Payouts need a valid network address, datum hash, and at least the minimum payout (${minimumPayout})`);
       }
       return { ...payout };
     });
     const view = await this.getPool();
+    if (view.asset !== assetWireUnit(this.ctx.deployment.asset)) {
+      throw new ApiError('internal', 'Indexer serves another pool asset');
+    }
     const paid = saved.reduce((sum, payout) => sum + payout.amount, 0n);
     const protocolFee = paid * BigInt(view.config.settleFeeBps) / 10_000n;
     const withdrawn = paid + protocolFee + this.relayerFee;
     if (withdrawn >= 1n << 64n) throw new ApiError('bad_request', 'Withdrawal must fit in 64 bits');
     const quote: Quote = { quoteId: randomUUID(), poolId: this.ctx.deployment.poolId, withdrawn, protocolFee,
-      relayerFee: this.relayerFee, relayerKeyHash: this.relayerKeyHash, validUntil: this.now() + this.quoteTtlMs };
+      relayerFee: this.relayerFee, payoutLovelace: this.payoutLovelace,
+      relayerKeyHash: this.relayerKeyHash, validUntil: this.now() + this.quoteTtlMs };
     // Other quote requests can finish while the indexer read is in flight.
     if (this.quotes.size >= this.maxQuotes) throw new ApiError('internal', 'Relayer is busy', 503);
     this.quotes.set(quote.quoteId, { quote, payouts: saved });
@@ -267,6 +281,7 @@ export class Relayer implements RelayerApi {
             }
             throw new Error('Indexer nullifiers are behind the pool');
           }
+          // A token pool passes payoutLovelace here once the builder accepts it.
           const tx = await buildSettle(this.ctx, { payer: { address: enterpriseAddress(this.seed, this.ctx.deployment.network) },
             pool, proof: proof!, nullifierHash: inputs.nullifierHash, newCommitment: inputs.newCommitment,
             withdrawn: inputs.withdrawn, stateRoot: inputs.stateRoot, intent,
