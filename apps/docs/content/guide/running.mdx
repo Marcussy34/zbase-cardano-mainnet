@@ -116,7 +116,8 @@ npm run demo -w ops -- --reuse     # live: pay from that change note, no deposit
 
 <figure style={{ margin: '1.5rem 0 2rem' }}>
   <a href={`${process.env.NEXT_PUBLIC_BASE_PATH ?? ''}/diagrams/masumi.png`} aria-label="Open the diagram at full size">
-    <img src={`${process.env.NEXT_PUBLIC_BASE_PATH ?? ''}/diagrams/masumi.png`} alt="Paying a Masumi agent from the pool: the pool funds the purchasing wallet in private, then Masumi locks the escrow and the agent answers" style={{ display: 'block', width: '100%', height: 'auto', borderRadius: 8, background: '#fff' }} />
+    <img className="diagram-light" src={`${process.env.NEXT_PUBLIC_BASE_PATH ?? ''}/diagrams/masumi.png`} alt="Paying a Masumi agent from the pool: the pool funds the purchasing wallet in private, then Masumi locks the escrow and the agent answers" style={{ display: 'block', width: '100%', height: 'auto', borderRadius: 8 }} />
+    <img className="diagram-dark" src={`${process.env.NEXT_PUBLIC_BASE_PATH ?? ''}/diagrams/masumi-dark.png`} alt="Paying a Masumi agent from the pool: the pool funds the purchasing wallet in private, then Masumi locks the escrow and the agent answers" style={{ width: '100%', height: 'auto', borderRadius: 8 }} />
   </a>
   <figcaption style={{ marginTop: 12, fontSize: '0.85rem', lineHeight: 1.5 }}>The pool funds the Masumi node's purchasing wallet in private; Masumi does the rest unchanged. Source: docs/diagrams/masumi.excalidraw.</figcaption>
 </figure>

@@ -1,0 +1,5 @@
+/* The diagrams come in a light and a dark rendering; the site theme picks one. */
+.diagram-light { display: block; }
+.diagram-dark { display: none !important; }
+html.dark .diagram-light { display: none !important; }
+html.dark .diagram-dark { display: block !important; }

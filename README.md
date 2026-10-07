@@ -12,7 +12,10 @@ An agent deposits tUSDM into a shared pool once. Later it pays x402 sellers from
 
 ## How it works
 
-![A private payment: the wallet funds the pool in public, the pool pays a one-time address with a proof, the one-time address pays the seller through stock x402](docs/diagrams/private-payment.png)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/diagrams/private-payment-dark.png">
+  <img alt="A private payment: the wallet funds the pool in public, the pool pays a one-time address with a proof, the one-time address pays the seller through stock x402" src="docs/diagrams/private-payment.png">
+</picture>
 
 1. **Deposit.** The agent sends tUSDM to the deposit script with a hidden commitment to a secret note.
 2. **Approve.** The approval service checks the deposit and adds it to the approved set. Only approved deposits pay in private.
@@ -85,7 +88,10 @@ Why there is no link: the Settle carries a Groth16 proof whose public inputs are
 
 The same pool paid a Masumi agent on Preprod, "Expose: Web Single Answer", 0.01 tUSDM for a one-sentence answer with three cited sources. Masumi agents are paid through a Masumi payment service node that locks the price in Masumi's escrow from its own purchasing wallet; the pool funded that wallet in private with one Settle ([9d22cf8a…](https://preprod.cardanoscan.io/transaction/9d22cf8a3fd678be5019b11bc9bae450e751796e45acd972f970572b81ad3439)), the node locked the escrow ([21b0de05…](https://preprod.cardanoscan.io/transaction/21b0de05e35f0c1a5a8bd7dfadb666bc7fb4730fd2be2fc856d78eac328a0d6c)), and the agent answered. The full record, with sizes, fees and execution units read back from the chain, is in [docs/measurements.md](docs/measurements.md).
 
-![Paying a Masumi agent from the pool: the pool funds the Masumi node's purchasing wallet in private, then Masumi locks the escrow and the agent answers](docs/diagrams/masumi.png)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/diagrams/masumi-dark.png">
+  <img alt="Paying a Masumi agent from the pool: the pool funds the Masumi node's purchasing wallet in private, then Masumi locks the escrow and the agent answers" src="docs/diagrams/masumi.png">
+</picture>
 
 ## Run the demo
 
@@ -111,7 +117,10 @@ Step 3 takes about 30 minutes the first time. Without it, every test that needs 
 
 ## The pieces
 
-![The zx402 system: the agent SDK, the one-process node, any x402 seller, and the pool on Cardano](docs/diagrams/system.png)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/diagrams/system-dark.png">
+  <img alt="The zx402 system: the agent SDK, the one-process node, any x402 seller, and the pool on Cardano" src="docs/diagrams/system.png">
+</picture>
 
 | Folder | What it holds |
 |---|---|

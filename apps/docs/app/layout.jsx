@@ -3,6 +3,7 @@ import { Head } from 'nextra/components';
 import { getPageMap } from 'nextra/page-map';
 import Mark from '../components/Mark';
 import 'nextra-theme-docs/style.css';
+import './theme.css';
 
 const repository = 'https://github.com/Marcussy34/zx402';
 

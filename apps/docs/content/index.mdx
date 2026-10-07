@@ -9,7 +9,7 @@ import Hero from '../components/Hero';
 
 export const iconProps = {
   // React 19 does not apply the icon package's function defaultProps.
-  size: 24, color: 'currentColor', variant: 'TwoTone', 'aria-hidden': true, focusable: false, style: { flexShrink: 0 },
+  size: 26, color: '#3b82f6', variant: 'Bold', 'aria-hidden': true, focusable: false, style: { flexShrink: 0 },
 };
 export const descriptionStyle = { order: 1, padding: '0 1rem 1rem', fontSize: '0.9rem', lineHeight: 1.6 };
 
@@ -17,11 +17,8 @@ export const descriptionStyle = { order: 1, padding: '0 1rem 1rem', fontSize: '0
 
 <figure style={{ margin: '1.5rem 0 2rem' }}>
   <a href={`${process.env.NEXT_PUBLIC_BASE_PATH ?? ''}/diagrams/private-payment.png`} aria-label="Open the private payment diagram at full size" className="x:focus-visible:nextra-focus" style={{ display: 'block', borderRadius: 8 }}>
-    <img
-      src={`${process.env.NEXT_PUBLIC_BASE_PATH ?? ''}/diagrams/private-payment.png`}
-      alt="A private payment: wallet to pool in public, pool to one-time address with a proof, one-time address to seller through x402"
-      style={{ display: 'block', width: '100%', height: 'auto', borderRadius: 8, background: '#fff' }}
-    />
+    <img className="diagram-light" src={`${process.env.NEXT_PUBLIC_BASE_PATH ?? ''}/diagrams/private-payment.png`} alt="A private payment: wallet to pool in public, pool to one-time address with a proof, one-time address to seller through x402" style={{ display: 'block', width: '100%', height: 'auto', borderRadius: 8 }} />
+    <img className="diagram-dark" src={`${process.env.NEXT_PUBLIC_BASE_PATH ?? ''}/diagrams/private-payment-dark.png`} alt="A private payment: wallet to pool in public, pool to one-time address with a proof, one-time address to seller through x402" style={{ width: '100%', height: 'auto', borderRadius: 8 }} />
   </a>
   <figcaption style={{ marginTop: 12, fontSize: '0.85rem', lineHeight: 1.5 }}>
     The proof hides which deposit funds the payment.

@@ -9,7 +9,8 @@ Four off-chain services keep the pool moving. One operator runs all four in one 
 
 <figure style={{ margin: '1.5rem 0 2rem' }}>
   <a href={`${process.env.NEXT_PUBLIC_BASE_PATH ?? ''}/diagrams/system.png`} aria-label="Open the diagram at full size">
-    <img src={`${process.env.NEXT_PUBLIC_BASE_PATH ?? ''}/diagrams/system.png`} alt="The zx402 system: the agent SDK, the one-process node, any x402 seller, and the pool on Cardano" style={{ display: 'block', width: '100%', height: 'auto', borderRadius: 8, background: '#fff' }} />
+    <img className="diagram-light" src={`${process.env.NEXT_PUBLIC_BASE_PATH ?? ''}/diagrams/system.png`} alt="The zx402 system: the agent SDK, the one-process node, any x402 seller, and the pool on Cardano" style={{ display: 'block', width: '100%', height: 'auto', borderRadius: 8 }} />
+    <img className="diagram-dark" src={`${process.env.NEXT_PUBLIC_BASE_PATH ?? ''}/diagrams/system-dark.png`} alt="The zx402 system: the agent SDK, the one-process node, any x402 seller, and the pool on Cardano" style={{ width: '100%', height: 'auto', borderRadius: 8 }} />
   </a>
   <figcaption style={{ marginTop: 12, fontSize: '0.85rem', lineHeight: 1.5 }}>Who runs what, and what crosses each boundary. Source: docs/diagrams/system.excalidraw.</figcaption>
 </figure>
