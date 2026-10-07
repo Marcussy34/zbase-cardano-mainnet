@@ -41,9 +41,9 @@ function string(value: unknown, label: string): string {
   if (typeof value !== 'string' || !value) throw new Error(`${label}: expected a nonempty string`);
   return value;
 }
-// Remote text goes to the terminal, so control and escape characters are dropped first.
+// Remote text goes to the terminal, so control, escape, line separator and bidi characters are dropped first.
 function printable(value: unknown): string {
-  return String(value).replace(/[\u0000-\u001f\u007f-\u009f]/g, ' ');
+  return String(value).replace(/[\u0000-\u001f\u007f-\u009f\u2028\u2029\u200e\u200f\u202a-\u202e\u2066-\u2069]/g, ' ');
 }
 function chunks(value: unknown, label: string): string {
   if (typeof value === 'string') return value;

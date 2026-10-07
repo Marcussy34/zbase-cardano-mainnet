@@ -403,6 +403,18 @@ test('E2E-01 through E2E-04: deployed pool rehearsal through real HTTP and stock
     assert.equal(store.nextOneTimeIndex, 2);
     assert.deepEqual(store.notes.filter(note => note.kind === 'deposit').map(note => note.secretIndex), [0, 1]);
   });
+  await t.test('E2E-05: a staged demo keeps its change in the pool and the next demo pays from it', async () => {
+    const staged = await runDemo({ ...options, exit: false });
+    assert.equal(staged.exitTx, null);
+    const kept = (await fileStore(storePath).load())!.notes.find(note => note.kind === 'change' && note.status === 'spendable');
+    assert.ok(kept, 'The change note must stay spendable when the demo skips the exit');
+    const reused = await runDemo({ ...options, reuseNote: true });
+    assert.equal(reused.depositTx, null, 'A reused note needs no deposit');
+    assert.equal(reused.noteValue, kept.value);
+    assert.equal(reused.paid.status, 200);
+    assert.ok(reused.exitTx, 'The default demo still exits its change');
+    assert.ok(logs.some(line => line.includes(`Reusing spendable note ${kept.id}`)));
+  });
   await t.test('E2E-01: incoming HTTP URLs and bodies never contain raw note secrets', async () => {
     assert.ok(served.some(request => request.url === '/v1/settle' && request.body.includes('publicInputs')));
     assert.ok(served.some(request => request.url.startsWith('/v1/leaves?')));
