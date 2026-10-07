@@ -105,33 +105,16 @@ describe("Landing page", () => {
     expect(button.getAttribute("aria-expanded")).toBe("false");
   });
 
-  it("FE-04 selecting a walkthrough step updates the described illustration", async () => {
-    const user = userEvent.setup();
+  it("FE-04 presents all payment steps together without selecting a step", () => {
     render(<App />);
-    await user.click(
-      screen.getByRole("button", { name: /02.*prove locally/i }),
-    );
-    expect(
-      screen
-        .getByRole("button", { name: /02.*prove locally/i })
-        .getAttribute("aria-pressed"),
-    ).toBe("true");
-    expect(
-      screen.getByRole("region", { name: "Payment walkthrough" }).textContent,
-    ).toContain("Generated locally");
-    await user.click(screen.getByRole("button", { name: /03.*pay/i }));
-    expect(
-      screen.getByRole("region", { name: "Payment walkthrough" }).textContent,
-    ).toContain("One-time key");
-    await user.click(screen.getByRole("button", { name: /01.*deposit/i }));
-    expect(
-      screen
-        .getByRole("button", { name: /01.*deposit/i })
-        .getAttribute("aria-pressed"),
-    ).toBe("true");
-    expect(
-      screen.getByRole("region", { name: "Payment walkthrough" }).textContent,
-    ).toContain("ADA deposit");
+    const overview = within(screen.getByRole("region", { name: "Payment overview" }));
+    ["Deposit", "Prove locally", "Pay"].forEach((name) => {
+      expect(overview.getByRole("heading", { name, level: 3 })).toBeTruthy();
+    });
+    expect(overview.getByText(/shared pool/)).toBeTruthy();
+    expect(overview.getByText(/proof and intent to the relayer/)).toBeTruthy();
+    expect(overview.getByText(/one-time key, which pays the x402 seller/)).toBeTruthy();
+    expect(overview.queryByRole("button")).toBeNull();
   });
 
   it("FE-05 opens and closes a FAQ answer from the keyboard", async () => {

@@ -1,12 +1,13 @@
 import {
-  ArrowRight,
-  ArrowUpRight,
-  Check,
-  Fingerprint,
-  LockKeyhole,
-  ScanLine,
-  ShieldCheck,
-} from "lucide-react";
+  ArrowRightIcon,
+  ArrowUpRightIcon,
+  CheckIcon,
+  ProofIcon,
+  LockIcon,
+  NetworkIcon,
+  ShieldIcon,
+  PoolIcon,
+} from "./BrandIcons";
 import "./privacy-section.css";
 
 export default function PrivacySection() {
@@ -21,7 +22,7 @@ export default function PrivacySection() {
           Your secrets. <span>Yours.</span>
         </h2>
         <a className="text-link" href="/docs/?topic=spec#13-privacy">
-          Privacy model <ArrowUpRight size={15} aria-hidden="true" />
+          Privacy model <ArrowUpRightIcon size={15} aria-hidden="true" />
         </a>
       </div>
 
@@ -33,7 +34,7 @@ export default function PrivacySection() {
             aria-label="Kept on your device"
           >
             <div className="privacy-zone-label">
-              <LockKeyhole size={13} aria-hidden="true" /> Your device
+              <LockIcon size={13} aria-hidden="true" /> Your device
             </div>
             <div className="privacy-vault-stack" aria-hidden="true">
               <span />
@@ -41,11 +42,11 @@ export default function PrivacySection() {
             </div>
             <div className="privacy-vault">
               <div className="privacy-vault-top">
-                <Fingerprint size={27} strokeWidth={1.3} aria-hidden="true" />
+                <ProofIcon size={32} aria-hidden="true" />
                 <span>
                   PRIVATE NOTE<span>LOCAL BY DEFAULT</span>
                 </span>
-                <LockKeyhole size={15} aria-hidden="true" />
+                <LockIcon size={15} aria-hidden="true" />
               </div>
               <div className="privacy-secret-row">
                 <span>Note secrets</span>
@@ -79,7 +80,7 @@ export default function PrivacySection() {
                 </span>
               </div>
               <div className="privacy-vault-bottom">
-                <ShieldCheck size={15} aria-hidden="true" />
+                <ShieldIcon size={15} aria-hidden="true" />
                 <span>Proof generated locally</span>
               </div>
             </div>
@@ -90,10 +91,10 @@ export default function PrivacySection() {
             <div className="privacy-proof-track">
               <span />
               <div className="privacy-proof-packet">
-                <ScanLine size={22} strokeWidth={1.3} />
+                <ProofIcon size={32} />
                 <span>ZK PROOF</span>
               </div>
-              <ArrowRight size={18} />
+              <ArrowRightIcon size={18} />
             </div>
           </div>
 
@@ -103,22 +104,20 @@ export default function PrivacySection() {
             aria-label="Shared with the network"
           >
             <div className="privacy-zone-label">
-              <ScanLine size={13} aria-hidden="true" /> The network
+              <NetworkIcon size={13} aria-hidden="true" /> The network
             </div>
             <div className="privacy-receipt">
               <div className="privacy-receipt-row">
                 <span>To the relayer</span>
                 <strong>
-                  Proof + intent <Check size={13} aria-hidden="true" />
+                  Proof + intent <CheckIcon size={13} aria-hidden="true" />
                 </strong>
               </div>
               <div className="privacy-receipt-row">
                 <span>Funding source</span>
                 <strong>
                   Shared pool{" "}
-                  <span className="privacy-pool-dots" aria-hidden="true">
-                    ⠿
-                  </span>
+                  <PoolIcon size={25} aria-hidden="true" />
                 </strong>
               </div>
               <div className="privacy-receipt-row">

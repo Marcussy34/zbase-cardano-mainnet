@@ -26,11 +26,12 @@ describe("Hero headline", () => {
     },
   );
 
-  it("FE-11 keeps the light and shadow decorative without decoding glyphs", () => {
+  it("FE-11 keeps the smoke decorative and exposes one stable readable word", () => {
     const { container } = render(<HeroHeadline />);
     expect(screen.getAllByText("Unknown")).toHaveLength(1);
-    const finish = container.querySelector(".hero-word-finish");
-    expect(finish?.getAttribute("aria-hidden")).toBe("true");
+    const smoke = container.querySelector(".hero-word-smoke");
+    expect(smoke?.getAttribute("aria-hidden")).toBe("true");
+    expect(container.querySelector(".hero-word-fill")?.textContent).toBe("Unknown");
     expect(container.querySelector(".hero-cipher")).toBeNull();
   });
 });
