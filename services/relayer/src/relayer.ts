@@ -127,10 +127,12 @@ export class Relayer implements RelayerApi {
     }
     const paid = saved.reduce((sum, payout) => sum + payout.amount, 0n);
     const protocolFee = paid * BigInt(view.config.settleFeeBps) / 10_000n;
-    const withdrawn = paid + protocolFee + this.relayerFee;
+    // In a token pool every payout costs this relayer payoutLovelace of its own ADA, so the fee is per payout.
+    const relayerFee = isAdaAsset(this.ctx.deployment.asset) ? this.relayerFee : this.relayerFee * BigInt(saved.length);
+    const withdrawn = paid + protocolFee + relayerFee;
     if (withdrawn >= 1n << 64n) throw new ApiError('bad_request', 'Withdrawal must fit in 64 bits');
     const quote: Quote = { quoteId: randomUUID(), poolId: this.ctx.deployment.poolId, withdrawn, protocolFee,
-      relayerFee: this.relayerFee, payoutLovelace: this.payoutLovelace,
+      relayerFee, payoutLovelace: this.payoutLovelace,
       relayerKeyHash: this.relayerKeyHash, validUntil: this.now() + this.quoteTtlMs };
     // Other quote requests can finish while the indexer read is in flight.
     if (this.quotes.size >= this.maxQuotes) throw new ApiError('internal', 'Relayer is busy', 503);
