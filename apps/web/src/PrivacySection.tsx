@@ -21,7 +21,7 @@ export default function PrivacySection() {
         <h2 id="privacy-title">
           Your secrets. <span>Yours.</span>
         </h2>
-        <a className="text-link" href="/docs/?topic=spec#13-privacy">
+        <a className="text-link" href="https://marcussy34.github.io/zx402/guide/privacy/">
           Privacy model <ArrowUpRightIcon size={15} aria-hidden="true" />
         </a>
       </div>

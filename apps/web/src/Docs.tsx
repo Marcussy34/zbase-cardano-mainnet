@@ -131,8 +131,9 @@ export default function Docs() {
             ))}
           </nav>
           <p>
-            In development. These documents describe the planned protocol.
-            Payments are not live.
+            Live on the Preprod test network. These are the deep documents; the
+            guide is at{" "}
+            <a href="https://marcussy34.github.io/zx402/">the documentation site</a>.
           </p>
         </aside>
         <main>
