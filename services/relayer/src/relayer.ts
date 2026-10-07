@@ -281,8 +281,8 @@ export class Relayer implements RelayerApi {
             }
             throw new Error('Indexer nullifiers are behind the pool');
           }
-          // A token pool passes payoutLovelace here once the builder accepts it.
-          const tx = await buildSettle(this.ctx, { payer: { address: enterpriseAddress(this.seed, this.ctx.deployment.network) },
+          // In a token pool every payout output also gets payoutLovelace from this relayer's ADA.
+          const tx = await buildSettle(this.ctx, { payer: { address: enterpriseAddress(this.seed, this.ctx.deployment.network) }, payoutLovelace: this.payoutLovelace,
             pool, proof: proof!, nullifierHash: inputs.nullifierHash, newCommitment: inputs.newCommitment,
             withdrawn: inputs.withdrawn, stateRoot: inputs.stateRoot, intent,
             nullifierProof: trie.proofCbor, newNullifierRoot: trie.newRoot });
