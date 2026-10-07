@@ -1,25 +1,38 @@
 import {
-  Address, CborSet, Ed25519PublicKeyHex, Ed25519SignatureHex, Slot, Transaction,
+  Address, AssetId, CborSet, Ed25519PublicKeyHex, Ed25519SignatureHex, Slot, Transaction,
   TransactionBody, TransactionId, TransactionInput, TransactionOutput, TransactionWitnessSet, Value, VkeyWitness,
 } from '@meshsdk/core-cst';
+import { assetUnit, isAdaAsset, meshAsset, type AssetClass } from './asset.js';
+import { minimumLovelace } from './init.js';
 import { enterpriseAddress, signTx, txId } from './keys.js';
 import { minFee, type BuiltTx, type Network, type ProtocolParameters, type Provider, type Utxo, type UtxoRef } from './types.js';
 
 type Context = { provider: Provider; network: Network };
-type Payment = { payTo: string; price: bigint };
+type Payment = { payTo: string; price: bigint; asset?: AssetClass };
 const maxCoin = (1n << 64n) - 1n;
 
-function sellerOutput(network: Network, payment: Payment, parameters: ProtocolParameters): TransactionOutput {
+function sellerOutput(network: Network, payment: Payment, parameters: ProtocolParameters, checkMinimum = true): TransactionOutput {
   const address = Address.fromBech32(payment.payTo);
   if (address.getNetworkId() !== (network === 'mainnet' ? 1 : 0)) {
     throw new Error('Seller address belongs to another network');
   }
   if (!address.getProps().paymentPart) throw new Error('Seller must have a payment address');
   if (payment.price < 0n || payment.price > maxCoin) throw new RangeError('Price must fit an unsigned 64-bit lovelace amount');
+  if (payment.asset !== undefined && !isAdaAsset(payment.asset)) {
+    const minimum = minimumLovelace({ address: payment.payTo, amount: [meshAsset(payment.asset, payment.price)] }, parameters.coinsPerUtxoByte);
+    return new TransactionOutput(address, new Value(minimum, new Map([[AssetId(assetUnit(payment.asset)), payment.price]])));
+  }
   const output = new TransactionOutput(address, new Value(payment.price));
   const minimum = parameters.coinsPerUtxoByte * BigInt(160 + output.toCbor().length / 2);
-  if (payment.price < minimum) throw new Error(`Price is below minimum lovelace for the seller output (${minimum})`);
+  if (checkMinimum && payment.price < minimum) throw new Error(`Price is below minimum lovelace for the seller output (${minimum})`);
   return output;
+}
+
+/** Measure the seller output before the caller chooses how much ADA to fund. */
+export async function sellerMinimumLovelace(ctx: Context, payment: Payment): Promise<bigint> {
+  const parameters = await ctx.provider.getProtocolParameters();
+  const output = sellerOutput(ctx.network, payment, parameters, false);
+  return parameters.coinsPerUtxoByte * BigInt(160 + output.toCbor().length / 2);
 }
 
 function transaction(ref: UtxoRef, output: TransactionOutput, fee: bigint, ttl: number): Transaction {
@@ -27,7 +40,7 @@ function transaction(ref: UtxoRef, output: TransactionOutput, fee: bigint, ttl: 
   return new Transaction(new TransactionBody(inputs, [output], fee, Slot(ttl)), new TransactionWitnessSet());
 }
 
-/** Quotes leg 2 so leg 1 can fund exactly price plus this fee, including a small size margin. */
+/** Quotes the leg 2 network fee with a small size margin for leg 1 funding. */
 export async function stealthFee(ctx: Context, a: Payment): Promise<bigint> {
   const parameters = await ctx.provider.getProtocolParameters();
   const output = sellerOutput(ctx.network, a, parameters);
@@ -45,13 +58,18 @@ export async function stealthFee(ctx: Context, a: Payment): Promise<bigint> {
   return minFee(parameters, { size: tx.toCbor().length / 2, exUnits: [], refScriptBytes: 0 }) + margin;
 }
 
-/** Signs leg 2 with one input, one exact seller output, and all remaining lovelace as its fee. */
+/** Signs one input and one seller output, forwarding surplus ADA only for token payments. */
 export async function buildStealthPayment(
   ctx: Context,
   a: Payment & { oneTimeUtxo: Utxo; oneTimeSeed: Uint8Array; validForSlots?: number },
 ): Promise<BuiltTx> {
   const input = a.oneTimeUtxo;
-  if (Object.keys(input.value.assets).length !== 0) throw new Error('One-time UTXO must not contain any token');
+  const token = a.asset !== undefined && !isAdaAsset(a.asset);
+  if (token) {
+    if (Object.keys(input.value.assets).length !== 1 || input.value.assets[assetUnit(a.asset!)] !== a.price) {
+      throw new Error('One-time UTXO must hold exactly the price of the pool asset and no other token');
+    }
+  } else if (Object.keys(input.value.assets).length !== 0) throw new Error('One-time UTXO must not contain any token');
   if (input.inlineDatum !== null || input.datumHash !== null) throw new Error('One-time UTXO must not contain a datum');
   if (input.scriptRef !== null) throw new Error('One-time UTXO must not contain a reference script');
   if (input.address !== enterpriseAddress(a.oneTimeSeed, ctx.network)) {
@@ -71,8 +89,14 @@ export async function buildStealthPayment(
   if (!Number.isSafeInteger(tip.slot) || tip.slot < 0 || !Number.isSafeInteger(ttl)) {
     throw new RangeError('Invalid provider tip or expiry slot');
   }
-  const output = sellerOutput(ctx.network, a, parameters);
-  const fee = input.value.lovelace - a.price;
+  let output = sellerOutput(ctx.network, a, parameters);
+  const fee = token ? await stealthFee(ctx, a) : input.value.lovelace - a.price;
+  if (token) {
+    const lovelace = input.value.lovelace - fee;
+    if (lovelace < output.amount().coin()) throw new Error('One-time UTXO cannot cover the seller minimum lovelace and the fee');
+    // A fresh output avoids cached CBOR after changing the amount used for the fee quote.
+    output = new TransactionOutput(output.address(), new Value(lovelace, output.amount().multiasset()));
+  }
   if (fee < 0n) throw new Error('One-time UTXO cannot cover the price and minimum fee');
   const cbor = signTx(transaction(input.ref, output, fee, ttl).toCbor(), [a.oneTimeSeed]);
   const size = cbor.length / 2;
