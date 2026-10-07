@@ -1,7 +1,7 @@
-import { describe, expect, it } from "vitest";
-import { render, screen, within } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { act, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import App from "./App";
+import App, { SETUP_PROMPT } from "./App";
 
 describe("Landing page", () => {
   it("FE-15 distinguishes local secrets from information shared with the network", () => {
@@ -136,5 +136,87 @@ describe("Landing page", () => {
     await user.keyboard(" ");
     expect(question.getAttribute("aria-expanded")).toBe("false");
     expect(answer?.hidden).toBe(true);
+  });
+
+  describe("FE-19 setup prompt", () => {
+    const clipboard = Object.getOwnPropertyDescriptor(navigator, "clipboard");
+    afterEach(() => {
+      vi.useRealTimers();
+      if (clipboard) Object.defineProperty(navigator, "clipboard", clipboard);
+      else delete (navigator as { clipboard?: unknown }).clipboard;
+    });
+
+    it("FE-19 shows the one-line agent prompt with the repository, the commands, and the no-deploy rule", () => {
+      render(<App />);
+      const setup = within(
+        screen.getByRole("region", { name: "Hand it to your agent." }),
+      );
+      const prompt = setup.getByText(/Clone https:\/\/github.com\/Marcussy34\/zx402/);
+      expect(prompt.textContent).toBe(SETUP_PROMPT);
+      expect(SETUP_PROMPT).not.toContain("\n");
+      [
+        "https://github.com/Marcussy34/zx402",
+        "docs/HANDOFF.md",
+        "npm ci",
+        "npm run build:circuits",
+        "npm run setup:dev",
+        "npm test",
+        "Do not deploy",
+      ].forEach((part) => expect(SETUP_PROMPT).toContain(part));
+      expect(
+        setup.getByRole("link", { name: "Running it" }).getAttribute("href"),
+      ).toBe("https://marcussy34.github.io/zx402/guide/running/");
+    });
+
+    it("FE-19 copies the exact prompt, announces it, and clears the notice", async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+      const writeText = vi.fn().mockResolvedValue(undefined);
+      Object.defineProperty(navigator, "clipboard", {
+        value: { writeText },
+        configurable: true,
+      });
+      render(<App />);
+      const setup = within(
+        screen.getByRole("region", { name: "Hand it to your agent." }),
+      );
+      await user.click(setup.getByRole("button", { name: "Copy prompt" }));
+      expect(writeText).toHaveBeenCalledTimes(1);
+      expect(writeText).toHaveBeenCalledWith(SETUP_PROMPT);
+      const status = setup.getByRole("status");
+      await vi.waitFor(() => expect(status.textContent).toBe("Copied."));
+      await act(() => vi.advanceTimersByTimeAsync(2500));
+      expect(status.textContent).toBe("");
+    });
+
+    it("FE-19 keeps the prompt selectable when the clipboard is unavailable", async () => {
+      const user = userEvent.setup();
+      Object.defineProperty(navigator, "clipboard", {
+        value: undefined,
+        configurable: true,
+      });
+      render(<App />);
+      const setup = within(
+        screen.getByRole("region", { name: "Hand it to your agent." }),
+      );
+      await user.click(setup.getByRole("button", { name: "Copy prompt" }));
+      expect(setup.getByRole("status").textContent).toBe(
+        "Select the text and copy it.",
+      );
+      expect(
+        setup.getByText(/Clone https:\/\/github.com\/Marcussy34\/zx402/),
+      ).toBeTruthy();
+    });
+
+    it("FE-19 links the menu to the setup section", async () => {
+      const user = userEvent.setup();
+      render(<App />);
+      await user.click(screen.getByRole("button", { name: "Open menu" }));
+      expect(
+        within(screen.getByRole("navigation", { name: "Menu" }))
+          .getByRole("link", { name: "Set up" })
+          .getAttribute("href"),
+      ).toBe("#agent-setup");
+    });
   });
 });

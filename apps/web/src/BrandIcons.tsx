@@ -77,6 +77,9 @@ export function ShieldIcon(props: BrandIconProps) {
 export function CheckIcon(props: BrandIconProps) {
   return <Utility {...props}><path d="m5 12 4.5 4.5L19 7" strokeWidth="3" /></Utility>;
 }
+export function CopyIcon(props: BrandIconProps) {
+  return <Utility {...props}><rect x="9" y="9" width="11" height="11" rx="2.5" /><path d="M5.5 15H5a1.5 1.5 0 0 1-1.5-1.5V5A1.5 1.5 0 0 1 5 3.5h8.5A1.5 1.5 0 0 1 15 5v.5" /></Utility>;
+}
 export function ArrowRightIcon(props: BrandIconProps) {
   return <Utility {...props}><path d="M4 13c5-1 10-1 15-1M14 6l6 6-6 6" /></Utility>;
 }
