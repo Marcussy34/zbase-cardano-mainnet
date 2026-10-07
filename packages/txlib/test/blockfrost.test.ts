@@ -308,3 +308,15 @@ test('IDX-01 provider: transaction CBOR returns the response hex', async t => {
   });
   assert.equal(await blockfrostProvider('mainnet_marker_secret', 'mainnet').getTransactionCbor(txId), '84a1000180f5f6');
 });
+
+test('TX-05 provider: a request-level failure is retried, and a submit never is', async () => {
+  // Mesh's error handler names XMLHttpRequest, which Node lacks, so a lost connection surfaces as that ReferenceError.
+  let tips = 0;
+  const provider = providerFromMesh(fake({
+    fetchLatestBlock: async () => { tips += 1; if (tips === 1) throw new ReferenceError('XMLHttpRequest is not defined'); return block; },
+    submitTx: async () => { throw new ReferenceError('XMLHttpRequest is not defined'); },
+  }));
+  assert.equal((await provider.getTip()).slot, 99999999);
+  assert.equal(tips, 2, 'The second attempt must answer');
+  await assert.rejects(provider.submit('00'), /XMLHttpRequest/);
+});

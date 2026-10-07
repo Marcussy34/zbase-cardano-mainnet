@@ -106,9 +106,22 @@ function providerError(error: unknown, projectId: string): Error {
   return scriptFailed ? new ScriptFailure(message, traces.map(redact)) : new Error(message);
 }
 
-async function request<T>(action: () => Promise<T>, projectId: string): Promise<T> {
-  try { return await action(); }
-  catch (error) { throw providerError(error, projectId); }
+/** A request-level failure, before any answer from Blockfrost: a lost connection, a timeout, an overloaded gateway. */
+function transient(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  // Mesh's error handler references XMLHttpRequest, which Node lacks, so every request-level error reads as that.
+  return /XMLHttpRequest is not defined|ECONNRESET|ECONNREFUSED|ETIMEDOUT|EAI_AGAIN|socket hang up|network error|timeout of \d+ms|status code 5\d\d|status code 429/i.test(message);
+}
+
+/** Reads retry a transient failure a few times; a submit never does, so one transaction is never sent twice. */
+async function request<T>(action: () => Promise<T>, projectId: string, retries = 3): Promise<T> {
+  for (let attempt = 0; ; attempt++) {
+    try { return await action(); }
+    catch (error) {
+      if (attempt >= retries || !transient(error)) throw providerError(error, projectId);
+      await new Promise(resolve => setTimeout(resolve, 1_500 * (attempt + 1)));
+    }
+  }
 }
 
 interface AddressOutput {
@@ -204,7 +217,7 @@ function adapt(mesh: MeshProviderLike, projectId: string): Provider {
         return { tag, index: action.index, mem: BigInt(action.budget.mem), steps: BigInt(action.budget.steps) };
       });
     }, projectId),
-    submit: txCbor => request(() => mesh.submitTx(txCbor), projectId),
+    submit: txCbor => request(() => mesh.submitTx(txCbor), projectId, 0),
   };
 }
 
