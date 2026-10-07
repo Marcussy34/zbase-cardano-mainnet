@@ -41,6 +41,10 @@ function string(value: unknown, label: string): string {
   if (typeof value !== 'string' || !value) throw new Error(`${label}: expected a nonempty string`);
   return value;
 }
+// Remote text goes to the terminal, so control and escape characters are dropped first.
+function printable(value: unknown): string {
+  return String(value).replace(/[\u0000-\u001f\u007f-\u009f]/g, ' ');
+}
 function chunks(value: unknown, label: string): string {
   if (typeof value === 'string') return value;
   if (Array.isArray(value) && value.every(part => typeof part === 'string')) return value.join('');
@@ -115,7 +119,7 @@ export async function runMasumi(o: MasumiOptions): Promise<MasumiResult> {
   }
   const amount = BigInt(decimal(price.amount, 'price amount'));
   if (amount <= 0n) throw new Error('Agent price must be positive');
-  step(`Agent ${chunks(metadata.name, 'name')}: ${apiBase}, price ${amount} ${assetWireUnit(o.ctx.deployment.asset)}`);
+  step(`Agent ${printable(chunks(metadata.name, 'name'))}: ${apiBase}, price ${amount} ${assetWireUnit(o.ctx.deployment.asset)}`);
   const availability = await request(`${apiBase}/availability`, 'Agent availability');
   if (availability.status !== 'available') throw new Error('Masumi agent is not available');
   const schema = await request(`${apiBase}/input_schema`, 'Agent input schema');
@@ -166,7 +170,7 @@ export async function runMasumi(o: MasumiOptions): Promise<MasumiResult> {
     body: JSON.stringify({ identifier_from_purchaser: identifierFromPurchaser, input_data: o.input }) });
   const jobId = string(job.job_id, 'job_id');
   const blockchainIdentifier = string(job.blockchainIdentifier, 'blockchainIdentifier');
-  step(`Job ${jobId} started with blockchainIdentifier ${blockchainIdentifier}`);
+  step(`Job ${printable(jobId)} started with blockchainIdentifier ${printable(blockchainIdentifier)}`);
   if (!Array.isArray(job.amounts) || job.amounts.length !== 1) throw new Error('Job amounts do not match the advertised price');
   const jobAmount = object(job.amounts[0], 'job amount');
   if (jobAmount.unit !== poolUnit || BigInt(decimal(jobAmount.amount, 'job amount')) !== amount) {
@@ -183,7 +187,7 @@ export async function runMasumi(o: MasumiOptions): Promise<MasumiResult> {
   const created = await request(`${nodeUrl}/api/v1/purchase/`, 'Create purchase', {
     method: 'POST', headers: nodeHeaders, body: JSON.stringify(purchase) });
   if (created.status === 'error') throw new Error('Masumi node refused the purchase');
-  step(`Masumi purchase ${blockchainIdentifier} created`);
+  step(`Masumi purchase ${printable(blockchainIdentifier)} created`);
   // Without this filter the node lists V1 purchases, but this command creates V2 purchases.
   const query = new URLSearchParams({ network: 'Preprod', limit: '50', filterPaymentSourceType: 'Web3CardanoV2' });
   const lockTx = await poll(async deadline => {
@@ -198,13 +202,13 @@ export async function runMasumi(o: MasumiOptions): Promise<MasumiResult> {
     const transaction = found.CurrentTransaction ? object(found.CurrentTransaction, 'CurrentTransaction') : {};
     return typeof transaction.txHash === 'string' && transaction.txHash ? transaction.txHash : undefined;
   }, `Masumi purchase ${blockchainIdentifier} to reach FundsLocked`, Math.min(timeoutMs, 600_000));
-  step(`Escrow FundsLocked in transaction ${lockTx}`);
+  step(`Escrow FundsLocked in transaction ${printable(lockTx)}`);
   const status = await poll(async deadline => {
     const response = await request(`${apiBase}/status?${new URLSearchParams({ job_id: jobId })}`, 'Job status', {}, deadline);
     if (response.job_id !== jobId) throw new Error('Agent returned a status for another job');
     return response.status === 'completed' || response.status === 'failed' ? response : undefined;
   }, `Masumi job ${jobId} to complete`);
-  step(`Job ${jobId} ${status.status}: ${JSON.stringify(status.result ?? null)}`);
+  step(`Job ${printable(jobId)} ${printable(status.status)}: ${printable(JSON.stringify(status.result ?? null))}`);
   if (status.status === 'failed') throw new Error(`Masumi job ${jobId} failed`);
   return { depositTx, settleTx, lockTx, jobId, blockchainIdentifier, result: status.result ?? null,
     seconds: { total: (performance.now() - start) / 1000 } };
