@@ -1,4 +1,4 @@
-# zBase Cardano (mainnet)
+# zx402 (mainnet)
 
 Private payments for AI agents using tUSDM on Preprod, with Cardano mainnet planned.
 An agent deposits into a shared pool once.

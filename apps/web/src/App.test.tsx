@@ -138,7 +138,7 @@ describe("Landing page", () => {
     const user = userEvent.setup();
     render(<App />);
     const question = screen.getByRole("button", {
-      name: "Is zBase Cardano live?",
+      name: "Is zx402 live?",
     });
     question.focus();
     await user.keyboard("{Enter}");

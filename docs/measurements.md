@@ -1,4 +1,4 @@
-# zBase Cardano: Measurements
+# zx402: Measurements
 
 Fill this file during M0. It replaces the estimates in [SPEC.md](./SPEC.md) section 10.
 Measured values that are already known are in [research/2026-10-06-measurements.md](./research/2026-10-06-measurements.md).

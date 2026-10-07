@@ -10,7 +10,7 @@ describe("Documentation reader", () => {
     render(<Docs />);
     const article = screen.getByRole("article");
     expect(within(article).getByRole("heading", { level: 1 }).textContent).toBe(
-      "zBase Cardano: Product Requirements (PRD)",
+      "zx402: Product Requirements (PRD)",
     );
     expect(article.textContent).toContain(
       "A compliance list blocks flagged deposits from private use.",
@@ -31,21 +31,21 @@ describe("Documentation reader", () => {
     await user.keyboard("{Enter}");
     expect(specification.getAttribute("aria-pressed")).toBe("true");
     expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(
-      "zBase Cardano: Technical Specification",
+      "zx402: Technical Specification",
     );
     expect(screen.getByRole("article").textContent).toContain(
       "8.10 Public frontend",
     );
     await user.click(screen.getByRole("button", { name: "Build plan" }));
     expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(
-      "zBase Cardano M0 Mainnet Canary Implementation Plan",
+      "zx402 M0 Mainnet Canary Implementation Plan",
     );
     expect(screen.getByRole("article").textContent).toContain(
       "Global Constraints",
     );
     await user.click(screen.getByRole("button", { name: "Overview" }));
     expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(
-      "zBase Cardano: Product Requirements (PRD)",
+      "zx402: Product Requirements (PRD)",
     );
   });
 
@@ -70,7 +70,7 @@ describe("Documentation reader", () => {
     ).toBe("1-summary");
     await user.click(within(article).getByRole("link", { name: "SPEC.md" }));
     expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(
-      "zBase Cardano: Technical Specification",
+      "zx402: Technical Specification",
     );
     expect(window.location.search).toBe("?topic=spec");
   });
@@ -84,7 +84,7 @@ describe("Documentation reader", () => {
         .getAttribute("aria-pressed"),
     ).toBe("true");
     expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(
-      "zBase Cardano: Technical Specification",
+      "zx402: Technical Specification",
     );
   });
 
@@ -93,11 +93,11 @@ describe("Documentation reader", () => {
     window.history.replaceState({}, "", "/docs/?topic=spec#%E0%A4%A");
     render(<Docs />);
     expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(
-      "zBase Cardano: Technical Specification",
+      "zx402: Technical Specification",
     );
     await user.click(screen.getByRole("button", { name: "Overview" }));
     expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(
-      "zBase Cardano: Product Requirements (PRD)",
+      "zx402: Product Requirements (PRD)",
     );
   });
 });

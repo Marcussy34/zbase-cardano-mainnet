@@ -1,7 +1,7 @@
 {
   "preamble": {
     "title": "zbase/contracts",
-    "description": "zBase Cardano M0 pool contracts",
+    "description": "zx402 M0 pool contracts",
     "version": "0.0.0",
     "plutusVersion": "v3",
     "compiler": {

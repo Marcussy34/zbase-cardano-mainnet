@@ -84,14 +84,14 @@ function ReadDocs() {
 
 const questions = [
   {
-    question: "Is zBase Cardano live?",
+    question: "Is zx402 live?",
     answer:
       "The protocol runs on the Preprod test network. Mainnet is not live. A capped ADA canary using team funds is next.",
   },
   {
     question: "What does “private” mean here?",
     answer:
-      "zBase separates your funding wallet from payments. Amounts, recipients, and timing remain public. Privacy depends on the approved deposit set and your payment patterns.",
+      "zx402 separates your funding wallet from payments. Amounts, recipients, and timing remain public. Privacy depends on the approved deposit set and your payment patterns.",
   },
   {
     question: "Can I take my funds out?",
@@ -133,10 +133,10 @@ export default function App() {
         Skip to content
       </a>
       <header className="site-header" ref={header}>
-        <a className="brand" href="/" aria-label="zBase Cardano home">
+        <a className="brand" href="/" aria-label="zx402 home">
           <Mark />
           <span>
-            zBase<span className="brand-network">Cardano</span>
+            zx402<span className="brand-network">Cardano</span>
           </span>
         </a>
         <div className="header-actions">
@@ -156,7 +156,7 @@ export default function App() {
         </div>
         {menuOpen && (
           <nav className="menu-panel" id="site-menu" aria-label="Menu">
-            <span className="eyebrow">Explore zBase</span>
+            <span className="eyebrow">Explore zx402</span>
             {[
               ["How it works", "#how-it-works"],
               ["Privacy by design", "#privacy"],
@@ -243,7 +243,7 @@ export default function App() {
               <a
                 className="scroll-cue"
                 href="#idea"
-                aria-label="Discover zBase"
+                aria-label="Discover zx402"
               >
                 <ArrowDown size={17} />
               </a>
@@ -372,10 +372,10 @@ export default function App() {
         <div className="footer-container section-wrap">
           <div className="footer-top">
             <div className="footer-about">
-              <a href="/" className="brand" aria-label="zBase Cardano home">
+              <a href="/" className="brand" aria-label="zx402 home">
                 <Mark />
                 <span>
-                  zBase<span className="brand-network">Cardano</span>
+                  zx402<span className="brand-network">Cardano</span>
                 </span>
               </a>
             </div>
@@ -399,11 +399,11 @@ export default function App() {
             </nav>
           </div>
           <div className="footer-wordmark" aria-hidden="true" data-reveal>
-            <span>zBase</span>
+            <span>zx402</span>
             <span className="footer-wordmark-network">Cardano</span>
           </div>
           <div className="footer-bottom">
-            <span>© 2026 zBase Cardano</span>
+            <span>© 2026 zx402</span>
             <span className="footer-status">
               <i /> In development · ADA first
             </span>

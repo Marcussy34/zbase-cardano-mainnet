@@ -2,14 +2,14 @@
 
 | Field | Value |
 |---|---|
-| For | The engineer who builds zBase Cardano |
+| For | The engineer who builds zx402 |
 | From | Marcus |
 | Date | 2026-10-07 |
 | State of the repo | M0 uses the tUSDM pool on Preprod. The ADA pool from 2026-10-06 is retired. Public landing page and documentation reader are built. Mainnet is not deployed yet |
 
 ## 1. What you are building
 
-zBase Cardano lets an AI agent pay on Cardano mainnet without showing which wallet paid.
+zx402 lets an AI agent pay on Cardano mainnet without showing which wallet paid.
 The agent deposits into a shared pool, then pays from the pool with a zero-knowledge proof.
 The first release is a capped pool for team funds, called M0. It uses tUSDM on Preprod; the same validators support ADA pools.
 It adapts zBase, which runs on Base today, to Cardano's limits.

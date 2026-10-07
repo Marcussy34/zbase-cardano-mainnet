@@ -1,4 +1,4 @@
-# zBase Cardano: Setup
+# zx402: Setup
 
 | Field | Value |
 |---|---|

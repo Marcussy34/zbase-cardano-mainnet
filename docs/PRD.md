@@ -1,4 +1,4 @@
-# zBase Cardano: Product Requirements (PRD)
+# zx402: Product Requirements (PRD)
 
 | Field | Value |
 |---|---|
@@ -10,7 +10,7 @@
 
 ## 1. Summary
 
-zBase Cardano lets an AI agent pay on Cardano without showing which wallet paid.
+zx402 lets an AI agent pay on Cardano without showing which wallet paid.
 The agent deposits into a shared pool once.
 Later it pays sellers, escrows, or payment channels from the pool with a zero-knowledge proof.
 The chain shows the pool as the payer.
@@ -76,7 +76,7 @@ These are verified facts. Sources are in SPEC Appendix A.
 | A stock x402 facilitator rejects transactions that mint or withdraw rewards. | Settle transactions use spend validators only. |
 | Masumi names USDCx as its mainnet token. x402 on Cardano defaults to USDM. | Stablecoin pools should cover both. |
 
-The product conclusion: zBase Cardano is a **private funding rail**.
+The product conclusion: zx402 is a **private funding rail**.
 It fits payments of a few ADA or more.
 It also fits funding an escrow, a payment channel, or a tab that then meters small calls off-chain.
 
@@ -262,7 +262,7 @@ None of these blocks M0. Each has a default that the builder can assume.
 
 ## 15. Landscape
 
-| Project | What it is | Status | Gap that zBase Cardano fills |
+| Project | What it is | Status | Gap that zx402 fills |
 |---|---|---|---|
 | x402 on Cardano (`@x402/cardano` 2.28.0) | HTTP 402 payments with an `exact` scheme | On npm since September 2026 | All payments are public |
 | Masumi | Agent registry and `vested_pay` escrow | Live | Escrow funding is public |

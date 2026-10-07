@@ -80,7 +80,7 @@ export default function Docs() {
   }, []);
 
   useEffect(() => {
-    document.title = `${topics[topic].label} | zBase Cardano docs`;
+    document.title = `${topics[topic].label} | zx402 docs`;
     if (window.location.hash) {
       let fragment: string;
       try {
@@ -108,8 +108,8 @@ export default function Docs() {
   return (
     <div className="docs-shell">
       <header className="docs-header">
-        <a href="/" aria-label="Back to zBase">
-          ← Back to zBase
+        <a href="/" aria-label="Back to zx402">
+          ← Back to zx402
         </a>
         <span>Cardano documentation</span>
       </header>

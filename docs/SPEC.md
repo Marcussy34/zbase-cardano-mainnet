@@ -1,4 +1,4 @@
-# zBase Cardano: Technical Specification
+# zx402: Technical Specification
 
 | Field | Value |
 |---|---|
@@ -8,7 +8,7 @@
 | Companions | [PRD.md](./PRD.md), [PLAN-M0.md](./PLAN-M0.md), [TEST-PLAN.md](./TEST-PLAN.md), [TEST-VECTORS.md](./TEST-VECTORS.md) |
 | Target network | Cardano mainnet, protocol version 11 |
 
-This document says how zBase Cardano works and why.
+This document says how zx402 works and why.
 Requirement IDs such as FR-P3 point to the PRD.
 Numbers marked "measured" come from runs or live chain data listed in Appendix A.
 Numbers marked "estimate" must be replaced by measurements during M0.
@@ -1307,7 +1307,7 @@ That measurement is the reason for decision D3.
 
 ## Appendix B. Mapping from zBase on Base
 
-| zBase on Base | zBase Cardano |
+| zBase on Base | zx402 |
 |---|---|
 | `Entrypoint.deposit` pulls USDC and hashes the commitment on-chain | A plain payment to the deposit address. Insert computes the commitment in-circuit |
 | LeanIMT with on-chain Poseidon, dynamic depth | Fixed depth 32 tree, updated only by Insert proofs |
