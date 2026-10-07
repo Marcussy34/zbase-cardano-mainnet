@@ -296,6 +296,20 @@ The sizes equal the tUSDM run's, because the renamed strings keep their byte len
 
 Block times: deposit 07:15:15, Settle 07:18:26, seller payment 07:18:48, exit 07:20:32 UTC. The note waited 196 seconds to become spendable because the deposit's block, the Insert and the ASP update landed in three blocks 110 seconds apart, which is the chain, not the code.
 
+### A Masumi agent paid from the pool
+
+On 2026-10-07 at 07:22 UTC the pool paid a Masumi agent on Preprod: "Expose: Web Single Answer" (registry asset `7e8bdaf2…dbc77`, API `https://staging.kodosumi.io/sumi/web_single_answer_cc`), priced at 0.01 tUSDM in the pool's unit. Masumi agents are paid through a Masumi payment service node, which locks the price in Masumi's escrow contract from its own purchasing wallet. The command `npm run masumi -w ops` funded that wallet from the pool in private, started the job, created the purchase on a local Masumi node (payment source V1, the version every agent in the Preprod registry uses), and read the answer.
+
+| Transaction, Masumi purchase | CPU steps | Memory units | Size in bytes | Fee in ADA | Transaction hash |
+|---|---|---|---|---|---|
+| Deposit, 10 tUSDM | none | none | 445 | 0.175005 | `08864108b15e833ca9a3ea82bcc3d5cd701c1d87c545fd32347ec7a4e8fc7c66` |
+| Settle, 1 payout of 0.01 tUSDM plus 2 ADA to the Masumi purchasing wallet | 3,290,328,268 | 1,110,449 | 1,691 | 0.721590 | `9d22cf8a3fd678be5019b11bc9bae450e751796e45acd972f970572b81ad3439` |
+| Masumi escrow lock, submitted by the Masumi node from its purchasing wallet | none | none | 1,056 | 0.202065 | `21b0de05e35f0c1a5a8bd7dfadb666bc7fb4730fd2be2fc856d78eac328a0d6c` |
+
+The run was split in two by a surprise: the agent's `start_job` answer carries no `amounts` field, which the first version of the command required. The first run deposited, paid the purchasing wallet (134 seconds to a spendable note, 188 seconds to the funded wallet) and stopped at the job start. The fixed command found the wallet already funded, started job `6ac5f4b82173c6fa74f8fe68` after 15 seconds and created the purchase after 18 seconds. The Masumi node batches escrow locks every four minutes, so the lock entered the chain after 372 seconds; the agent answered 1 second later, with a one-sentence answer and three cited sources.
+
+The agent's seller never saw the pool. The purchasing wallet received its tUSDM from a Settle output, which looks like any other payout, and the escrow lock is a plain Masumi transaction from that wallet.
+
 ### Admin transactions on Preprod
 
 Run on 2026-10-06 on the rehearsal pool with `ops/src/admin.ts`.

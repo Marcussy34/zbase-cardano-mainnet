@@ -124,12 +124,16 @@ The demo does this, and prints each transaction:
 The retired ADA demo took 3.5 minutes on Preprod. Slow blocks can double that.
 The user pays 2 tUSDM for the weather and a 1 tUSDM relayer fee.
 The relayer funds each payout with 2 ADA by default. Leg 2 sends the seller the tokens and all that ADA minus its fee.
-The relayer spends about 0.73 ADA on its network fee, in addition to the payout ADA. Live token measurements are still pending.
+The relayer spends about 0.70 ADA on its network fee, in addition to the payout ADA. `docs/measurements.md` holds the live tUSDM runs.
 Before proving, the SDK rejects a quote below the seller output's minimum ADA plus the leg 2 fee, about 1.4 ADA.
 
 The token demo keeps its notes in `deployments/<network>/demo-store-<first 8 hex of the pool ID>.json`.
 Keep that file and back it up. Without it the demo still works, because the SDK finds its old deposits on chain and takes new secrets. But a change note that was still in the pool is then out of reach.
 If you changed a port, set `INDEXER_URL`, `RELAYER_URL` or `SELLER_URL` for the demo.
+
+Two flags stage a short demo: `npm run demo -w ops -- --no-exit` leaves the change note in the pool, and `npm run demo -w ops -- --reuse` pays from the largest spendable note without a deposit.
+
+To pay a Masumi agent from the pool, run your own Masumi payment service node, then `MASUMI_API_KEY=<admin key> MASUMI_PURCHASE_WALLET=<purchasing wallet address> npm run masumi -w ops -- --agent <registry asset> --input '<json>'`. The pool pays the purchasing wallet in private, and the Masumi node locks the escrow for the job.
 
 ## 7. Admin actions
 

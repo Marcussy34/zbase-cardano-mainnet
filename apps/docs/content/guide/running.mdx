@@ -101,6 +101,28 @@ The demo keeps its notes in `deployments/<network>/demo-store-<first 8 hex of th
 Each pool gets its own store, so the demo cannot load the retired pool's notes into the new pool.
 Keep that file. Without it, the SDK finds old deposits and takes new secrets, but unspent change notes remain out of reach.
 
+### A staged demo in three minutes
+
+The deposit wait is the slow part, and it can be done before an audience arrives. Two flags cut the live part to one payment:
+
+```sh
+npm run demo -w ops -- --no-exit   # before the demo: deposit, pay, and leave the 7 tUSDM change in the pool
+npm run demo -w ops -- --reuse     # live: pay from that change note, no deposit, then exit
+```
+
+`--reuse` pays from the largest spendable note in the store instead of depositing. `--no-exit` leaves the change in the pool. On Preprod the live part took 71 seconds to the seller's HTTP 200 and about 35 more for the exit.
+
+### Paying a Masumi agent
+
+[Masumi](https://www.masumi.network/) agents on Preprod are paid through a Masumi payment service node, which locks the price in Masumi's escrow contract from its own purchasing wallet. The pool can fund that wallet in private:
+
+```sh
+MASUMI_API_KEY=<admin key of your Masumi node> MASUMI_PURCHASE_WALLET=<its purchasing wallet address> \
+npm run masumi -w ops -- --agent <registry asset of the agent> --input '{"question":"..."}'
+```
+
+The command reads the agent's registry metadata through Blockfrost, refuses an agent that is not priced in the pool's tUSDM unit, pays the purchasing wallet with one private Settle, starts the job, creates the purchase on your Masumi node, waits for the escrow lock and prints the result. `MASUMI_NODE_URL` defaults to `http://localhost:3001`. The [measurements](/reference/measurements) record the live purchase.
+
 ## Admin actions
 
 `npm run admin -w ops -- status` prints the pool balance, the tree size, the queue, the approved count and the fees. The same command can pause and resume deposits, change the limits, collect fees and wind the pool down. Every admin action needs the admin threshold of signatures and stays inside the hard bounds of the config validator.
@@ -109,7 +131,7 @@ Keep that file. Without it, the SDK finds old deposits and takes new secrets, bu
 
 The retired ADA pool on Preprod was deployed on 2026-10-06.
 The demo ran six times against it, and all six ended with HTTP 200 and the forecast.
-The table below records those ADA runs. The lead will add live tUSDM measurements separately.
+The table below records those ADA runs. The tUSDM pool of 2026-10-07 and the zx402 pool that replaced it the same day each had one run, both HTTP 200: 372 and 351 seconds for the whole demo, 76 and 71 seconds for the payment.
 
 | Run | What was special | Payment, in seconds | Whole demo |
 |---|---|---|---|
