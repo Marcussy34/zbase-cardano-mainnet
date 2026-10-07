@@ -1,3 +1,4 @@
+import { setInConwayEra } from '@cardano-sdk/core';
 import {
   Address, AssetId, CborSet, Ed25519PublicKeyHex, Ed25519SignatureHex, Slot, Transaction,
   TransactionBody, TransactionId, TransactionInput, TransactionOutput, TransactionWitnessSet, Value, VkeyWitness,
@@ -36,6 +37,10 @@ export async function sellerMinimumLovelace(ctx: Context, payment: Payment): Pro
 }
 
 function transaction(ref: UtxoRef, output: TransactionOutput, fee: bigint, ttl: number): Transaction {
+  // Stock facilitators re-encode leg 2 with the Conway set tag on its inputs before they submit it. The serializer
+  // writes that tag only while this flag is on, and Mesh turns it on only once a transaction builder exists in the
+  // process. A payment built before any builder ran must carry the tag too, or the re-encoding breaks its signature.
+  setInConwayEra(true);
   const inputs = CborSet.fromCore([{ txId: TransactionId(ref.txId), index: ref.index }], TransactionInput.fromCore);
   return new Transaction(new TransactionBody(inputs, [output], fee, Slot(ttl)), new TransactionWitnessSet());
 }
