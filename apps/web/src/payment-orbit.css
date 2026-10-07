@@ -90,7 +90,7 @@
   -webkit-backface-visibility: hidden;
 }
 .path-portrait {
-  background: url("/images/privacy-companions.png") 0 0 / 300% 300%;
+  background: url("/images/privacy-stealth-agents.png") 0 0 / 300% 300%;
   box-shadow: 0 0 0 1px #c7b7e01c, 0 0 38px #a786bd14;
 }
 .path-center-back {
@@ -170,7 +170,7 @@
 }
 .path-node-portrait {
   transform: rotateY(180deg);
-  background: url("/images/privacy-companions.png") var(--portrait-x) var(--portrait-y) / 300% 300%;
+  background: url("/images/privacy-stealth-agents.png") var(--portrait-x) var(--portrait-y) / 300% 300%;
   border: 1px solid #a58ab83d;
   box-shadow: 0 5px 24px #0005;
 }

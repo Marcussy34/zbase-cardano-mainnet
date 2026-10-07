@@ -231,7 +231,7 @@ svg {
 .character {
   display: block;
   aspect-ratio: 1;
-  background-image: url("/images/privacy-companions.png");
+  background-image: url("/images/privacy-stealth-agents.png");
   background-size: 300% 300%;
   background-repeat: no-repeat;
   border-radius: 13px;
