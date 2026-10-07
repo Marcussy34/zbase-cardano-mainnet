@@ -1,6 +1,7 @@
 {
   "redirects": [
     { "source": "/docs", "destination": "https://docs.zx402.org/", "permanent": false },
+    { "source": "/docs/", "destination": "https://docs.zx402.org/", "permanent": false },
     { "source": "/docs/:path*", "destination": "https://docs.zx402.org/", "permanent": false }
   ]
 }
