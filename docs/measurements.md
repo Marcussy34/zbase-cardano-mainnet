@@ -323,6 +323,27 @@ The run was split in two by a surprise: the agent's `start_job` answer carries n
 
 The agent's seller never saw the pool. The purchasing wallet received its tUSDM from a Settle output, which looks like any other payout, and the escrow lock is a plain Masumi transaction from that wallet.
 
+### Two clean Masumi purchases, one of them end to end
+
+After the fixes above, the command ran twice more against the same agent on 2026-10-07. The first run (09:24 UTC) paid from a note already in the pool: Settle `0d90e8a6…`, escrow lock `c078b060…` after 302 seconds, job `6ac61036…` completed. The second run (09:31 UTC) started with `--deposit`, so one command shows the whole trail: deposit, private payment, escrow lock, answer. It is Demo 2 in the README, with the terminal log in `docs/evidence/masumi-demo-2026-10-07.log` and cexplorer screenshots in `docs/evidence/masumi-*.png`.
+
+| Transaction, end-to-end Masumi run | CPU steps | Memory units | Size in bytes | Fee in ADA | Transaction hash |
+|---|---|---|---|---|---|
+| Deposit, 10 tUSDM | none | none | 445 | 0.175005 | `87f5283ea9541ff6f563f20b817864bd5683c12f13fe561a2dc8ed9f9895dad0` |
+| Settle, 1 payout of 0.01 tUSDM plus 2 ADA to the Masumi purchasing wallet | 3,309,382,630 | 1,164,809 | 2,042 | 0.741544 | `69c4014661a252ee35dd9cdf4f08d1a8b4799a6af7ac6767ef4f2a4b3ffb4144` |
+| Masumi escrow lock, submitted by the Masumi node from its purchasing wallet | none | none | 1,056 | 0.202065 | `0b2d5095d6f04804c7de5663deec89c8c39559a0a214a70968190ab172a0c2c2` |
+
+| Step, in seconds | end-to-end run |
+|---|---|
+| Deposit submitted | 6.9 |
+| Note spendable, from the start | 144.1 |
+| Settle submitted | 155.3 |
+| Purchasing wallet funded | 233.9 |
+| Escrow FundsLocked (the node batches locks every four minutes) | 515.8 |
+| Job completed, answer received | 517.2 |
+
+The Settle spent one of the pool's notes; the chain cannot tell which, and the fresh deposit of this run is one of several candidates. The agent's answer, one sentence with three cited sources, came back through the Masumi job status.
+
 ### Admin transactions on Preprod
 
 Run on 2026-10-06 on the rehearsal pool with `ops/src/admin.ts`.

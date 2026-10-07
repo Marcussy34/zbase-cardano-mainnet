@@ -25,9 +25,18 @@ An agent deposits tUSDM into a shared pool once. Later it pays x402 sellers from
 
 The validators are written in Aiken. The circuits are Circom with Groth16 on BLS12-381. The off-chain code is TypeScript. The diagram above is the last slide of the pitch deck. A more detailed diagram, with every transaction of the Preprod run, is [docs/diagrams/private-payment.png](docs/diagrams/private-payment.png). Its source is `docs/diagrams/private-payment.excalidraw`.
 
-## Proof from Preprod
+## Two demos on Preprod, with the trail
 
-This is the demo in its final shape: the pool was funded earlier, then one command makes one private payment and the seller answers. Everything below comes from the run of 2026-10-07 at 07:54 UTC on Cardano Preprod. The terminal output is in [docs/evidence/staged-demo-2026-10-07.log](docs/evidence/staged-demo-2026-10-07.log).
+Both demos ran live on Cardano Preprod on 2026-10-07 with the code of this repository. Each one shows the terminal output, the explorer links for every transaction and address, and screenshots of the explorer pages. The explorer cannot connect the agent's wallet to the payment in either demo.
+
+| Demo | What is paid | Who receives | Terminal log |
+|---|---|---|---|
+| 1 | 2 tUSDM for a weather forecast over plain x402 | A stock x402 seller that knows nothing about the pool | [docs/evidence/staged-demo-2026-10-07.log](docs/evidence/staged-demo-2026-10-07.log) |
+| 2 | 0.01 tUSDM for a web-search answer from a Masumi agent | The Masumi agent "Expose: Web Single Answer", through its Masumi escrow | [docs/evidence/masumi-demo-2026-10-07.log](docs/evidence/masumi-demo-2026-10-07.log) |
+
+### Demo 1: a stock x402 seller, paid in private
+
+The pool was funded earlier, then one command makes one private payment and the seller answers. Everything below comes from the run at 07:54 UTC.
 
 ```text
 $ npm run demo -w ops -- --reuse --no-exit
@@ -53,7 +62,7 @@ Not on the chain: any link from the agent's wallet or its deposit to the one-tim
 
 The last line is the resource itself: the seller's answer, returned to the payer with HTTP 200 after the payment settled.
 
-### What to check on the explorer
+#### What to check on the explorer
 
 Each link opens on Cardanoscan and on cexplorer; the screenshots are from cexplorer.
 
@@ -84,14 +93,75 @@ Why there is no link: the Settle carries a Groth16 proof whose public inputs are
 
 ![The agent's wallet on cexplorer](docs/evidence/agent-wallet.png)
 
-### The Masumi purchase
+### Demo 2: a Masumi agent, paid in private
 
-The same pool paid a Masumi agent on Preprod, "Expose: Web Single Answer", 0.01 tUSDM for a one-sentence answer with three cited sources. Masumi agents are paid through a Masumi payment service node that locks the price in Masumi's escrow from its own purchasing wallet; the pool funded that wallet in private with one Settle ([9d22cf8a…](https://preprod.cardanoscan.io/transaction/9d22cf8a3fd678be5019b11bc9bae450e751796e45acd972f970572b81ad3439)), the node locked the escrow ([21b0de05…](https://preprod.cardanoscan.io/transaction/21b0de05e35f0c1a5a8bd7dfadb666bc7fb4730fd2be2fc856d78eac328a0d6c)), and the agent answered. The full record, with sizes, fees and execution units read back from the chain, is in [docs/measurements.md](docs/measurements.md).
+Masumi agents are paid through a Masumi payment service node, which locks the price in Masumi's escrow contract from its own purchasing wallet. The pool funds that wallet in private, and Masumi does the rest unchanged. This run started from a fresh deposit, so the whole trail is in one command: deposit, private payment, escrow lock, answer. It ran at 09:31 UTC against "Expose: Web Single Answer" (registry asset `7e8bdaf2…dbc77`), priced at 0.01 tUSDM.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/diagrams/masumi-dark.png">
   <img alt="Paying a Masumi agent from the pool: the pool funds the Masumi node's purchasing wallet in private, then Masumi locks the escrow and the agent answers" src="docs/diagrams/masumi.png">
 </picture>
+
+```text
+$ npm run masumi -w ops -- --deposit --agent 7e8bdaf2...dbc77 --input '{"question":"In one sentence, what is a zero-knowledge proof?"}'
+Agent Expose: Web Single Answer: https://staging.kodosumi.io/sumi/web_single_answer_cc, price 10000 16a55b2a349361ff88c03788f93e1e966e5d689605d044fef722ddde.0014df10745553444d in 0.432 seconds
+Agent is available and its input schema is loaded in 2.883 seconds
+Deposit 87f5283ea9541ff6f563f20b817864bd5683c12f13fe561a2dc8ed9f9895dad0 submitted in 6.907 seconds
+Deposit 87f5283ea9541ff6f563f20b817864bd5683c12f13fe561a2dc8ed9f9895dad0 is spendable in 144.101 seconds
+Spendable note covers price 10000 plus fees 1000000 in 144.101 seconds
+Settle 69c4014661a252ee35dd9cdf4f08d1a8b4799a6af7ac6767ef4f2a4b3ffb4144 submitted in 155.287 seconds
+Settle 69c4014661a252ee35dd9cdf4f08d1a8b4799a6af7ac6767ef4f2a4b3ffb4144 confirmed and purchasing wallet funded in 233.863 seconds
+Job 6ac6124d2173c611ccd0cb96 started with blockchainIdentifier 2986300c0cc06c08c04c01602704200e... in 256.139 seconds
+Masumi purchase 2986300c0cc06c08c04c01602704200e... created on a Web3CardanoV1 source in 257.050 seconds
+Escrow FundsLocked in transaction 0b2d5095d6f04804c7de5663deec89c8c39559a0a214a70968190ab172a0c2c2 in 515.825 seconds
+Job 6ac6124d2173c611ccd0cb96 completed: "...the answer, printed in full below..." in 517.179 seconds
+What the chain shows, on the explorer:
+  Pool              https://preprod.cardanoscan.io/address/addr_test1wpz3ul73ektd57lzg7glcuz8xs3767dyqs2e8duyltf0r6c2cpd4d
+  Agent's wallet    https://preprod.cardanoscan.io/address/addr_test1vz8etvadesg5a9stprjnajwqwr3g4u4d4pd0dgx9cslc76ch39334
+  Deposit           https://preprod.cardanoscan.io/transaction/87f5283ea9541ff6f563f20b817864bd5683c12f13fe561a2dc8ed9f9895dad0
+                    from the agent's wallet, in public like any deposit
+  Private payment   https://preprod.cardanoscan.io/transaction/69c4014661a252ee35dd9cdf4f08d1a8b4799a6af7ac6767ef4f2a4b3ffb4144
+                    the pool pays the Masumi node's purchasing wallet with a proof; no deposit is named
+  Purchasing wallet https://preprod.cardanoscan.io/address/addr_test1qzt68gmewmcxczgmrz4h2lye29cv34vu0qard9pd8kmze06j3f6ap4jyrdplmta28nsjzty92ksxy5wm0ypend0kfasqxlrrny
+  Escrow lock       https://preprod.cardanoscan.io/transaction/0b2d5095d6f04804c7de5663deec89c8c39559a0a214a70968190ab172a0c2c2
+                    the purchasing wallet locks the price in the Masumi escrow, as any Masumi buyer does
+  Escrow contract   https://preprod.cardanoscan.io/address/addr_test1wz7j4kmg2cs7yf92uat3ed4a3u97kr7axxr4avaz0lhwdsqukgwfm
+  Agent             https://staging.kodosumi.io/sumi/web_single_answer_cc, job 6ac6124d2173c611ccd0cb96
+Not on the chain: any link from the agent's wallet or its deposit to the purchasing wallet, the escrow or the Masumi agent.
+```
+
+#### What to check on the explorer
+
+| Step | What the page shows | Cardanoscan | cexplorer |
+|---|---|---|---|
+| The deposit | The agent's wallet sends 10 tUSDM to the pool's deposit script, in public like any deposit. | [87f5283e…](https://preprod.cardanoscan.io/transaction/87f5283ea9541ff6f563f20b817864bd5683c12f13fe561a2dc8ed9f9895dad0) | [87f5283e…](https://preprod.cexplorer.io/tx/87f5283ea9541ff6f563f20b817864bd5683c12f13fe561a2dc8ed9f9895dad0) |
+| The private payment (Settle) | Inputs: the pool script UTXO and the relayer. Outputs: the pool, the relayer's change, and 0.01 tUSDM plus 2 ADA to the Masumi node's purchasing wallet. No wallet of the agent, and no deposit named: the pool held several notes and the proof does not say which one paid. | [69c40146…](https://preprod.cardanoscan.io/transaction/69c4014661a252ee35dd9cdf4f08d1a8b4799a6af7ac6767ef4f2a4b3ffb4144) | [69c40146…](https://preprod.cexplorer.io/tx/69c4014661a252ee35dd9cdf4f08d1a8b4799a6af7ac6767ef4f2a4b3ffb4144) |
+| The escrow lock | The purchasing wallet locks 0.01 tUSDM in the Masumi V1 escrow contract for job `6ac6124d2173c611ccd0cb96`, as any Masumi buyer does. Submitted by the Masumi node. | [0b2d5095…](https://preprod.cardanoscan.io/transaction/0b2d5095d6f04804c7de5663deec89c8c39559a0a214a70968190ab172a0c2c2) | [0b2d5095…](https://preprod.cexplorer.io/tx/0b2d5095d6f04804c7de5663deec89c8c39559a0a214a70968190ab172a0c2c2) |
+| The purchasing wallet | A plain Masumi purchasing wallet. It receives tUSDM from the pool and locks it in the escrow. Nothing on its page points at the agent's wallet. | [addr_test1qzt6…rrny](https://preprod.cardanoscan.io/address/addr_test1qzt68gmewmcxczgmrz4h2lye29cv34vu0qard9pd8kmze06j3f6ap4jyrdplmta28nsjzty92ksxy5wm0ypend0kfasqxlrrny) | [addr_test1qzt6…rrny](https://preprod.cexplorer.io/address/addr_test1qzt68gmewmcxczgmrz4h2lye29cv34vu0qard9pd8kmze06j3f6ap4jyrdplmta28nsjzty92ksxy5wm0ypend0kfasqxlrrny) |
+| The escrow contract | Masumi's V1 payment contract on Preprod, where every Masumi purchase is locked. | [addr_test1wz7j…gwfm](https://preprod.cardanoscan.io/address/addr_test1wz7j4kmg2cs7yf92uat3ed4a3u97kr7axxr4avaz0lhwdsqukgwfm) | [addr_test1wz7j…gwfm](https://preprod.cexplorer.io/address/addr_test1wz7j4kmg2cs7yf92uat3ed4a3u97kr7axxr4avaz0lhwdsqukgwfm) |
+| The agent's wallet | Deposits into the pool and public exits. It never paid the purchasing wallet, the escrow or the agent. | [addr_test1vz8e…9334](https://preprod.cardanoscan.io/address/addr_test1vz8etvadesg5a9stprjnajwqwr3g4u4d4pd0dgx9cslc76ch39334) | [addr_test1vz8e…9334](https://preprod.cexplorer.io/address/addr_test1vz8etvadesg5a9stprjnajwqwr3g4u4d4pd0dgx9cslc76ch39334) |
+
+The agent's answer came back through the Masumi job status, which the command polls until `completed`:
+
+> A zero-knowledge proof is a cryptographic protocol that allows a prover to convince a verifier that a statement is true without revealing any information beyond the validity of that statement itself. Sources: [Zero-knowledge proofs | ethereum.org](https://ethereum.org/zero-knowledge-proofs/); [Zero-knowledge proof](https://en.wikipedia.org/wiki/Zero_knowledge_proof); [Proving Everything While Revealing Nothing: An Introduction to Zero-Knowledge Proofs | The Illogician](https://resources.illc.uva.nl/TheIllogician/posts/2026-i-mariana/).
+
+**The deposit.** The agent's wallet funds the pool in public.
+
+![The deposit on cexplorer: the agent's wallet sends 10 tUSDM to the pool's deposit script](docs/evidence/masumi-deposit.png)
+
+**The private payment.** The pool pays the Masumi node's purchasing wallet; no wallet of the agent appears.
+
+![The Settle on cexplorer: inputs are the pool script and the relayer, outputs are the pool, the relayer's change and the purchasing wallet](docs/evidence/masumi-settle.png)
+
+**The escrow lock.** The purchasing wallet locks the price in the Masumi escrow, submitted by the Masumi node.
+
+![The escrow lock on cexplorer: the purchasing wallet pays the Masumi escrow contract](docs/evidence/masumi-escrow-lock.png)
+
+**The purchasing wallet.** Funded by the pool, spent into the escrow; nothing points back at the agent.
+
+![The purchasing wallet on cexplorer](docs/evidence/masumi-purchasing-wallet.png)
+
+Earlier Masumi runs of the same day, including one split in two by a missing field in the agent's answer, are in [docs/measurements.md](docs/measurements.md) with sizes, fees and execution units read back from the chain.
 
 ## Run the demo
 
