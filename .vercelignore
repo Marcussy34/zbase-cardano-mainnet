@@ -1,0 +1,14 @@
+# Vercel CLI uploads honor this file, not nested .gitignore files. Keep the heavy local folders out of a deployment.
+node_modules
+.git
+.next
+out
+circuits/build
+deployments/*/keys
+contracts/build
+contracts/fixtures/cache
+.superpowers
+.firecrawl
+.codebase-memory
+.env
+.env.*

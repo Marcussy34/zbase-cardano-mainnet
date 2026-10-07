@@ -29,3 +29,5 @@ deployments/*/demo-store*.json
 
 # spike tool downloads
 docs/research/spikes/**/tools/
+.vercel
+.env*

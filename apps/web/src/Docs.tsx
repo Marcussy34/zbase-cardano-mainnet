@@ -133,7 +133,7 @@ export default function Docs() {
           <p>
             Live on the Preprod test network. These are the deep documents; the
             guide is at{" "}
-            <a href="https://marcussy34.github.io/zx402/">the documentation site</a>.
+            <a href="https://docs.zx402.org/">the documentation site</a>.
           </p>
         </aside>
         <main>
