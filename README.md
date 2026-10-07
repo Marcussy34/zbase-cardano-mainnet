@@ -1,10 +1,24 @@
 # zx402
 
-Private payments for AI agents on Cardano. Live on the Preprod test network.
+zx402 is private payments for AI agents on Cardano. An agent deposits tUSDM into a shared pool once, then pays x402 sellers from the pool with a zero-knowledge proof. The chain shows the pool as the payer, not the agent's wallet, and nothing links a payment to the deposit behind it. The seller runs stock x402 code and sees an ordinary payment. zx402 is live on the Preprod test network.
 
-An agent deposits tUSDM into a shared pool once. Later it pays x402 sellers from the pool with a zero-knowledge proof. The chain shows the pool as the payer, not the agent's wallet, and nothing links the payment to the deposit.
+## The problem
 
-**Status (2026-10-07):** live on Preprod. The pool `60279ebfb8db22bbe0cb2a1b7a61702ab36ade074a3866ac836df3ed` holds tUSDM, the Preprod stablecoin. With the code of this repository an agent funded the pool, paid a stock x402 seller 2 tUSDM in private through a one-time address and got the seller's answer back, and paid a [Masumi](https://www.masumi.network/) agent 0.01 tUSDM for a web-search answer. The proof is below, with every transaction on the explorer.
+An AI agent pays for data, tools and other agents many times a day, and on Cardano every one of those payments is public. x402 pays a seller straight from the agent's wallet, so one address carries the agent's whole history: which services it uses, how often, at what price, and how much money it has left. Anyone can read that trail. A competitor learns which data an agent buys, a seller can price by the balance it sees, and every service learns about every other one. An agent cannot keep the business process it runs private, because the payments that run it are open.
+
+## The solution
+
+zx402 puts a privacy pool between the agent and the seller. The agent deposits into the pool once, in public. From then on each payment is a zero-knowledge proof, made on the agent's own machine, that the agent owns an approved and unspent note in the pool. A relayer submits the proof, the pool pays a fresh one-time address, and that address pays the seller with a plain x402 payment. The seller gets paid, the agent gets its answer, and the chain shows only a pool paying one-time addresses, one per payment.
+
+Three choices keep the design honest:
+
+- **Nothing changes for the seller.** Any stock x402 seller on Cardano accepts the payment as it is, so sellers need no zx402 code. [Masumi](https://www.masumi.network/) agents work too: the pool funds the purchasing wallet of their payment node in private.
+- **Privacy with a gate, not a hiding place.** Only deposits that the approval service has approved can pay in private, and a refusal is public. A deposit the service does not approve can only go back the way it came, in public.
+- **Always an exit.** The depositor can take the rest back in public with a signature at any time. No service can block it.
+
+## Where it stands
+
+**Preprod (2026-10-07):** live. The pool `60279ebfb8db22bbe0cb2a1b7a61702ab36ade074a3866ac836df3ed` holds tUSDM, the Preprod stablecoin. With the code of this repository an agent funded the pool, paid a stock x402 seller 2 tUSDM in private through a one-time address and got the seller's answer back, and paid a Masumi agent 0.01 tUSDM for a web-search answer. The proof is below, with every transaction on the explorer.
 
 **Mainnet** is the next step and is not deployed. Before it takes outside funds it needs a key ceremony with several parties, an on-chain check of the pool's start state and an outside audit. Nobody outside this project has reviewed the design or the code yet.
 
