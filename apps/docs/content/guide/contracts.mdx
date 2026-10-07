@@ -1,0 +1,156 @@
+---
+title: The contracts
+description: The five Aiken scripts, their datums, and the rules of each pool action.
+---
+
+# The contracts
+
+Five Aiken scripts make up the on-chain side. They live in `contracts/validators/` with shared code in `contracts/lib/zbase/`. Every rule here has a test with a real proof as its fixture. The verifier is never mocked.
+
+| Script | Kind | Parameters | Purpose |
+|---|---|---|---|
+| `nft` | Minting policy | One seed output | Mints the three tokens `pool`, `config` and `asp` once, then never again |
+| `pool` | Spend validator | NFT policy, deposit script hash, the asset, three verification keys | Holds the funds and the state |
+| `deposit` | Spend validator | NFT policy | Holds a deposit until the pool absorbs it or the depositor refunds it |
+| `config` | Spend validator | NFT policy | Guards the config output |
+| `asp` | Spend validator | NFT policy | Guards the approved set output |
+
+The pool ID is the policy ID of the NFT. Script addresses carry no stake credential. Nothing can be upgraded: a change to any script or circuit means a new pool.
+
+## Datums
+
+```aiken
+pub type PoolDatum {
+  roots: List<Int>,          // the last 16 state roots, newest first
+  size: Int,                 // leaves in the state tree
+  queue: List<Int>,          // up to 8 change commitments waiting for an Insert
+  nullifier_root: ByteArray, // root of the trie of spent nullifier hashes
+  fees_accrued: Int,         // protocol fees not yet collected
+}
+
+pub type DepositDatum {
+  precommitment: Int,          // H2(nullifier, secret)
+  refund: VerificationKeyHash, // the depositor's key, part of the label
+}
+
+pub type ConfigDatum {
+  admins: List<VerificationKeyHash>,
+  admin_threshold: Int,
+  treasury: Address,
+  deposits_paused: Bool,
+  min_deposit: Int,      // 5 ADA on Preprod
+  max_deposit: Int,      // 50 ADA on Preprod
+  pool_cap: Int,         // 500 ADA on Preprod
+  deposit_fee_bps: Int,  // 0 on Preprod, at most 100
+  settle_fee_bps: Int,   // 0 on Preprod, at most 1000
+  crank_fee: Int,        // 0.3 ADA on Preprod, at most 1 ADA
+}
+
+pub type AspDatum {
+  root: Int,                            // root of the approved label tree
+  operators: List<VerificationKeyHash>,
+  threshold: Int,
+  uri: ByteArray,                       // where the leaves can be fetched
+}
+```
+
+The compile-time limits are a tree depth of 32, a root history of 16, a queue of 8, an insert batch of 4, at most 4 payouts per settle, 64-bit values and a pool reserve of 6 ADA that never leaves.
+
+## Rules for every pool action
+
+- The validator's own input holds the pool NFT, so a copy of the pool cannot pass.
+- Output 0 is the continuing pool output, at the same address, with the NFT.
+- The continuing output holds only ADA, the NFT and the pool asset. It carries no reference script, so nobody can park a large script on the pool and make the next spender pay for it.
+- The continuing output has an inline datum equal to the datum the rules compute.
+- The config output is a reference input.
+
+## Insert
+
+The crank sends an Insert with an insert proof and a `flush` count `m`. The transaction may also spend `k` deposit outputs.
+
+- `1 <= m + k <= 4`, and `m` is at most the queue length.
+- If any deposit is absorbed, deposits are not paused, each deposit datum parses, the precommitment is in range, and the amount is between `min_deposit` and `max_deposit`.
+- The credited value of a deposit is the amount minus the deposit fee minus the crank fee. The label is computed on chain from the deposit output, the refund key and the pool ID, and is not zero.
+- The slots are the first `m` queue entries as change notes, then the deposits, then empty slots.
+- The public inputs are the head of `roots`, the new root from the output datum, the tree size and the slots. The proof verifies under the insert key.
+- The new datum pushes the new root, keeps the last 16, grows `size` by `m + k`, drops `m` queue entries and adds the deposit fees to `fees_accrued`.
+- The pool balance grows by exactly the credited values plus the fees. With a deposit, the balance minus accrued fees stays at or under `pool_cap`.
+
+So the pool checks the money and the proof checks the tree. Neither trusts the crank.
+
+## Settle
+
+The relayer sends a Settle with a spend proof, the nullifier hash, the new commitment, the withdrawn amount, the state root, the intent and a trie proof.
+
+- No deposit input is present.
+- The state root is one of the 16 roots in the datum.
+- The ASP output is a reference input. Its root is the `aspRoot` public input.
+- The withdrawn amount is between 1 and 2^64 - 1, the new commitment is not zero, and every public input is below the field modulus.
+- The intent names this pool and has 1 to 4 payouts.
+- The context is recomputed from the intent and matches the proof.
+- The proof verifies under the spend key.
+- The nullifier hash is new in the trie. The datum gets the new trie root.
+- The queue has room, and the new commitment is appended to it.
+- For payout `i`, output `i + 1` has the payout's address and exactly its amount. A payout may carry a datum hash, which the output must match as an inline datum. No reference script.
+- The payouts plus the protocol fee are at most the withdrawn amount. The pool balance falls by the withdrawn amount minus the fee, and `fees_accrued` grows by the fee.
+- The transaction expires at or before the intent's `valid_until`.
+- If the intent names a relayer, that key signed.
+- `roots` and `size` do not change.
+
+Whatever is left of the withdrawn amount after the payouts and the fee goes to the submitter. That is the relayer's fee, and the agent fixed it inside the proof. A relayer can never take more.
+
+## Ragequit
+
+The depositor sends a Ragequit with a ragequit proof, the nullifier hash, the value, the state root, the deposit output reference, the refund key and a trie proof.
+
+- No deposit input is present.
+- The state root is one of the 16 roots.
+- The label is recomputed from the deposit reference, the refund key and the pool ID, and the refund key signed the transaction.
+- The value is in range, and every public input is below the field modulus.
+- The proof verifies under the ragequit key with `[nullifier_hash, state_root, value, label]`.
+- The nullifier hash is new in the trie.
+- The pool balance falls by exactly the value. No fee.
+- Everything else in the datum stays the same.
+
+Ragequit needs no approval from the ASP. It is the public exit that the Privacy Pools design promises.
+
+## CollectFees
+
+Anyone may send it, because the destination is fixed: at least `amount` goes to the treasury address from the config, `0 < amount <= fees_accrued`, and both the balance and `fees_accrued` fall by exactly `amount`.
+
+## The deposit validator
+
+A deposit output can leave in two ways. `Absorb` needs an input that holds the pool NFT, and then the pool's Insert rules apply to every deposit input. `Refund` needs the signature of the refund key in the datum. Settle, Ragequit and CollectFees forbid deposit inputs, so a deposit can never leave through them.
+
+CAUTION: a payment to the deposit address with a missing or malformed datum can neither be absorbed nor refunded. Those funds are lost. Always build deposits with the SDK.
+
+## The config and ASP validators
+
+A config spend needs `admin_threshold` signatures from `admins`, keeps the NFT at the config address, and respects the hard bounds on fees and limits. The admins cannot remove the config output, change a verification key or touch the pool. They can pause deposits, which never blocks a payment or an exit.
+
+An ASP spend needs `threshold` signatures from `operators` and keeps the NFT at the ASP address. Settle accepts only the current root, so a removal from the approved set takes effect as soon as the update confirms. An agent whose proof used the old root proves again, which takes seconds.
+
+## Invariants
+
+| ID | Invariant |
+|---|---|
+| INV-1 | Solvency: the balance equals the reserve plus credited deposits plus accrued fees minus all withdrawn amounts |
+| INV-2 | No double spend: a nullifier hash enters the trie at most once, only in canonical form |
+| INV-3 | Tree integrity: the root changes only through Insert with a valid proof against the current root and size |
+| INV-4 | Value binding: a deposit leaf commits to exactly the value the chain credited |
+| INV-5 | Spend validity: every settle proves membership, approval, value conservation and 64-bit ranges |
+
+The repository's hard rules enforce these: range-check every public input, never compute Poseidon on chain, never trust a root from an operator, keep the funds in the pool UTXO, and never let a pool transaction mint, withdraw rewards or carry a certificate. The last rule exists because stock x402 facilitators refuse such transactions.
+
+## Costs
+
+Every action fits in one transaction with room to spare. The numbers come from Preprod.
+
+| Action | CPU steps | Memory | Fee |
+|---|---|---|---|
+| Insert, one deposit | 3.28 billion | 1.08 million | 0.71 ADA |
+| Settle, one payout | 3.29 billion | 1.10 million | 0.73 ADA |
+| Ragequit | 2.90 billion | 0.82 million | 0.68 ADA |
+| ASP update | 0.06 billion | 0.18 million | 0.22 ADA |
+
+The Preprod transaction limit is 10 billion CPU steps and 14 million memory units. The [costs page](/guide/costs-and-timings) has the full tables.

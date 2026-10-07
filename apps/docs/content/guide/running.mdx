@@ -1,0 +1,94 @@
+---
+title: Running it
+description: The commands to build, test, deploy a pool on Preprod and play the demo, and what happened on the real runs.
+---
+
+# Running it
+
+Everything runs from the repository root with npm. The [Preprod runbook](/reference/runbook-preprod) is the full procedure. This page is the short version and the story of the live runs.
+
+## What you need
+
+- Node.js 22 or newer.
+- A Blockfrost project for Preprod. The free plan is enough.
+- A new 32-byte operator key: `openssl rand -hex 32`.
+- About 300 test ADA from the Preprod faucet for that key.
+
+CAUTION: use a new key. Never put the key of a real wallet into this project.
+
+## Build and test
+
+```sh
+npm ci                     # every tool, including Aiken and the circuit compiler
+npm run build:circuits     # compiles the three circuits
+npm run setup:dev          # development proving keys, about 30 minutes the first time
+npm test                   # 1,019 TypeScript tests across the workspaces
+npm run check:contracts    # 354 Aiken tests with real proofs as fixtures
+npm run typecheck
+```
+
+The TypeScript tests include a local test chain in `packages/txlib/src/testing/` that evaluates every transaction with the live cost models, so a transaction that passes there passes on Preprod. `npm test -w ops` plays the whole product against that local chain: deploy, node, seller and demo, in about a minute.
+
+## Deploy a pool
+
+1. Copy `.env.example` to `.env`.
+2. Set `NETWORK=preprod`, `BLOCKFROST_PROJECT_ID` and `OPERATOR_SEED_HEX`.
+3. Print the addresses and the cost: `npm run ops:deploy -- --dry-run`
+4. Fund the `operator` address from the faucet.
+5. Make the network proving keys: `npm run ops:setup`
+6. Deploy: `npm run ops:deploy`
+
+CAUTION: `.env` holds a signing key and the Blockfrost project ID. Git ignores it. Never commit it or paste it anywhere.
+
+CAUTION: back up `circuits/build/keys-preprod/` after step 5. No setup can make the same keys twice. Without them, nobody can insert, pay or exit, and the notes in the pool stay locked.
+
+Step 6 sends four transactions in about 3.5 minutes and writes `deployments/preprod.json`. A deployment costs about 245 test ADA: 160 goes to the role keys of the crank, the relayer, the ASP and the test user, and 73.6 stays in the four reference script outputs. The repository already holds the record of the pool from 2026-10-06, pool ID `082e65fea945bdca5e1c70fc99f7b74aee0e8b0826a034725a437b5c`. To use it you need its proving keys, which are not in the repository. To deploy your own, add `-- --force`.
+
+## Run the node, the seller and the demo
+
+Three terminals.
+
+```sh
+npm run node -w ops                                              # indexer on 4010, relayer on 4011
+SELLER_ADDRESS=<address> npm run seller -w examples/x402-seller  # stock x402 seller on 4021, 2 ADA per forecast
+npm run demo -w ops                                              # the whole story
+```
+
+The demo deposits 10 test ADA, waits for the insert and the approval, asks the seller for the weather, gets a 402, pays through the stock x402 client with the SDK's signer, prints the forecast, and exits the change in public. It prints every transaction hash. The user ends with about 5 ADA less: 2 for the weather, 1 for the relayer, 0.3 for the crank, and the network fees.
+
+The demo keeps its notes in `deployments/preprod/demo-store.json`. Without that file it still works, because the SDK finds its old deposits on chain and takes new secrets, but a change note that was still in the pool is out of reach.
+
+## Admin actions
+
+`npm run admin -w ops -- status` prints the pool balance, the tree size, the queue, the approved count and the fees. The same command can pause and resume deposits, change the limits, collect fees and wind the pool down. Every admin action needs the admin threshold of signatures and stays inside the hard bounds of the config validator.
+
+## The live runs
+
+The pool on Preprod was deployed on 2026-10-06. The demo ran six times against it, and all six ended with HTTP 200 and the forecast.
+
+| Run | What was special | Payment, in seconds | Whole demo |
+|---|---|---|---|
+| 1 to 4 | The same note store each time | 69 to 116 | 206 to 396 |
+| 5 | Started without the store file, with the same seed. The SDK found the four old deposits on chain and took fresh secrets. Before the fix in PR 58 it would have reused a secret and locked the deposit | 83 | 311 |
+| 6 | The final code with all five fixes from the comparison with Base. Preprod made no block for 132 seconds in the middle | 178 | 338 |
+
+The [life of a payment](/guide/life-of-a-payment) page follows run 6 transaction by transaction. The full tables are in the [measurements](/reference/measurements).
+
+## Provider quota
+
+Every read of the chain is a request to Blockfrost, and the free plan allows 50,000 a day. An idle node uses about 1,100 to 1,600 requests an hour, so 27,000 to 39,000 a day, and one demo run adds 150 to 200 in the node. That fits the free plan with room for some dozens of demo runs. A longer round with `ZBASE_INTERVAL_MS` spends fewer requests and makes payments slower. A busy pool needs a paid plan or an own chain backend.
+
+## If something goes wrong
+
+- **The deploy stops midway.** Nothing is lost. Fix the cause and run the deploy again with `-- --force`.
+- **The demo stops after the pool paid the one-time address.** The error names the index of the one-time key. The funds sit at that address until `recoverOneTimeFunds({ index, payTo })` moves them.
+- **The relayer answers `queue_full`.** The pool queue holds 8 change notes. Wait for the crank, which inserts up to 4 per block.
+- **The relayer answers `stale_asp_root`.** The approved set changed. Prove again with the new root.
+- **The node logs `Chain tip changed during sync` or `Pool history has not reached the current pool UTXO`.** Normal. The next round succeeds.
+- **A payment waits for minutes.** Preprod sometimes makes no block for a minute or more. Every service waits for confirmed data before each step.
+
+Section 9 of the runbook has the full list.
+
+## Mainnet
+
+The code accepts `NETWORK=mainnet` and the [mainnet canary runbook](/reference/runbook-m0) describes a small pool with the team's own funds. Nothing is deployed on mainnet yet. Read [Trust and limits](/guide/trust-and-limits) first: a pool whose proving keys one party made, and whose start state the chain does not check, must never take outside deposits.

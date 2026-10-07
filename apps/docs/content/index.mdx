@@ -1,0 +1,56 @@
+---
+title: Overview
+description: zBase Cardano makes x402 payments from AI agents private. This site explains how it works.
+---
+
+import { Cards } from 'nextra/components';
+
+# zBase Cardano
+
+zBase Cardano lets an AI agent pay for web requests without leaving a trail. The agent pays through the x402 protocol, the same HTTP 402 flow that stock sellers already accept. The money comes from a shared pool. Anyone can see that the pool paid. Nobody can see which deposit paid.
+
+## The problem
+
+An agent that pays per request pays many times a day. Every payment leaves the same wallet, so a seller, a data broker or anyone who reads the chain can join the payments into a profile. The chain keeps that profile forever.
+
+## The idea
+
+zBase Cardano is a port of zBase on Base, which uses the Privacy Pools design. It works in three steps.
+
+1. The agent deposits ADA into the pool. The deposit carries a hidden commitment to a secret note.
+2. An approval service checks the deposit and adds it to an approved set. Only approved deposits can pay.
+3. To pay, the agent proves in zero knowledge that it owns an approved deposit, that it has not spent it, and that the amount fits. The chain checks the proof and pays a fresh one-time address. That address pays the seller with a stock x402 payment.
+
+The proof hides which deposit paid. The pool holds every deposit in one place, so the link between a deposit and a payment never appears on chain. A depositor who wants out can always exit in public with a signature.
+
+## Status
+
+| What | State |
+|---|---|
+| Network | Preprod. Six full live runs, all ended with HTTP 200 from the seller |
+| Tests | 1,019 TypeScript tests, 51 frontend tests and 354 contract checks, all run in CI |
+| Time for one private payment | About 80 seconds on Preprod, most of it waiting for blocks |
+| Cost on top of the price | About 1.2 ADA: 1 ADA relayer fee and 0.17 ADA for the second transaction |
+| Audit | None. The circuits and validators are new code. Read [Trust and limits](/guide/trust-and-limits) before you deposit real money |
+| Mainnet | Not deployed. The mainnet canary waits for a go-ahead |
+
+## Where to go
+
+<Cards>
+  <Cards.Card title="The pool model" href="/guide/pool-model" />
+  <Cards.Card title="The life of a payment" href="/guide/life-of-a-payment" />
+  <Cards.Card title="Privacy" href="/guide/privacy" />
+  <Cards.Card title="The three proofs" href="/guide/proofs" />
+  <Cards.Card title="The contracts" href="/guide/contracts" />
+  <Cards.Card title="The services" href="/guide/services" />
+  <Cards.Card title="The agent SDK and x402" href="/guide/sdk-and-x402" />
+  <Cards.Card title="Running it" href="/guide/running" />
+  <Cards.Card title="Trust and limits" href="/guide/trust-and-limits" />
+  <Cards.Card title="Costs and timings" href="/guide/costs-and-timings" />
+</Cards>
+
+The **How it works** section explains the design in plain words. The **Reference** section holds the full documents from the repository: the specification, the runbooks, the test plan and the measurements. They are copied at build time, so they always match the code on `main`.
+
+## The repository
+
+The code is public at [github.com/Marcussy34/zbase-cardano-mainnet](https://github.com/Marcussy34/zbase-cardano-mainnet) under the MIT license. The on-chain code is written in Aiken. The circuits are written in Circom and proven with Groth16 on BLS12-381. The off-chain code is TypeScript.

@@ -1,0 +1,99 @@
+---
+title: Costs and timings
+description: What every transaction costs on Preprod, how long each step takes, and where the time goes.
+---
+
+# Costs and timings
+
+All numbers were measured on Preprod in October 2026. The full tables, with every transaction hash, are in the [measurements](/reference/measurements).
+
+## What a payment costs
+
+A private payment of 2 ADA costs the agent about 1.2 ADA on top of the price.
+
+| Item | ADA | Who gets it |
+|---|---|---|
+| Relayer fee | 1.00 | The relayer, for the Settle transaction fee of 0.73 ADA and its margin |
+| Fee of the second leg | 0.17 | The network, for the plain payment from the one-time address to the seller |
+| Protocol fee | 0 | The pool treasury. The Preprod config sets `settle_fee_bps` to 0 |
+
+A deposit costs 0.17 ADA of network fee plus the crank fee of 0.3 ADA, which pays the crank for the Insert transaction. So a 10 ADA deposit is credited as 9.7 ADA. An exit costs 0.68 ADA of network fee and no protocol fee.
+
+## Transactions
+
+| Transaction | CPU steps | Memory units | Size in bytes | Fee in ADA |
+|---|---|---|---|---|
+| Deposit | none | none | 349 | 0.171 |
+| Insert, one deposit | 3.28 billion | 1.08 million | 1,360 | 0.712 |
+| ASP update | 0.06 billion | 0.18 million | 599 | 0.215 |
+| Settle, one payout | 3.29 billion | 1.10 million | 1,875 | 0.728 |
+| Second leg, one-time address to the seller | none | none | 202 | 0.166 |
+| Insert, one change note | 2.92 billion | 0.88 million | 1,305 | 0.664 |
+| Ragequit | 2.90 billion | 0.82 million | 1,740 | 0.678 |
+| Config update | 0.08 billion | 0.24 million | 737 | 0.234 |
+
+These are the rows of the sixth demo run. The limit for one transaction is 10 billion CPU steps and 14 million memory units, so every pool action uses about a third of the CPU budget. A Groth16 verification over BLS12-381 is the bulk of it: the two pairings and the scalar multiplications for the public inputs.
+
+## Circuits
+
+| Circuit | Constraints | Setup power | Proving time | Proving key |
+|---|---|---|---|---|
+| `spend` | 16,828 | 2^15 | 1.5 to 1.9 s | 14 MB |
+| `insert` | 62,950 | 2^16 | 4.3 to 4.8 s | 47 MB |
+| `ragequit` | 8,423 | 2^14 | 1.0 s | 7 MB |
+
+Proving times are on an Apple M2 Max with snarkjs 0.7.6, with other work running. An agent needs the spend and ragequit keys, 21 MB together. The crank needs the insert key.
+
+## Scripts
+
+| Script | Size with parameters, in bytes |
+|---|---|
+| `pool` | 12,659 |
+| `config` | 1,794 |
+| `asp` | 1,254 |
+| `deposit` | 518 |
+| `nft` | 499 |
+
+The pool script holds three verification keys as parameters. It fits one publication transaction, under the limit of 16,384 bytes, and its reference output locks 55.5 ADA. A deployment costs about 245 ADA in total: 160 ADA of role funding, 73.6 ADA locked in the four reference script outputs, 8.9 ADA in the three state outputs, and about 1.5 ADA of fees. The locked ADA comes back when the pool is wound down.
+
+## Where the time goes
+
+Preprod makes a block about every 20 seconds, but not always. Every step of the flow waits for a confirmation before the next one starts, and most of a demo is that waiting.
+
+| Step | Work before submission | Wait for one confirmation |
+|---|---|---|
+| Deposit | 1.8 s to build | 28 s |
+| Insert of one deposit | 14 s to read, prove, build and submit | 34 s |
+| ASP update | 6 s to read, build and submit | 49 s |
+| Settle | 2 s to prove, 7 s to verify, build and submit | 28 s |
+| Second leg | under 1 s to build | 39 s |
+| Insert of one change note | 19 s to read, prove, build and submit | 23 s |
+| Ragequit | 4 s to prove, 6 s to build | 33 s |
+
+## The demo end to end
+
+| Step, in seconds | Run 1 | Run 2 | Run 3 | Run 4 | Run 5 | Run 6 |
+|---|---|---|---|---|---|---|
+| Deposit submitted | 3.6 | 2.9 | 3.0 | 2.8 | 3.1 | 2.9 |
+| Note spendable, from the start | 119 | 164 | 231 | 91 | 195 | 140 |
+| First leg confirmed, from the payment request | 29 | 27 | 30 | 40 | 40 | 35 |
+| Seller answered HTTP 200, from the payment request | 116 | 110 | 69 | 78 | 83 | 178 |
+| Change note spendable, after the seller answered | 0 | 6 | 55 | 15 | 9 | 0.1 |
+| Exit confirmed, after the change was spendable | 20 | 75 | 42 | 21 | 23 | 20 |
+| Whole demo | 255 | 355 | 396 | 206 | 311 | 338 |
+
+Three waits make up a payment: the Settle block, the funding check, and the second leg's block. In a normal run that is 70 to 115 seconds. Run 6 took 178 seconds because Preprod made no block for 132 seconds after the Settle. Run 5 ran next to two proof-making test suites, so its time to a spendable note says nothing about the code.
+
+A deposit becomes spendable after three blocks in a row: the deposit, the Insert and the ASP update. The crank and the ASP service each poll every 10 seconds and retry an idle step after 20 seconds, so the gap between blocks is mostly the chain.
+
+## What would make it faster
+
+- **Mainnet blocks** come at the same rate as Preprod, so mainnet is no faster.
+- **Pre-funded one-time addresses** would remove the Settle wait from the request path. The agent would settle ahead of time and pay at once. This is not built.
+- **Batching** several change notes per Insert already happens, up to 4 per transaction.
+- **Several payouts per Settle**, up to 4, would let one proof fund several one-time addresses at once. The validator allows it. The SDK uses one payout today.
+- **A direct handoff**, where the seller takes the pool transaction itself, would save the second leg. The specification keeps it experimental, because facilitators differ on script-funded inputs.
+
+## Provider requests
+
+An idle node makes about 1,100 to 1,600 Blockfrost requests an hour and a demo run adds 150 to 200. The free plan's 50,000 a day covers an idle node and some dozens of runs.
