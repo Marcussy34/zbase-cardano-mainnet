@@ -90,7 +90,7 @@
   -webkit-backface-visibility: hidden;
 }
 .path-portrait {
-  background: url("/images/privacy-stealth-agents.png") 0 0 / 300% 300%;
+  background: url("/images/privacy-stealth-agents.png") 50% 50% / 300% 300%;
   box-shadow: 0 0 0 1px #c7b7e01c, 0 0 38px #a786bd14;
 }
 .path-center-back {

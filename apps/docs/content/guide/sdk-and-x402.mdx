@@ -5,7 +5,20 @@ description: How an agent deposits, pays a stock x402 seller in private, and exi
 
 # The agent SDK and x402
 
-The SDK is the package `@zx402/core`. An agent needs nothing else: it gives the SDK a seed, a chain provider, the indexer and relayer URLs and the circuit files, and gets back deposits, private payments and exits. The code below follows the token demo in `ops/src/demo.ts`, trimmed.
+The SDK connects an existing agent to a zx402 pool for deposits, private payments, and exits. `@zx402/core` is an unpublished package in this repository's npm workspace. Use the source workspace rather than assuming `npm install @zx402/core` is available. The code below follows the token demo in `ops/src/demo.ts`, trimmed.
+
+## Before connecting your agent
+
+Start on Cardano Preprod. Mainnet is not deployed yet. You need:
+
+- The verified deployment record for the pool you will use and a chain provider for the same network.
+- Reachable indexer and relayer endpoints for that pool. The localhost URLs below are examples, not a hosted service.
+- The pool's spend and ragequit proving files, checked against its manifest and verification keys. The existing Preprod pool's proving keys are not in this repository. Obtain its matching files from the operator; generating new keys cannot replace them.
+- A local agent seed and a persistent note store. Enter secrets on your own machine, never in chat, and back up both.
+
+If an endpoint, provider setting, or proving file is missing, the integration is not ready to pay. Identify what is missing before funding it. Set explicit seller price and relayer fee limits, and restrict x402 payments to the pool's network and exact asset.
+
+When you choose to test payments, use a separate Preprod wallet with the pool's test token and test ADA for fees. Connecting your agent does not require operating or deploying a new pool. The [Running it guide](/guide/running) describes that separate operator workflow.
 
 ## Setting it up
 
@@ -14,7 +27,7 @@ import { createZx402, fileStore } from '@zx402/core';
 import { IndexerClient, RelayerClient } from '@zx402/api';
 
 const sdk = createZx402({
-  seed: agentSeed,                       // 32 bytes. Everything derives from it
+  seed: agentSeed,                       // 32 bytes for notes and one-time keys
   ctx,                                   // the chain context: provider, network, deployment
   indexer: new IndexerClient('http://localhost:4010'),
   relayer: new RelayerClient('http://localhost:4011'),
@@ -23,7 +36,7 @@ const sdk = createZx402({
 });
 ```
 
-The seed is the root of the note secrets, the refund key and the one-time keys. The store holds the notes: their secrets, values, labels, status and the counters. Keep both. With the seed alone the SDK can find and exit every deposit, but not a change note.
+The agent seed derives the note secrets and one-time keys. The funding wallet supplies the refund key; it is separate from the agent seed. The store holds note metadata and derivation counters, not the seed or raw note secrets. Keep the seed, funding wallet key, and store. The seed alone cannot recover unspent change notes. Exits also need the refund key selected for the deposit.
 
 The deployment in `ctx` selects the pool asset. Amounts use its base units: 1,000,000 units equal 1 tUSDM, which has 6 decimals.
 An ADA pool uses lovelace instead. The same SDK and validators support both configurations.

@@ -29,10 +29,9 @@ import {
 // Documentation calls to action open the published documentation site.
 const DOCS = "https://docs.zx402.org/";
 const PLAN = "https://docs.zx402.org/reference/plan-m0/";
-const RUNNING = "https://docs.zx402.org/guide/running/";
-// The prompt a visitor pastes into a coding agent. It installs and tests the repository, nothing more.
-export const SETUP_PROMPT =
-  "Clone https://github.com/Marcussy34/zx402, read docs/HANDOFF.md, then run npm ci, npm run build:circuits, npm run setup:dev and npm test. Do not deploy anything.";
+const SETUP_GUIDE = "https://github.com/Marcussy34/zx402/blob/main/setup.md";
+export const SETUP_COMMAND =
+  "curl -fsSL https://raw.githubusercontent.com/Marcussy34/zx402/main/setup.md";
 const portraits = [0, 1, 5, 8, 3, 6, 4, 7, 2, 5, 1, 8];
 const scatterPositions = [
   [0, -400],
@@ -130,11 +129,11 @@ export default function App() {
     };
   }, [menuOpen]);
   useEffect(() => () => clearTimeout(copyTimer.current), []);
-  const copyPrompt = async () => {
+  const copyCommand = async () => {
     clearTimeout(copyTimer.current);
     try {
       if (!navigator.clipboard?.writeText) throw new Error("no clipboard");
-      await navigator.clipboard.writeText(SETUP_PROMPT);
+      await navigator.clipboard.writeText(SETUP_COMMAND);
       setCopied("done");
       copyTimer.current = setTimeout(() => setCopied(""), 2200);
     } catch {
@@ -328,53 +327,37 @@ export default function App() {
           id="agent-setup"
           aria-labelledby="agent-setup-title"
         >
-          <div className="agent-setup-brief" data-reveal>
-            <span className="eyebrow">Set up with your agent</span>
-            <h2 id="agent-setup-title">Hand it to your agent.</h2>
-            <p>
-              Copy this prompt into Claude Code, Codex or Cursor. The agent
-              clones the repository, installs the tools and runs every test. No
-              wallet. No funds.
-            </p>
-            <p className="agent-setup-note">
-              Development keys take about 30 minutes the first time. There is
-              no package to install yet.
-            </p>
-            <a className="text-link" href={RUNNING}>
-              Running it <ArrowUpRightIcon size={16} aria-hidden="true" />
-            </a>
-          </div>
-          <div
-            className="prompt-card"
-            data-reveal
-            style={{ "--reveal-delay": "90ms" } as CSSProperties}
-          >
-            <div className="prompt-card-top">
-              <span className="mono">prompt.txt</span>
-              <button
-                type="button"
-                className="prompt-copy"
-                aria-label="Copy prompt"
-                onClick={copyPrompt}
-              >
-                {copied === "done" ? (
-                  <CheckIcon size={16} aria-hidden="true" />
-                ) : (
-                  <CopyIcon size={16} aria-hidden="true" />
-                )}
-                {copied === "done" ? "Copied" : "Copy"}
-              </button>
+          <div className="agent-setup-card" data-reveal>
+            <div className="agent-setup-intro">
+              <div className="agent-setup-portrait" aria-hidden="true">
+                <Portrait index={1} />
+              </div>
+              <div className="agent-setup-brief">
+                <span className="eyebrow">For developers</span>
+                <h2 id="agent-setup-title">Build with zx402.</h2>
+                <p>Give your coding agent the setup guide.</p>
+                <span className="agent-setup-assurance">
+                  <i aria-hidden="true" /> Preprod developer preview
+                </span>
+              </div>
             </div>
-            <pre className="prompt-card-body" tabIndex={0}>
-              {SETUP_PROMPT}
-            </pre>
-            <p className="prompt-status" role="status" aria-live="polite">
-              {copied === "done"
-                ? "Copied."
-                : copied === "failed"
-                  ? "Select the text and copy it."
-                  : ""}
-            </p>
+            <div className="agent-setup-actions">
+              <a className="text-link" href={SETUP_GUIDE}>
+                View setup guide <ArrowUpRightIcon size={13} aria-hidden="true" />
+              </a>
+            </div>
+            <div className="setup-command-panel">
+              <div className="setup-command">
+                <pre tabIndex={0}><code>{SETUP_COMMAND}</code></pre>
+                <button type="button" className="setup-command-copy" aria-label="Copy command" onClick={copyCommand}>
+                  {copied === "done" ? <CheckIcon size={15} aria-hidden="true" /> : <CopyIcon size={15} aria-hidden="true" />}
+                  {copied === "done" ? "Copied" : "Copy"}
+                </button>
+              </div>
+              <p className="setup-command-status" role="status" aria-live="polite">
+                {copied === "done" ? "Copied." : copied === "failed" ? "Select the command and copy it." : ""}
+              </p>
+            </div>
           </div>
         </section>
         <section
