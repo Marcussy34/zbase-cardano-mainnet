@@ -3,8 +3,8 @@ import { Trie } from "@aiken-lang/merkle-patricia-forestry";
 import { blake2b } from "@noble/hashes/blake2.js";
 import {
   R, commitment, contextFor, deriveNoteSecrets, labelFor, MerkleTree, nullifierKey, spendWitness,
-} from "@zbase-cardano/crypto";
-import type { Payout, SettleIntent } from "@zbase-cardano/crypto";
+} from "@zx402/crypto";
+import type { Payout, SettleIntent } from "@zx402/crypto";
 import {
   bytes, configDatum, emptyNullifierRoot, emptyStateRoot, int, list, m0Config,
   poolDatum, proof, proveCached, samples, settleIntent, trieProof,
@@ -135,7 +135,7 @@ export default async function build(): Promise<FixtureModule> {
   return {
     uses: ["use aiken/merkle_patricia_forestry as mpf", `use aiken/merkle_patricia_forestry.{${[...trieConstructors].sort().join(", ")}}`,
       "use cardano/address.{Address, Inline, Script, VerificationKey}",
-      "use zbase/groth16", "use zbase/types.{ConfigDatum, Payout, PoolDatum, SettleIntent}"],
+      "use zx402/groth16", "use zx402/types.{ConfigDatum, Payout, PoolDatum, SettleIntent}"],
     constants,
   };
 }

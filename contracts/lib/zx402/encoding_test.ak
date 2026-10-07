@@ -5,8 +5,8 @@ use aiken/builtin
 use aiken/collection/list
 use cardano/address.{Address, Inline, Pointer, Script, VerificationKey}
 use cardano/transaction.{OutputReference}
-use zbase/encoding.{context, intent_bytes, label, nullifier_key}
-use zbase/types.{Payout, SettleIntent}
+use zx402/encoding.{context, intent_bytes, label, nullifier_key}
+use zx402/types.{Payout, SettleIntent}
 
 const pool_id = #"11111111111111111111111111111111111111111111111111111111"
 

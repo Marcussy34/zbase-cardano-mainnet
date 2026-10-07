@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { Trie } from '@aiken-lang/merkle-patricia-forestry';
 import { deserializePlutusData, fromJsonToPlutusData, type PlutusData } from '@meshsdk/core-cst';
-import type { CardanoProof, PayoutAddress, SettleIntent } from '@zbase-cardano/crypto';
+import type { CardanoProof, PayoutAddress, SettleIntent } from '@zx402/crypto';
 import {
   decodeAspDatum, decodeConfigDatum, decodeDepositDatum, decodePoolDatum, decodePoolRedeemer,
   encodeAspDatum, encodeConfigDatum, encodeDepositDatum, encodeDepositRedeemer, encodePoolDatum,

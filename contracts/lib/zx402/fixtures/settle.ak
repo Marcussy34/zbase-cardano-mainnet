@@ -3,8 +3,8 @@
 use aiken/merkle_patricia_forestry as mpf
 use aiken/merkle_patricia_forestry.{Branch, Leaf}
 use cardano/address.{Address, Inline, Script, VerificationKey}
-use zbase/groth16
-use zbase/types.{ConfigDatum, Payout, PoolDatum, SettleIntent}
+use zx402/groth16
+use zx402/types.{ConfigDatum, Payout, PoolDatum, SettleIntent}
 
 pub const payout_datum: Int =
   42

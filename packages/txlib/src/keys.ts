@@ -1,6 +1,6 @@
 import { ed25519 } from '@noble/curves/ed25519.js';
 import { blake2b } from '@noble/hashes/blake2.js';
-import { addressToBech32, type Network } from '@zbase-cardano/crypto';
+import { addressToBech32, type Network } from '@zx402/crypto';
 import {
   CborSet, Ed25519PublicKeyHex, Ed25519SignatureHex, Transaction, TxCBOR, VkeyWitness,
 } from '@meshsdk/core-cst';

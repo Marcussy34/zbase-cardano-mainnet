@@ -3,12 +3,12 @@ import { dirname, join, resolve } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
-import { vkToCardano, type SnarkjsVk } from '@zbase-cardano/crypto';
+import { vkToCardano, type SnarkjsVk } from '@zx402/crypto';
 import {
   assetWireUnit, blockfrostProvider, buildInit, buildPublishScripts, buildScripts, complete, decodeTx, genesisPoolDatum,
   isAdaAsset, keyHash, newTxBuilder, outputsOf, signTx, vkToHex,
   type AssetClass, type BuiltTx, type ConfigDatum, type Deployment, type Network, type Provider, type Utxo, type UtxoRef,
-} from '@zbase-cardano/txlib';
+} from '@zx402/txlib';
 import { readSettings } from './env.js';
 import { ROLES, roleAddress, roleKeyHash } from './roles.js';
 

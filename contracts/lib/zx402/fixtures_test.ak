@@ -1,11 +1,11 @@
 use aiken/collection/list
 use aiken/merkle_patricia_forestry as mpf
-use zbase/encoding
-use zbase/fixtures/common
-use zbase/fixtures/demo
-use zbase/groth16
-use zbase/pool/kit
-use zbase/testkit
+use zx402/encoding
+use zx402/fixtures/common
+use zx402/fixtures/demo
+use zx402/groth16
+use zx402/pool/kit
+use zx402/testkit
 
 test ver_00_real_insert_verifies() {
   groth16.verify(common.vk_insert, demo.insert_proof, demo.insert_public_inputs)

@@ -63,6 +63,6 @@ The specification lists these as privacy defaults that a later version should bu
 
 ## Who holds the secrets
 
-The note secrets never leave the agent's machine. The agent makes the proof itself, with the spend circuit and the proving key on its own disk. The relayer gets a proof and an intent. This is stronger than zBase on Base, where a server makes the proof and sees the secrets.
+The note secrets never leave the agent's machine. The agent makes the proof itself, with the spend circuit and the proving key on its own disk. The relayer gets a proof and an intent. This is stronger than the Base implementation, where a server makes the proof and sees the secrets.
 
 The seed is the root of everything: the note secrets, the refund key and the one-time keys all derive from it. Back it up. With the seed and a sync, the SDK can find every deposit it ever made and exit it in public. It cannot yet recover a change note from the seed alone, because the value and the label of a change note live only in the store file.

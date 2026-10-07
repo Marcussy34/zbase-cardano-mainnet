@@ -1,4 +1,4 @@
-import type { CardanoProof } from '@zbase-cardano/crypto';
+import type { CardanoProof } from '@zx402/crypto';
 import { addAssetAmount, isAdaAsset, meshAsset } from './asset.js';
 import { encodePoolDatum, encodePoolRedeemer } from './codec.js';
 import { complete, newTxBuilder, readConfig, type ChainContext, type Payer, type PoolState } from './context.js';

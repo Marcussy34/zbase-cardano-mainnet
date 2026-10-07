@@ -1,4 +1,4 @@
-# zBase Cardano: Test Vectors
+# zx402: Test Vectors
 
 | Field | Value |
 |---|---|

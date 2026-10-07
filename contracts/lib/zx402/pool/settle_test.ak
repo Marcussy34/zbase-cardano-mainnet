@@ -7,16 +7,16 @@ use cardano/assets
 use cardano/transaction.{
   DatumHash, InlineDatum, Input, NoDatum, Output, Transaction,
 }
-use zbase/constants
-use zbase/encoding
-use zbase/fixtures/common as fixture_keys
-use zbase/fixtures/settle as fixtures
-use zbase/groth16
-use zbase/pool
-use zbase/pool/common.{PoolParams}
-use zbase/pool/kit
-use zbase/testkit
-use zbase/types.{
+use zx402/constants
+use zx402/encoding
+use zx402/fixtures/common as fixture_keys
+use zx402/fixtures/settle as fixtures
+use zx402/groth16
+use zx402/pool
+use zx402/pool/common.{PoolParams}
+use zx402/pool/kit
+use zx402/testkit
+use zx402/types.{
   AssetClass, ConfigDatum, DepositDatum, Payout, PoolDatum, Settle, SettleIntent,
 }
 

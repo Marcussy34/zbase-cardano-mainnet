@@ -1,4 +1,4 @@
-# zBase Cardano: Preprod Runbook
+# zx402: Preprod Runbook
 
 | Field | Value |
 |---|---|
@@ -85,10 +85,10 @@ Stop the node with Ctrl+C.
 
 The node reads four optional settings from the environment:
 
-- `ZBASE_INTERVAL_MS` is the pause between two rounds in milliseconds. The default is 10000.
-- `ZBASE_IDLE_RETRY_MS` is the time before the crank or the association service repeats a step that submitted nothing, while its input data is unchanged. The default is 20000.
-- `ZBASE_INDEXER_PORT` is the port of the indexer. The default is 4010.
-- `ZBASE_RELAYER_PORT` is the port of the relayer. The default is 4011.
+- `ZX402_INTERVAL_MS` is the pause between two rounds in milliseconds. The default is 10000.
+- `ZX402_IDLE_RETRY_MS` is the time before the crank or the association service repeats a step that submitted nothing, while its input data is unchanged. The default is 20000.
+- `ZX402_INDEXER_PORT` is the port of the indexer. The default is 4010.
+- `ZX402_RELAYER_PORT` is the port of the relayer. The default is 4011.
 
 ## 5. Run a seller
 
@@ -161,7 +161,7 @@ So an idle node needs about 27,000 to 39,000 requests a day. That fits the free 
 No run of a whole day has confirmed this yet.
 The demo and the seller's facilitator use the same Blockfrost project and make their own requests. These numbers do not include them.
 A read of the history costs one more request for every 100 transactions at the pool address and at the deposit address.
-To spend fewer requests, set a longer round with `ZBASE_INTERVAL_MS`. Payments then take longer.
+To spend fewer requests, set a longer round with `ZX402_INTERVAL_MS`. Payments then take longer.
 For a busy pool, use a paid plan or your own chain backend.
 
 ## 9. If something goes wrong

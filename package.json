@@ -1,5 +1,5 @@
 {
-  "name": "zbase-cardano-mainnet",
+  "name": "zx402",
   "private": true,
   "license": "MIT",
   "type": "module",
@@ -28,11 +28,11 @@
     "fixtures": "node --import tsx contracts/fixtures/gen.ts",
     "check:fixtures": "node --import tsx contracts/fixtures/gen.ts --check",
     "test:smoke": "node --import tsx --test scripts/smoke.test.ts",
-    "dev": "npm run dev --workspace @zbase/web",
-    "build": "npm run build --workspace @zbase/web",
-    "preview": "npm run preview --workspace @zbase/web",
-    "docs:dev": "npm run dev --workspace @zbase/docs",
-    "docs:build": "npm run build --workspace @zbase/docs"
+    "dev": "npm run dev --workspace @zx402/web",
+    "build": "npm run build --workspace @zx402/web",
+    "preview": "npm run preview --workspace @zx402/web",
+    "docs:dev": "npm run dev --workspace @zx402/docs",
+    "docs:build": "npm run build --workspace @zx402/docs"
   },
   "devDependencies": {
     "@aiken-lang/aiken": "1.1.24",

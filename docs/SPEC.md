@@ -1,4 +1,4 @@
-# zBase Cardano: Technical Specification
+# zx402: Technical Specification
 
 | Field | Value |
 |---|---|
@@ -8,7 +8,7 @@
 | Companions | [PRD.md](./PRD.md), [PLAN-M0.md](./PLAN-M0.md), [TEST-PLAN.md](./TEST-PLAN.md), [TEST-VECTORS.md](./TEST-VECTORS.md) |
 | Target network | Cardano mainnet, protocol version 11 |
 
-This document says how zBase Cardano works and why.
+This document says how zx402 works and why.
 Requirement IDs such as FR-P3 point to the PRD.
 Numbers marked "measured" come from runs or live chain data listed in Appendix A.
 Numbers marked "estimate" must be replaced by measurements during M0.
@@ -35,7 +35,7 @@ Each decision lists the main alternative and why it lost.
 | ID | Decision | Rejected alternative | Reason |
 |---|---|---|---|
 | D1 | Groth16 over BLS12-381, circuits in circom, proofs with snarkjs | PLONK, Halo2 | Groth16 has the cheapest verifier on Cardano: 2.0B to 2.7B CPU (measured). PLONK measures about 5B. |
-| D2 | Keep the Privacy Pools note model of zBase on Base | A new 2-in 2-out note model | Smallest change from the audited design. Fewer public inputs. |
+| D2 | Keep the Privacy Pools note model of the Base implementation | A new 2-in 2-out note model | Smallest change from the audited design. Fewer public inputs. |
 | D3 | The validator never computes Poseidon. A proof covers each tree update | Hash the tree on-chain | One Poseidon hash costs 1.27B CPU and 3.7M memory (measured). A depth 32 insert cannot fit. |
 | D4 | Tree updates are permissionless and proven (Insert) | A root posted by a trusted operator | A trusted root lets its poster forge notes and drain the pool. |
 | D5 | Deposits are plain payments to a deposit address. Insert binds their value in-circuit | A proof at deposit time | Any wallet can deposit. No contention between depositors. Costs are shared across a batch. |
@@ -54,9 +54,9 @@ Each decision lists the main alternative and why it lost.
 ```mermaid
 flowchart LR
   subgraph Agent["Buyer agent"]
-    SDK["zBase SDK: notes, local prover, x402 signer"]
+    SDK["zx402 SDK: notes, local prover, x402 signer"]
   end
-  subgraph Ops["zBase services"]
+  subgraph Ops["zx402 services"]
     REL["Relayer: builds and submits pool transactions"]
     CRK["Crank: proves and submits Insert"]
     IDX["Indexer: tree leaves, labels, nullifiers"]
@@ -132,7 +132,7 @@ nullifierHash = H1(nullifier)
 - `label` identifies the original deposit. A change note keeps the label of the note it came from.
 - `nullifier` and `secret` are random field elements that only the owner knows.
 
-This matches the note model of zBase on Base.
+This matches the note model of the Base implementation.
 
 ### 4.4 Label
 
@@ -638,31 +638,31 @@ Notes:
 
 ### 8.1 SDK
 
-Package name: `@zbase-cardano/core`. TypeScript, Node 22 or later.
+Package name: `@zx402/core`. TypeScript, Node 22 or later.
 
 ```ts
-const zbase = createZbaseCardano({
+const zx402 = createZx402({
   network: 'cardano:mainnet',
   relayerUrl: 'https://relayer.example',
   seed,                       // 32-byte master seed
 });
 
 // Deposit: returns the address and inline datum for one ordinary payment.
-const prep = zbase.prepareDeposit({ amount: 20_000_000n });
+const prep = zx402.prepareDeposit({ amount: 20_000_000n });
 // ...send prep.amount to prep.address with prep.inlineDatum from any wallet...
-const note = await zbase.waitForNote(prep);     // resolves after Insert
+const note = await zx402.waitForNote(prep);     // resolves after Insert
 
 // Private payment straight from the pool, submitted by the relayer.
-const receipt = await zbase.settlePrivately({
+const receipt = await zx402.settlePrivately({
   note,
   payouts: [{ address: sellerAddress, amount: 5_000_000n }],
 });
 
 // x402 in stealth mode: a ClientCardanoSigner for @x402/cardano.
-client.register('cardano:*', new ExactCardanoScheme(zbase.x402Signer({ mode: 'stealth' })));
+client.register('cardano:*', new ExactCardanoScheme(zx402.x402Signer({ mode: 'stealth' })));
 
 // Public exit.
-await zbase.ragequit({ note, wallet });
+await zx402.ragequit({ note, wallet });
 ```
 
 Responsibilities:
@@ -720,7 +720,7 @@ The ADA pool keeps one fee per quote.
 
 - Watches new deposits and screens the funding addresses.
 - Builds the ASP tree of approved labels and posts the root.
-- Approves by default after a delay unless a deposit is flagged. This mirrors zBase on Base. M0 status: it approves at once, and a deny function can refuse a deposit. No delay and no data source are built.
+- Approves by default after a delay unless a deposit is flagged. This mirrors the Base implementation. M0 status: it approves at once, and a deny function can refuse a deposit. No delay and no data source are built.
 - Auto-approves deposits funded only by pool payouts, such as returned one-time funds.
 - The screening data source for Cardano is an open question (PRD section 14).
 
@@ -849,13 +849,13 @@ The relayer verifies every proof locally before it builds a transaction.
 ```text
 apps/web           public landing page and documentation reader
 circuits/          circom sources, circuit tests, build and key setup scripts
-contracts/         one Aiken project: lib/zbase/* modules and validators/*
+contracts/         one Aiken project: lib/zx402/* modules and validators/*
 contracts/fixtures generator that turns scenarios with real proofs into Aiken test modules
 packages/crypto    field helpers, Poseidon255 wrappers, notes, trees, encodings, point compression, witness builders
 packages/prover    snarkjs wrapper: file hash checks, prove, verify, conversion for Cardano
 packages/txlib     chain provider, Blockfrost adapter, codecs, script loader, and the transaction builders of section 7
 packages/api       request and response types of section 8.8, JSON converters, HTTP clients and server
-packages/sdk       @zbase-cardano/core: notes, sync, settle, x402 signer
+packages/sdk       @zx402/core: notes, sync, settle, x402 signer
 services/indexer   chain follower and read API
 services/relayer   quote and settle
 services/crank     insert prover and submitter
@@ -878,13 +878,13 @@ It has no wallet connection, deposit, proof generation, or transaction submissio
 - Follow the dark visual direction of [Skydive](https://www.skydive.com/): large type, generous space, rounded controls, and cards around the hero.
 - Keep the landing page minimal and led by visuals. Use short headings and single-sentence explanations. Remove repeated supporting paragraphs and feature summaries. Keep technical detail in the docs, three collapsed FAQ answers, and the selected animation stage. Preserve the portraits, scroll interactions, privacy limits, and accessible controls.
 - Use nine stylized anonymous companion portraits in the hero and payment orbit. Give them soft rounded shapes, simple expressive faces, and matte lavender, sage, blue, charcoal, and ivory clothing. Keep the portraits cohesive, approachable, and recognizable at small sizes. Avoid photorealistic faces, intimidating masks, and empty black hoods. Preserve the existing character motion. Carry the same friendly companion style into the scenic footer artwork.
-- Use one refined custom geometric SVG icon family across the landing page. Use flat muted lavender, sage, and charcoal fills with crisp silhouettes and clear negative space. Give each payment role a distinct shape. Icons have no gradients, highlights, drop shadows, faces, or toy-like details. Use simple custom rounded marks for small navigation, status, and motion controls. Keep the existing zBase and Cardano identities recognizable in local SVG glyphs. Replace generic library icons in every landing section, including the hero, payment orbit, payment overview, privacy section, FAQ, and footer. The documentation reader is outside this visual change. Decorative icons remain hidden from assistive technology, while controls keep their accessible names and keyboard behavior. Add no new icon motion.
+- Use one refined custom geometric SVG icon family across the landing page. Use flat muted lavender, sage, and charcoal fills with crisp silhouettes and clear negative space. Give each payment role a distinct shape. Icons have no gradients, highlights, drop shadows, faces, or toy-like details. Use simple custom rounded marks for small navigation, status, and motion controls. Keep the existing zx402 and Cardano identities recognizable in local SVG glyphs. Replace generic library icons in every landing section, including the hero, payment orbit, payment overview, privacy section, FAQ, and footer. The documentation reader is outside this visual change. Decorative icons remain hidden from assistive technology, while controls keep their accessible names and keyboard behavior. Add no new icon motion.
 - In the How it works overview, use an existing companion portrait for `Your agent`. Crop the portrait cleanly inside its node and keep the label readable. This portrait replaces the agent pictogram; other icons retain the flat geometric style.
 - Make `Read docs` the main action. Every `Read docs` link opens `/docs/`.
 - Show `In development`. Describe ADA as the first asset. Use a compact roadmap row marked `Tested on Preprod`, with mainnet next and a link to the full build plan. Explain in the FAQ that mainnet is not live and a capped canary using team funds is next.
 - Explain that note secrets stay on the agent's machine in default mode. The relayer gets a proof and an intent.
 - Include a hero, a design explanation, an at-a-glance `Deposit`, `Prove locally`, `Pay` overview, a local proof privacy feature, a roadmap, an FAQ, and a footer.
-- Show the complete payment flow in one card section under `How it works`. Three connected steps remain visible together: Deposit ADA into the shared pool and keep a private note locally; generate a proof on the agent's machine and send only proof and intent; fund a one-time key from the pool and pay the x402 seller. Use short copy above large, high-contrast diagrams. Align each step label, heading, copy, diagram, and note to one left edge. Keep equal column gaps and balanced inner padding. Use the supplied Soffit WebGL2 gradient behind the overview with a muted mint palette. Remove the bright white and lavender corner flare by using mint for the high color stops and setting glow to zero. Keep the other supplied motion settings, cap device pixel ratio at 1, and adapt the canvas to this section. Feather only the background edges into the dark page; keep all text and diagrams fully opaque. Omit panel outlines, column dividers, and icon-box outlines. Give the zBase mark and other icons strong silhouettes and clear labels. Stack the steps on narrow screens. Do not pin, progressively load, or require interaction to read this overview. Mark it as a planned flow, not a live payment. Add a gentle automatic diagram sequence: ADA moves into the pool, a local proof pulse precedes proof and intent going to the relayer, then payment moves from the pool through a one-time key to the seller. Keep note secrets still and local. Emphasize each step in order on desktop. Let visible stacked cards play their own short loop on phones. Animate only decorative accents. The Soffit background drifts gently and responds to the pointer within the panel. Pause offscreen motion and respect the shared pause control and reduced motion setting. Stop rendering in hidden tabs. Keep a matching static gradient if WebGL2 is unavailable or its context is lost. Resize the drawing buffer to the panel and release GPU resources, observers, events, and pending frames on unmount.
+- Show the complete payment flow in one card section under `How it works`. Three connected steps remain visible together: Deposit ADA into the shared pool and keep a private note locally; generate a proof on the agent's machine and send only proof and intent; fund a one-time key from the pool and pay the x402 seller. Use short copy above large, high-contrast diagrams. Align each step label, heading, copy, diagram, and note to one left edge. Keep equal column gaps and balanced inner padding. Use the supplied Soffit WebGL2 gradient behind the overview with a muted mint palette. Remove the bright white and lavender corner flare by using mint for the high color stops and setting glow to zero. Keep the other supplied motion settings, cap device pixel ratio at 1, and adapt the canvas to this section. Feather only the background edges into the dark page; keep all text and diagrams fully opaque. Omit panel outlines, column dividers, and icon-box outlines. Give the zx402 mark and other icons strong silhouettes and clear labels. Stack the steps on narrow screens. Do not pin, progressively load, or require interaction to read this overview. Mark it as a planned flow, not a live payment. Add a gentle automatic diagram sequence: ADA moves into the pool, a local proof pulse precedes proof and intent going to the relayer, then payment moves from the pool through a one-time key to the seller. Keep note secrets still and local. Emphasize each step in order on desktop. Let visible stacked cards play their own short loop on phones. Animate only decorative accents. The Soffit background drifts gently and responds to the pointer within the panel. Pause offscreen motion and respect the shared pause control and reduced motion setting. Stop rendering in hidden tabs. Keep a matching static gradient if WebGL2 is unavailable or its context is lost. Resize the drawing buffer to the panel and release GPU resources, observers, events, and pending frames on unmount.
 - Pin the payment orbit through its full scroll sequence on viewports where its compact scene fits. Include progress and a clear scroll cue. Release the scene after its final stage. Use native scrolling. Smaller or shorter screens that cannot fit the scene retain normal document flow and manual controls.
 - Explain privacy with one visual boundary between the agent's device and the public network. Contrast local note secrets with the proof and intent that can leave the device. Show the shared pool as the funding source and explain that amounts, recipients, and timing remain public. Use a short privacy-limit line and one documentation link. Omit repeated captions and the supporting feature grid. The visual remains readable without animation.
 - The documentation reader renders the current source from `PRD.md`, `SPEC.md`, and `PLAN-M0.md`. Its topic navigation works at `/docs/`.
@@ -894,9 +894,9 @@ It has no wallet connection, deposit, proof generation, or transaction submissio
 - `Pause motion` freezes decorative transforms and reveals all content. The payment overview stays fully visible in every motion mode; pause freezes its diagram accents. Resuming motion uses the current scroll position. The operating system's reduced motion setting shows a static, readable layout and disables JavaScript scroll animation listeners, including when the setting changes while the page is open.
 - Keep content visible if browser motion APIs or observers are unavailable. Keyboard focus reveals its content. Decorative characters and animation must not prevent reading or using the page. Clean up listeners, observers, and pending animation frames when the page unmounts.
 - Give the hero a distinct display type treatment. Render `Unknown` in a flat, lavender italic editorial face without bevels, extrusion, or offset shadows. Place a soft drifting smoke veil in front of part of the word while keeping it readable. Hover gently disperses the smoke to reveal the clear lettering; leaving restores the veil. Touch screens keep a light automatic drift without requiring hover. The smoke is decorative and cannot intercept input. Keep the accessible headline stable. Pause freezes the drift and disables hover motion. Static and reduced motion modes show clear, still lettering.
-- Center the scroll-driven payment path on a dotted ring. Begin with only the ring, then reveal an anonymous center portrait and six nodes in order: Wallet, Shared pool, Local proof, Relayer, One-time key, and x402 seller. Each node grows into view as the previous node dims. Dim icon and label colors while keeping revealed circular faces opaque so the dotted ring never shows through them. Move a compact detail card beside the active node, keeping it clear of the ring and readable within the viewport. After all six steps have appeared, flip the center portrait into the zBase mark and all six outer nodes into different original portraits together on one shared scroll interval. Turn the outer ring and its nodes clockwise during this transformation and the remaining scroll, while keeping the portraits upright and the center still. Keep this final shared-pool composition visible before releasing the scene. Scrolling backward reverses the full sequence. Each node remains a keyboard-accessible button; focus or selection reveals its explanation and holds it until scrolling reaches another stage. Native page scrolling remains intact. Screens that cannot fit the pinned scene use a centered, static orbit and manual controls. Compact screens place the detail card below the orbit.
+- Center the scroll-driven payment path on a dotted ring. Begin with only the ring, then reveal an anonymous center portrait and six nodes in order: Wallet, Shared pool, Local proof, Relayer, One-time key, and x402 seller. Each node grows into view as the previous node dims. Dim icon and label colors while keeping revealed circular faces opaque so the dotted ring never shows through them. Move a compact detail card beside the active node, keeping it clear of the ring and readable within the viewport. After all six steps have appeared, flip the center portrait into the zx402 mark and all six outer nodes into different original portraits together on one shared scroll interval. Turn the outer ring and its nodes clockwise during this transformation and the remaining scroll, while keeping the portraits upright and the center still. Keep this final shared-pool composition visible before releasing the scene. Scrolling backward reverses the full sequence. Each node remains a keyboard-accessible button; focus or selection reveals its explanation and holds it until scrolling reaches another stage. Native page scrolling remains intact. Screens that cannot fit the pinned scene use a centered, static orbit and manual controls. Compact screens place the detail card below the orbit.
 - Mark the orbit scene as a design preview in development. Keep its planned status and privacy limits visible. Reduced motion, paused motion, or missing browser APIs leave all six node controls and a readable detail card available without automatic changes.
-- End with a short invitation over an original stylized landscape featuring a soft, friendly companion from the portrait family. Use rounded scenery, muted lavender and slate tones, and a warm twilight glow with room for the invitation text. Keep the companion visible in desktop and phone crops. Preserve the landscape parallax, dark edge fades, and `Move freely.` invitation. Follow it with two concise footer link groups for Explore and Resources. Use an oversized zBase wordmark above the project status and copyright. Omit repeated descriptions and taglines. Use existing destinations only. Do not imply legal policies, certifications, or live services that the project does not have.
+- End with a short invitation over an original stylized landscape featuring a soft, friendly companion from the portrait family. Use rounded scenery, muted lavender and slate tones, and a warm twilight glow with room for the invitation text. Keep the companion visible in desktop and phone crops. Preserve the landscape parallax, dark edge fades, and `Move freely.` invitation. Follow it with two concise footer link groups for Explore and Resources. Use an oversized zx402 wordmark above the project status and copyright. Omit repeated descriptions and taglines. Use existing destinations only. Do not imply legal policies, certifications, or live services that the project does not have.
 
 Run the frontend with `npm run dev` at the repo root. `npm test -w apps/web` runs its Vitest and React Testing Library checks. `npm test` runs all workspace tests. `npm run build` checks frontend types and creates the production build.
 Frontend tests use the `FE` IDs in [TEST-PLAN.md](./TEST-PLAN.md).
@@ -960,8 +960,8 @@ Properties:
 
 ### 9.3 Facilitator mode (M1)
 
-- The seller points its x402 stack at a zBase facilitator, or installs our facilitator scheme.
-- The buyer's payload carries the spend proof and intent under a custom transfer method named `zbase`.
+- The seller points its x402 stack at a zx402 facilitator, or installs our facilitator scheme.
+- The buyer's payload carries the spend proof and intent under a custom transfer method named `zx402`.
 - At settle time our facilitator builds and submits the pool transaction. The seller is paid straight from the pool in one transaction.
 - No handoff gap exists, so the relayer can chain payments.
 
@@ -1086,7 +1086,7 @@ Measured: a first full setup takes about 28 minutes, of which the phase 1 prepar
 
 - **Circuit or verifier bug.** It can drain the pool. Caps bound the loss. An audit comes before caps rise.
 - **Duplicate precommitment.** Two notes with the same nullifier cannot both be spent. If someone copies a pending deposit, the copier loses their deposit. The SDK follows the deposit that carries the refund key it used itself, because only that note can also exit in public. Among deposits with that key, or when the SDK was restored from the seed alone and no longer knows the key, it prefers an absorbed deposit and then the larger one. A copy can also carry the owner's refund key and be absorbed first. So a deposit that the SDK submitted itself is followed by its exact output reference, and a copy cannot take its place.
-- **No rule on chain against a repeated precommitment.** zBase on Base refuses a second deposit with the same precommitment. This pool does not, because that needs a second set in the pool datum. So every wallet must make sure that it never uses a note secret twice in one pool. The SDK derives secrets from the seed and a counter in its store. It syncs before it deposits, and it skips every index whose precommitment is already on chain or whose nullifier is already spent. That holds for deposits and for change notes, also after a lost store. A wallet that builds deposits without the SDK must apply the same rule, or its deposit is locked for good.
+- **No rule on chain against a repeated precommitment.** the Base implementation refuses a second deposit with the same precommitment. This pool does not, because that needs a second set in the pool datum. So every wallet must make sure that it never uses a note secret twice in one pool. The SDK derives secrets from the seed and a counter in its store. It syncs before it deposits, and it skips every index whose precommitment is already on chain or whose nullifier is already spent. That holds for deposits and for change notes, also after a lost store. A wallet that builds deposits without the SDK must apply the same rule, or its deposit is locked for good.
 - **Malformed deposits.** They are lost (section 6.6).
 - **Rollbacks.** Cardano finality is probabilistic. The indexer and relayer handle rollbacks and rebuild.
 - **Seed loss.** The system is non-custodial. A lost seed means lost notes.
@@ -1236,7 +1236,7 @@ x402 on Cardano defaults to USDM. Masumi names USDCx on mainnet.
 - **Poseidon builtin.** A draft CIP proposes a Poseidon permutation builtin at about 24M CPU per call. Its registry includes the width-3 instance we use for tree nodes. The width-4 instance we use for commitments is only a candidate there. If the builtin ships, a later pool version can hash tree nodes on-chain and shrink or drop the Insert proof.
 - **Nullifier sharding.** Several nullifier UTXOs keyed by the first byte let settles run in parallel.
 - **Bigger insert batches.** Compress public inputs with a witness-bound random combination.
-- **Multi-input notes.** Port the 2-in 2-out design from zBase's `note_spend` circuit.
+- **Multi-input notes.** Port the 2-in 2-out design from the Base implementation's `note_spend` circuit.
 - **Hidden recipients.** Pay into Seedelf registers.
 - **Aggregated settles.** Many payments in one proof and one transaction.
 - **Payer-agnostic receive.** A sender pays the deposit address with the receiver's precommitment.
@@ -1289,7 +1289,7 @@ That measurement is the reason for decision D3.
 
 | Project | Link |
 |---|---|
-| zBase on Base (source architecture) | `github.com/goheesheng/zBase` |
+| the Base implementation (source architecture) | the Privacy Pools rail on Base, vendored 0xbow contracts |
 | Privacy Pools reference | `github.com/0xbow-io/privacy-pools-core` |
 | Cardano Foundation BLS repo | `github.com/cardano-foundation/bls` |
 | Aiken primitives post | `cardanofoundation.org/blog/aiken-primitives-explained` |
@@ -1307,9 +1307,9 @@ That measurement is the reason for decision D3.
 | Subbit x402 | `github.com/loveaihq/subbit-x402` |
 | Powers of tau for Cardano | `github.com/p0tion-tools/cardano-ppot` |
 
-## Appendix B. Mapping from zBase on Base
+## Appendix B. Mapping from the Base implementation
 
-| zBase on Base | zBase Cardano |
+| the Base implementation | zx402 |
 |---|---|
 | `Entrypoint.deposit` pulls USDC and hashes the commitment on-chain | A plain payment to the deposit address. Insert computes the commitment in-circuit |
 | LeanIMT with on-chain Poseidon, dynamic depth | Fixed depth 32 tree, updated only by Insert proofs |
@@ -1328,7 +1328,7 @@ That measurement is the reason for decision D3.
 | Upgradeable proxy | Immutable scripts and versioned pools |
 | USDC | tUSDM on Preprod in M0. ADA pools remain supported. Mainnet stablecoins follow later |
 
-## Appendix C. Corrections to the earlier zbase-cardano notes
+## Appendix C. Corrections to the earlier notes
 
 1. The notes spent a per-deposit UTXO at payment. That reveals the link. Funds now sit in one pool UTXO.
 2. The notes let an off-chain indexer post the root. Roots now change only with a proof.
@@ -1350,5 +1350,5 @@ That measurement is the reason for decision D3.
 | 1.0.2 | 2026-10-06 | Rule P3 also forbids a reference script on the continuing pool output. |
 | 1.0.3 | 2026-10-06 | Build findings. The first live run is on Preprod, and all off-chain code takes a network setting (section 15). Script parameters use the Evolution SDK, because the Mesh function truncates long byte strings (8.6). The indexer serves `GET /v1/pool`, and two error codes were added (8.8). The code layout matches the repository (8.9). The Preprod pool uses a single-contributor setup (11). |
 | 1.0.4 | 2026-10-07 | Findings from the first live runs on Preprod. The SDK treats its own marks as tentative until the chain confirms them, and exits and refunds carry an expiry (8.7). A copied precommitment is resolved by the refund key (12.2). M0 status notes for the relayer, the indexer and the association service (8.2, 8.4, 8.5). |
-| 1.0.5 | 2026-10-07 | Findings from a comparison with zBase on Base. The pool has no rule against a repeated precommitment, so the SDK never uses a note secret twice and follows the exact output of its own deposit (12.2). The SDK reads the fee rate and the tip from its own provider, limits the lifetime of a quote, and releases a note only on a known refusal (8.7). The relayer has the error code `uncertain` (8.8). M0 status of the privacy defaults, and two more leaks (13.2). |
+| 1.0.5 | 2026-10-07 | Findings from a comparison with the Base implementation. The pool has no rule against a repeated precommitment, so the SDK never uses a note secret twice and follows the exact output of its own deposit (12.2). The SDK reads the fee rate and the tip from its own provider, limits the lifetime of a quote, and releases a note only on a known refusal (8.7). The relayer has the error code `uncertain` (8.8). M0 status of the privacy defaults, and two more leaks (13.2). |
 | 1.0.6 | 2026-10-07 | Added the M0 tUSDM pool rules, asset units, payout ADA, per-payout relayer fee, and token stealth flow. Recorded token payout checks and the unpinned ADA reserve. |

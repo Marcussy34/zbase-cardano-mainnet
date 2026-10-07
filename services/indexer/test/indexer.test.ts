@@ -1,18 +1,18 @@
 import assert from 'node:assert/strict';
 import { after, test } from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { ApiError, IndexerClient } from '@zbase-cardano/api';
+import { ApiError, IndexerClient } from '@zx402/api';
 import {
   MerkleTree, NETWORKS, commitment, contextFor, deriveNoteSecrets, h3, insertWitness,
   labelFor, precommitment, ragequitWitness, spendWitness, type Note, type SettleIntent,
-} from '@zbase-cardano/crypto';
-import { devKeysPresent, loadDevArtifacts, prove, shutdown } from '@zbase-cardano/prover';
+} from '@zx402/crypto';
+import { devKeysPresent, loadDevArtifacts, prove, shutdown } from '@zx402/prover';
 import {
   buildAspUpdate, buildConfigUpdate, buildDeposit, buildInsert, buildRagequit, buildRefund, buildSettle,
   enterpriseAddress, keyHash, nullifierInsertion, nullifierRoot, planInsert,
   readConfig, readDeposits, readPool, type ChainHistory, type DepositUtxo, type Provider,
-} from '@zbase-cardano/txlib';
-import { startDevnet } from '@zbase-cardano/txlib/testing/devnet';
+} from '@zx402/txlib';
+import { startDevnet } from '@zx402/txlib/testing/devnet';
 import { Indexer, serveIndexer } from '../src/index.js';
 
 const repoRoot = fileURLToPath(new URL('../../../', import.meta.url));

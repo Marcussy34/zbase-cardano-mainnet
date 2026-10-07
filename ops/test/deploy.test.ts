@@ -4,12 +4,12 @@ import { copyFile, mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
-import { ZERO_HASHES, type SnarkjsVk } from '@zbase-cardano/crypto';
+import { ZERO_HASHES, type SnarkjsVk } from '@zx402/crypto';
 import {
   buildDeposit, buildRefund, decodeTx, enterpriseAddress, readAsp, readConfig, readDeposits, readPool, signTx,
   type Network, type Provider, type Utxo,
-} from '@zbase-cardano/txlib';
-import { FakeChain } from '@zbase-cardano/txlib/testing/fake-chain';
+} from '@zx402/txlib';
+import { FakeChain } from '@zx402/txlib/testing/fake-chain';
 import { deploy, deployCost, pollConfirm, runDeployCommand, type DeployOptions } from '../src/deploy.js';
 import { readSettings } from '../src/env.js';
 import { roleAddress, roleKeyHash, roleSeed, type Role } from '../src/roles.js';

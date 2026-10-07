@@ -1,4 +1,4 @@
-# zBase Cardano: Test Plan
+# zx402: Test Plan
 
 | Field | Value |
 |---|---|

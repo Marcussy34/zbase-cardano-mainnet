@@ -4,10 +4,10 @@ use aiken/merkle_patricia_forestry as mpf
 use cardano/address.{Script}
 use cardano/assets.{Assets as Value, PolicyId}
 use cardano/transaction.{InlineDatum, Input, OutputReference, Transaction}
-use zbase/constants
-use zbase/encoding
-use zbase/groth16.{VerificationKey, in_field}
-use zbase/types.{AspDatum, AssetClass, ConfigDatum, PoolDatum}
+use zx402/constants
+use zx402/encoding
+use zx402/groth16.{VerificationKey, in_field}
+use zx402/types.{AspDatum, AssetClass, ConfigDatum, PoolDatum}
 
 pub type PoolParams {
   nft_policy: PolicyId,

@@ -1,7 +1,7 @@
 import type { ClientCardanoSigner } from '@x402/cardano';
-import { addressFromBech32, deriveOneTimeKey, NETWORKS } from '@zbase-cardano/crypto';
+import { addressFromBech32, deriveOneTimeKey, NETWORKS } from '@zx402/crypto';
 import { assetUnit, assetWireUnit, buildStealthPayment, enterpriseAddress, isAdaAsset, sellerMinimumLovelace, stealthFee,
-  type ChainContext } from '@zbase-cardano/txlib';
+  type ChainContext } from '@zx402/txlib';
 import type { SettleReceipt } from './sdk.js';
 
 interface Hooks {

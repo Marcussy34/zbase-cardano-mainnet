@@ -1,5 +1,5 @@
 {
-  "name": "@zbase-cardano/ops",
+  "name": "@zx402/ops",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -14,15 +14,15 @@
     "admin": "node --env-file=../.env --import tsx src/admin.ts"
   },
   "dependencies": {
-    "@zbase-cardano/api": "*",
-    "@zbase-cardano/asp": "*",
-    "@zbase-cardano/core": "*",
-    "@zbase-cardano/crank": "*",
-    "@zbase-cardano/crypto": "*",
-    "@zbase-cardano/example-x402-seller": "*",
-    "@zbase-cardano/indexer": "*",
-    "@zbase-cardano/prover": "*",
-    "@zbase-cardano/relayer": "*",
-    "@zbase-cardano/txlib": "*"
+    "@zx402/api": "*",
+    "@zx402/asp": "*",
+    "@zx402/core": "*",
+    "@zx402/crank": "*",
+    "@zx402/crypto": "*",
+    "@zx402/example-x402-seller": "*",
+    "@zx402/indexer": "*",
+    "@zx402/prover": "*",
+    "@zx402/relayer": "*",
+    "@zx402/txlib": "*"
   }
 }

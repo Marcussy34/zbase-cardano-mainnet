@@ -3,14 +3,14 @@ import { Head } from 'nextra/components';
 import { getPageMap } from 'nextra/page-map';
 import 'nextra-theme-docs/style.css';
 
-const repository = 'https://github.com/Marcussy34/zbase-cardano-mainnet';
+const repository = 'https://github.com/Marcussy34/zx402';
 
 export const metadata = {
-  title: { default: 'zBase Cardano', template: '%s | zBase Cardano' },
-  description: 'How zBase Cardano works: private x402 payments for AI agents on Cardano.',
+  title: { default: 'zx402', template: '%s | zx402' },
+  description: 'How zx402 works: private x402 payments for AI agents on Cardano.',
 };
 
-const navbar = <Navbar logo={<b>zBase Cardano</b>} projectLink={repository} />;
+const navbar = <Navbar logo={<b>zx402</b>} projectLink={repository} />;
 const footer = <Footer>MIT 2026 Marcus Tan. Built on Preprod. Not audited.</Footer>;
 
 export default async function RootLayout({ children }) {

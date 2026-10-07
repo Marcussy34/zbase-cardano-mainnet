@@ -3,9 +3,9 @@ use aiken/interval
 use cardano/address
 use cardano/assets.{PolicyId}
 use cardano/transaction.{Input, Output, OutputReference, Transaction}
-use zbase/constants
-use zbase/testkit
-use zbase/types.{Absorb, DepositDatum, DepositRedeemer, Refund}
+use zx402/constants
+use zx402/testkit
+use zx402/types.{Absorb, DepositDatum, DepositRedeemer, Refund}
 
 validator deposit(nft_policy: PolicyId) {
   spend(

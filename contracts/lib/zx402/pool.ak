@@ -1,10 +1,10 @@
 use cardano/transaction.{OutputReference, Transaction}
-use zbase/pool/common.{PoolParams}
-use zbase/pool/fees
-use zbase/pool/insert
-use zbase/pool/ragequit
-use zbase/pool/settle
-use zbase/types.{CollectFees, Insert, PoolDatum, PoolRedeemer, Ragequit, Settle}
+use zx402/pool/common.{PoolParams}
+use zx402/pool/fees
+use zx402/pool/insert
+use zx402/pool/ragequit
+use zx402/pool/settle
+use zx402/types.{CollectFees, Insert, PoolDatum, PoolRedeemer, Ragequit, Settle}
 
 /// Validate a pool spend as a plain function for library tests.
 pub fn validate(

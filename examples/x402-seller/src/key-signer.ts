@@ -1,8 +1,8 @@
 import type { ClientCardanoSigner } from '@x402/cardano';
 import { getUtxoMinLovelace, MeshTxBuilder } from '@meshsdk/core';
 import { Address, Transaction, TxCBOR } from '@meshsdk/core-cst';
-import { enterpriseAddress, signTx } from '@zbase-cardano/txlib';
-import type { Network, Provider } from '@zbase-cardano/txlib';
+import { enterpriseAddress, signTx } from '@zx402/txlib';
+import type { Network, Provider } from '@zx402/txlib';
 
 export function keySigner(o: { seed: Uint8Array; provider: Provider; network: Network }): ClientCardanoSigner {
   const address = enterpriseAddress(o.seed, o.network);

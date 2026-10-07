@@ -3,7 +3,7 @@ use aiken/collection/list
 use aiken/crypto.{VerificationKeyHash}
 use cardano/address.{Credential, Inline, Script, VerificationKey}
 use cardano/transaction.{OutputReference}
-use zbase/types.{Payout, SettleIntent}
+use zx402/types.{Payout, SettleIntent}
 
 /// SPEC 4.4. Fails when a length is wrong or the index does not fit in 4 bytes.
 pub fn label(

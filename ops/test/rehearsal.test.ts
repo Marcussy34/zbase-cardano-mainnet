@@ -9,17 +9,17 @@ import { after, test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 import type { FacilitatorCardanoSigner } from '@x402/cardano';
-import { IndexerClient, RelayerClient } from '@zbase-cardano/api';
-import { fileStore } from '@zbase-cardano/core';
-import { addressFromBech32, deriveNoteSecrets, precommitment, vkToCardano } from '@zbase-cardano/crypto';
-import { devKeysPresent, loadDevArtifacts, loadDevVkey, shutdown } from '@zbase-cardano/prover';
+import { IndexerClient, RelayerClient } from '@zx402/api';
+import { fileStore } from '@zx402/core';
+import { addressFromBech32, deriveNoteSecrets, precommitment, vkToCardano } from '@zx402/crypto';
+import { devKeysPresent, loadDevArtifacts, loadDevVkey, shutdown } from '@zx402/prover';
 import {
   buildDeposit, decodePoolDatum, decodePoolRedeemer, decodeTx, encodeDepositDatum, enterpriseAddress, keyHash, readPool, signTx, timeToSlot, vkToHex,
   type TxView, type Utxo,
-} from '@zbase-cardano/txlib';
-import { FakeChain } from '@zbase-cardano/txlib/testing/fake-chain';
-import { startDevnet } from '@zbase-cardano/txlib/testing/devnet';
-import { startSeller } from '@zbase-cardano/example-x402-seller/src/seller.js';
+} from '@zx402/txlib';
+import { FakeChain } from '@zx402/txlib/testing/fake-chain';
+import { startDevnet } from '@zx402/txlib/testing/devnet';
+import { startSeller } from '@zx402/example-x402-seller/src/seller.js';
 import { deploy } from '../src/deploy.js';
 import { roleSeed } from '../src/roles.js';
 import type { DemoResult } from '../src/demo.js';
@@ -30,7 +30,7 @@ const total = (utxos: Utxo[]) => utxos.reduce((sum, u) => sum + u.value.lovelace
 after(shutdown);
 
 test('E2E-04: CLI rejects malformed polling and port settings before startup', async t => {
-  for (const name of ['ZBASE_INTERVAL_MS', 'ZBASE_IDLE_RETRY_MS', 'ZBASE_INDEXER_PORT', 'ZBASE_RELAYER_PORT']) {
+  for (const name of ['ZX402_INTERVAL_MS', 'ZX402_IDLE_RETRY_MS', 'ZX402_INDEXER_PORT', 'ZX402_RELAYER_PORT']) {
     await t.test(name, async () => {
       for (const value of ['-1', '1.5', 'abc', '', 'Infinity', '9007199254740992']) {
         await assert.rejects(promisify(execFile)(process.execPath,
@@ -280,7 +280,7 @@ test('E2E-01 through E2E-04: deployed pool rehearsal through real HTTP and stock
   });
   assert.equal(typeof runDemo, 'function', 'The demo must expose runDemo');
   assert.ok(runDemo);
-  const directory = await mkdtemp(join(tmpdir(), 'zbase-rehearsal-'));
+  const directory = await mkdtemp(join(tmpdir(), 'zx402-rehearsal-'));
   t.after(() => rm(directory, { recursive: true, force: true }));
   const storePath = join(directory, 'demo-store.json');
   const operator = new Uint8Array(32).fill(71);

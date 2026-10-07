@@ -2,7 +2,7 @@ import { fileURLToPath } from 'node:url';
 import nextra from 'nextra';
 
 // The site is exported as static files. On GitHub Pages it lives under the repository name,
-// so the workflow sets NEXT_PUBLIC_BASE_PATH to "/zbase-cardano-mainnet". Locally it stays empty.
+// so the workflow sets NEXT_PUBLIC_BASE_PATH to "/zx402". Locally it stays empty.
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? '';
 
 const withNextra = nextra({

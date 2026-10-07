@@ -4,11 +4,11 @@ import type { TestContext } from "node:test";
 import { fileURLToPath } from "node:url";
 import {
   commitment, insertWitness, MerkleTree, ragequitWitness, spendWitness,
-} from "@zbase-cardano/crypto";
-import type { InsertSlot, Note } from "@zbase-cardano/crypto";
+} from "@zx402/crypto";
+import type { InsertSlot, Note } from "@zx402/crypto";
 // The lead links the new workspace after this worker finishes.
-import { devKeysPresent, loadDevArtifacts, prove, shutdown, verify } from "@zbase-cardano/prover";
-import type { CircuitArtifacts, CircuitName, ProofResult } from "@zbase-cardano/prover";
+import { devKeysPresent, loadDevArtifacts, prove, shutdown, verify } from "@zx402/prover";
+import type { CircuitArtifacts, CircuitName, ProofResult } from "@zx402/prover";
 
 const repoRoot = fileURLToPath(new URL("../../", import.meta.url));
 const provingOptions = {

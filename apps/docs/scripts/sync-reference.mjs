@@ -9,7 +9,7 @@ const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(here, '..', '..', '..');
 const docsDir = join(repoRoot, 'docs');
 const outDir = join(here, '..', 'content', 'reference');
-const github = 'https://github.com/Marcussy34/zbase-cardano-mainnet';
+const github = 'https://github.com/Marcussy34/zx402';
 
 // Source file (relative to docs/), page slug, and sidebar title. The order is the sidebar order.
 const pages = [

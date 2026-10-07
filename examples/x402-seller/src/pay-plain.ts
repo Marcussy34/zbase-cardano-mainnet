@@ -2,8 +2,8 @@ import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { ExactCardanoScheme } from '@x402/cardano/exact/client';
 import { decodePaymentResponseHeader, wrapFetchWithPaymentFromConfig } from '@x402/fetch';
-import { blockfrostProvider } from '@zbase-cardano/txlib';
-import type { Network, Provider } from '@zbase-cardano/txlib';
+import { blockfrostProvider } from '@zx402/txlib';
+import type { Network, Provider } from '@zx402/txlib';
 import { keySigner } from './key-signer.js';
 
 interface PlainBuyerOptions {

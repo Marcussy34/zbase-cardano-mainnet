@@ -1,5 +1,5 @@
 import { LargestFirstInputSelector, MeshTxBuilder, type Redeemer } from '@meshsdk/core';
-import { bytesToHex, hexToBytes, type CardanoVk } from '@zbase-cardano/crypto';
+import { bytesToHex, hexToBytes, type CardanoVk } from '@zx402/crypto';
 import {
   decodeAspDatum, decodeConfigDatum, decodeDepositDatum, decodePoolDatum,
   type AspDatum, type ConfigDatum, type DepositDatum, type PoolDatum,

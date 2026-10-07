@@ -2,14 +2,14 @@ import { isDeepStrictEqual } from 'node:util';
 import {
   ApiError, indexerRoutes, serveJson, type AspLeavesPage, type DepositView,
   type IndexerApi, type LeavesPage, type NullifiersPage, type PoolView,
-} from '@zbase-cardano/api';
-import { MerkleTree, R, h3, labelFor } from '@zbase-cardano/crypto';
+} from '@zx402/api';
+import { MerkleTree, R, h3, labelFor } from '@zx402/crypto';
 import {
   decodeConfigDatum, decodeDepositDatum, decodePoolDatum, decodePoolRedeemer, decodeTx,
   nullifierRoot, readAsp, readConfig, readDeposits, readPool,
   type ChainContext, type ChainHistory, type ConfigDatum, type PoolDatum,
   type TxOutputView, type TxView, type UtxoRef,
-} from '@zbase-cardano/txlib';
+} from '@zx402/txlib';
 
 interface Options {
   ctx: ChainContext;

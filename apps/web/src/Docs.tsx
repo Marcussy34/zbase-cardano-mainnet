@@ -38,7 +38,7 @@ function documentLink(href: string): string {
   const fragment = hash ? `#${hash}` : "";
   if (topic) return `/docs/?topic=${topic}${fragment}`;
   const relativePath = new URL(path, "https://repo.invalid/docs/").pathname;
-  return `https://github.com/Marcussy34/zbase-cardano-mainnet/blob/main${relativePath}${fragment}`;
+  return `https://github.com/Marcussy34/zx402/blob/main${relativePath}${fragment}`;
 }
 
 function headingText(children: ReactNode): string {
@@ -80,7 +80,7 @@ export default function Docs() {
   }, []);
 
   useEffect(() => {
-    document.title = `${topics[topic].label} | zBase Cardano docs`;
+    document.title = `${topics[topic].label} | zx402 docs`;
     if (window.location.hash) {
       let fragment: string;
       try {
@@ -108,8 +108,8 @@ export default function Docs() {
   return (
     <div className="docs-shell">
       <header className="docs-header">
-        <a href="/" aria-label="Back to zBase">
-          ← Back to zBase
+        <a href="/" aria-label="Back to zx402">
+          ← Back to zx402
         </a>
         <span>Cardano documentation</span>
       </header>

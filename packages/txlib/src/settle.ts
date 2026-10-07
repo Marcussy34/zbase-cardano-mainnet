@@ -1,4 +1,4 @@
-import { addressToBech32, type CardanoProof, type SettleIntent } from '@zbase-cardano/crypto';
+import { addressToBech32, type CardanoProof, type SettleIntent } from '@zx402/crypto';
 import { addAssetAmount, isAdaAsset, meshAsset } from './asset.js';
 import { encodePoolDatum, encodePoolRedeemer } from './codec.js';
 import { complete, newTxBuilder, readAsp, readConfig, type ChainContext, type Payer, type PoolState } from './context.js';

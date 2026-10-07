@@ -1,4 +1,4 @@
-# zBase Cardano M0 Mainnet Canary Implementation Plan
+# zx402 M0 Mainnet Canary Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -69,16 +69,16 @@ circuits/
 
 contracts/
   aiken.toml
-  lib/zbase/constants.ak
-  lib/zbase/types.ak              datums, redeemers, intent
-  lib/zbase/groth16.ak            verifier module, rules V1 to V6
-  lib/zbase/encoding.ak           label, context, nullifier_key
-  lib/zbase/pool/common.ak        rules P1 to P5, value helpers
-  lib/zbase/pool/insert.ak        rules I1 to I12
-  lib/zbase/pool/settle.ak        rules S1 to S15
-  lib/zbase/pool/ragequit.ak      rules R1 to R8
-  lib/zbase/pool/fees.ak          rules C1 to C4
-  lib/zbase/fixtures.ak           generated proof fixtures for tests
+  lib/zx402/constants.ak
+  lib/zx402/types.ak              datums, redeemers, intent
+  lib/zx402/groth16.ak            verifier module, rules V1 to V6
+  lib/zx402/encoding.ak           label, context, nullifier_key
+  lib/zx402/pool/common.ak        rules P1 to P5, value helpers
+  lib/zx402/pool/insert.ak        rules I1 to I12
+  lib/zx402/pool/settle.ak        rules S1 to S15
+  lib/zx402/pool/ragequit.ak      rules R1 to R8
+  lib/zx402/pool/fees.ak          rules C1 to C4
+  lib/zx402/fixtures.ak           generated proof fixtures for tests
   validators/pool.ak
   validators/deposit.ak
   validators/config.ak
@@ -241,13 +241,13 @@ export function deriveOneTimeKey(seed: Uint8Array, index: number): Uint8Array;  
 - Produces:
 
 ```aiken
-// lib/zbase/groth16.ak
+// lib/zx402/groth16.ak
 pub type VerificationKey {
   alpha: ByteArray, beta: ByteArray, gamma: ByteArray, delta: ByteArray, ic: List<ByteArray>,
 }
 pub fn verify(vk: VerificationKey, proof: Proof, public: List<Int>) -> Bool
 
-// lib/zbase/encoding.ak
+// lib/zx402/encoding.ak
 pub fn label(pool_id: ByteArray, deposit_ref: OutputReference, refund: VerificationKeyHash) -> Int
 pub fn context(intent: SettleIntent) -> Int
 pub fn nullifier_key(nullifier_hash: Int) -> ByteArray
@@ -279,7 +279,7 @@ validator nft(seed: OutputReference)
 
 ## WP4: Proof fixtures
 
-**Files:** `contracts/fixtures/gen.mjs`, generated `contracts/lib/zbase/fixtures.ak`.
+**Files:** `contracts/fixtures/gen.mjs`, generated `contracts/lib/zx402/fixtures.ak`.
 
 **Interfaces:**
 - Consumes: development keys from WP2, `packages/crypto`.
@@ -381,12 +381,12 @@ export function buildStealthPayment(ctx: ChainContext, a: { oneTimeUtxo: UtxoRef
 - Produces:
 
 ```ts
-export function createZbaseCardano(cfg: {
+export function createZx402(cfg: {
   network: 'cardano:mainnet'; relayerUrl: string; indexerUrl: string; seed: Uint8Array;
   minAspSetSize?: number;            // default 10
-}): ZbaseCardano;
+}): Zx402;
 
-export interface ZbaseCardano {
+export interface Zx402 {
   prepareDeposit(a: { amount: bigint; refundKeyHash: Uint8Array }): DepositPrep;   // address, inline datum, note index
   waitForNote(prep: DepositPrep): Promise<OwnedNote>;
   listNotes(): Promise<OwnedNote[]>;

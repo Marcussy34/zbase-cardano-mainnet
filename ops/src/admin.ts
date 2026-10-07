@@ -2,12 +2,12 @@ import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
-import { addressToBech32 } from '@zbase-cardano/crypto';
+import { addressToBech32 } from '@zx402/crypto';
 import {
   assetAmount, assetWireUnit, blockfrostProvider, buildCollectFees, buildConfigUpdate, complete, isAdaAsset, newTxBuilder,
   readConfig, readPool, signTx, utxoToMesh,
   type BuiltTx, type ChainContext, type Deployment, type Utxo,
-} from '@zbase-cardano/txlib';
+} from '@zx402/txlib';
 import { pollConfirm } from './deploy.js';
 import { readSettings } from './env.js';
 import { ROLES, roleAddress, roleKeyHash, roleSeed } from './roles.js';

@@ -1,6 +1,6 @@
 ---
 title: Trust and limits
-description: What you must trust, how the port compares with zBase on Base, what was fixed, and what is still open.
+description: What you must trust, how the port compares with the Base implementation, what was fixed, and what is still open.
 ---
 
 # Trust and limits
@@ -9,7 +9,7 @@ This page is the honest part. Read it before you deposit money you care about.
 
 ## Is the port faithful
 
-Yes in design and in code, with four gaps in trust. The pool on Cardano keeps every safety rule of the pool on Base. Where Cardano forced a new mechanism, the new mechanism enforces the same rule. Three readers, the lead of the build and two independent reviewers, compared the code rule by rule against the vendored 0xbow contracts of zBase on Base and found no way to move value without a valid proof.
+Yes in design and in code, with four gaps in trust. The pool on Cardano keeps every safety rule of the pool on Base. Where Cardano forced a new mechanism, the new mechanism enforces the same rule. Three readers, the lead of the build and two independent reviewers, compared the code rule by rule against the vendored 0xbow contracts of the Base implementation and found no way to move value without a valid proof.
 
 It is not as trustworthy as Base. Base runs audited 0xbow code with keys from a public ceremony. The Cardano circuits and validators are new code, checked by tests, live runs and three reads, with keys that one party made.
 
@@ -22,7 +22,7 @@ It is not as trustworthy as Base. Base runs audited 0xbow code with keys from a 
 | Nobody can redirect a payment | The proof is tied to the recipient and the fee | The proof is tied to every payout, the relayer and an expiry. The chain checks the outputs | Same, plus expiry |
 | Only approved deposits pay in private | The latest approved set only | The latest approved set only | Same rule |
 | The depositor can always exit in public | A map from label to depositor | The depositor's key is part of the label, and that key must sign | Same rule |
-| Who sees the note secrets | The zBase server makes the proof | The agent makes the proof. The relayer sees the proof and the payouts only | Stronger |
+| Who sees the note secrets | The Base implementation's server makes the proof | The agent makes the proof. The relayer sees the proof and the payouts only | Stronger |
 | What the admin can do | The owner can upgrade the entry contract | No upgrade. The admin can pause deposits and tune bounded settings | Stronger |
 | A second deposit with the same secret | Refused by the contract | Not refused on chain. The SDK prevents it | Weaker |
 | The start state of the pool | Fixed by the constructor | Written by the deployer, checked off chain in part | Weaker |
@@ -78,13 +78,13 @@ The comparison on 2026-10-07 found five weaknesses outside the validators that c
 | | Base | Cardano today |
 |---|---|---|
 | Time for one payment | 7 to 15 seconds | About 80 seconds on Preprod |
-| Cost on top of the price | About a cent of gas, paid by zBase | 1 tUSDM per payout, no ADA |
+| Cost on top of the price | About a cent of gas, paid by the Base implementation | 1 tUSDM per payout, no ADA |
 | Smallest payment | 0.001 USDC | 0.000001 tUSDM in the pool; the seller output still needs about 1.1 ADA, which the relayer attaches |
 | Asset | USDC | tUSDM on Preprod, USDM on mainnet |
 | Pool actions | Many per block | About one per block |
 | Extras | MCP server, agent spend limits, sanctions screening, note recovery from the seed, gasless deposit | Not built |
 
-The Base numbers come from the documents of zBase on Base. The Cardano numbers are measured on Preprod.
+The Base numbers come from the documents of the Base implementation. The Cardano numbers are measured on Preprod.
 
 ## Before mainnet
 

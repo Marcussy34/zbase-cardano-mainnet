@@ -5,10 +5,10 @@ import { fileURLToPath } from 'node:url';
 import { ExactCardanoScheme } from '@x402/cardano/exact/client';
 import { decodePaymentRequiredHeader } from '@x402/core/http';
 import { decodePaymentResponseHeader, wrapFetchWithPaymentFromConfig } from '@x402/fetch';
-import { IndexerClient, RelayerClient } from '@zbase-cardano/api';
-import { createZbaseCardano, fileStore } from '@zbase-cardano/core';
-import { shutdown, type CircuitArtifacts } from '@zbase-cardano/prover';
-import { assetWireUnit, blockfrostProvider, type ChainContext, type Deployment } from '@zbase-cardano/txlib';
+import { IndexerClient, RelayerClient } from '@zx402/api';
+import { createZx402, fileStore } from '@zx402/core';
+import { shutdown, type CircuitArtifacts } from '@zx402/prover';
+import { assetWireUnit, blockfrostProvider, type ChainContext, type Deployment } from '@zx402/txlib';
 import { readSettings } from './env.js';
 import { deploymentArtifacts, redactedLog } from './node.js';
 import { roleSeed } from './roles.js';
@@ -41,7 +41,7 @@ export async function runDemo(o: DemoOptions): Promise<DemoResult> {
   const log = redactedLog(o.log ?? (() => {}), [o.walletSeed, o.agentSeed].map(seed => Buffer.from(seed).toString('hex')));
   if (o.storePath) await mkdir(dirname(o.storePath), { recursive: true });
   const indexer = new IndexerClient(o.indexerUrl);
-  const sdk = createZbaseCardano({ seed: o.agentSeed, ctx: o.ctx, indexer,
+  const sdk = createZx402({ seed: o.agentSeed, ctx: o.ctx, indexer,
     relayer: new RelayerClient(o.relayerUrl), artifacts: o.artifacts,
     ...(o.storePath ? { store: fileStore(o.storePath) } : {}), poll: o.poll });
   const amount = o.depositAmount ?? (unit === 'lovelace' ? o.depositLovelace : undefined) ?? 10_000_000n;

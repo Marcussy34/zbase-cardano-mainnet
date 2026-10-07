@@ -2,7 +2,7 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'node:ht
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { toFacilitatorCardanoSigner, type FacilitatorCardanoSigner } from '@x402/cardano';
-import { assetWireUnit, parseAssetWireUnit } from '@zbase-cardano/txlib';
+import { assetWireUnit, parseAssetWireUnit } from '@zx402/txlib';
 import { ExactCardanoScheme as CardanoFacilitator } from '@x402/cardano/exact/facilitator';
 import { ExactCardanoScheme as CardanoServer } from '@x402/cardano/exact/server';
 import { x402Facilitator } from '@x402/core/facilitator';

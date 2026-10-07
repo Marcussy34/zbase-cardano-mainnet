@@ -3,8 +3,8 @@ import { Trie } from "@aiken-lang/merkle-patricia-forestry";
 import {
   commitment, contextFor, deriveNoteSecrets, insertWitness, labelFor, MerkleTree,
   nullifierHash, nullifierKey, precommitment, ragequitWitness, spendWitness,
-} from "@zbase-cardano/crypto";
-import type { SettleIntent } from "@zbase-cardano/crypto";
+} from "@zx402/crypto";
+import type { SettleIntent } from "@zx402/crypto";
 import {
   bytes, int, list, m0Config, outputReference, proof, proveCached, samples, settleIntent, trieProof,
 } from "../lib.js";
@@ -90,6 +90,6 @@ export default async function build(): Promise<FixtureModule> {
   return {
     uses: ["use aiken/merkle_patricia_forestry as mpf", "use aiken/merkle_patricia_forestry.{Leaf}",
       "use cardano/address.{Address, VerificationKey}", "use cardano/transaction.{OutputReference}",
-      "use zbase/groth16", "use zbase/types.{Payout, SettleIntent}"], constants,
+      "use zx402/groth16", "use zx402/types.{Payout, SettleIntent}"], constants,
   };
 }

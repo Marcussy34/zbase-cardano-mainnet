@@ -4,8 +4,8 @@ import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import * as snarkjs from "snarkjs";
 import type { CircuitSignals } from "snarkjs";
-import { isCanonical, proofToCardano } from "@zbase-cardano/crypto";
-import type { SnarkjsProof, SnarkjsVk, CardanoProof } from "@zbase-cardano/crypto";
+import { isCanonical, proofToCardano } from "@zx402/crypto";
+import type { SnarkjsProof, SnarkjsVk, CardanoProof } from "@zx402/crypto";
 
 export type CircuitName = "spend" | "insert" | "ragequit";
 

@@ -1,7 +1,7 @@
 import { existsSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
-import type { DepositView, IndexerApi } from '@zbase-cardano/api';
-import { MerkleTree, assertCanonical } from '@zbase-cardano/crypto';
-import { buildAspUpdate, decodeTx, enterpriseAddress, keyHash, readAsp, signTx, type ChainContext } from '@zbase-cardano/txlib';
+import type { DepositView, IndexerApi } from '@zx402/api';
+import { MerkleTree, assertCanonical } from '@zx402/crypto';
+import { buildAspUpdate, decodeTx, enterpriseAddress, keyHash, readAsp, signTx, type ChainContext } from '@zx402/txlib';
 
 interface Options {
   ctx: ChainContext;

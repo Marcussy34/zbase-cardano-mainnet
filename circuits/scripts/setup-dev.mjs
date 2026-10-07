@@ -123,7 +123,7 @@ async function main() {
     const prepared = `${ptau}.tmp`;
     await timed("phase1 initialize", async () => powersOfTau.newAccumulator(await getCurve(), power, initial, logger));
     timings.stage_sha256.phase1_initial = await sha256(initial);
-    await timed("phase1 contribute", () => powersOfTau.contribute(initial, contributed, "zBase development phase1", "zbase-dev-phase1-fixed-entropy-v1", logger));
+    await timed("phase1 contribute", () => powersOfTau.contribute(initial, contributed, "zx402 development phase1", "zbase-dev-phase1-fixed-entropy-v1", logger));
     timings.stage_sha256.phase1_contributed = await sha256(contributed);
     await timed("phase1 prepare phase2", () => powersOfTau.preparePhase2(contributed, prepared, logger));
     if (!await timed("phase1 verify", () => powersOfTau.verify(prepared, logger))) throw new Error("Development powers of tau failed verification");
@@ -158,7 +158,7 @@ async function main() {
       const created = await timed(`${name} groth16 setup`, () => zKey.newZKey(join(buildDir, `${name}.r1cs`), ptau, initial, logger));
       if (created === -1) throw new Error(`${name}: Groth16 setup failed`);
       timings.stage_sha256[`${name}_initial`] = await sha256(initial);
-      await timed(`${name} contribute`, () => zKey.contribute(initial, contributed, `zBase development ${name}`, `zbase-dev-${name}-fixed-entropy-v1`, logger));
+      await timed(`${name} contribute`, () => zKey.contribute(initial, contributed, `zx402 development ${name}`, `zbase-dev-${name}-fixed-entropy-v1`, logger));
       // The initial key was just built from this R1CS. Reuse it instead of repeating Groth16 setup during verification.
       // snarkjs leaves its verification ptau handle open. An in-memory input avoids that file descriptor leak.
       if (!await timed(`${name} verify`, async () => zKey.verifyFromInit(initial, await readFile(ptau), contributed, logger))) {

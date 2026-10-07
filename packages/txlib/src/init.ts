@@ -1,5 +1,5 @@
 import { toTxUnspentOutput } from '@meshsdk/core-cst';
-import { ZERO_HASHES } from '@zbase-cardano/crypto';
+import { ZERO_HASHES } from '@zx402/crypto';
 import { complete, newTxBuilder, type Deployment, type Payer } from './context.js';
 import { encodeAspDatum, encodeConfigDatum, encodePoolDatum, encodeVoid, type AspDatum, type ConfigDatum, type PoolDatum } from './codec.js';
 import { utxoToMesh } from './providers/blockfrost.js';

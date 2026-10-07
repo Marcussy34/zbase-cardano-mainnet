@@ -1,4 +1,4 @@
-# zBase Cardano: M0 Mainnet Canary Runbook
+# zx402: M0 Mainnet Canary Runbook
 
 | Field | Value |
 |---|---|

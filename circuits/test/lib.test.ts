@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFile, stat } from "node:fs/promises";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
-import { commitment, h1, h2, h3, MerkleTree, nullifierHash, precommitment, rootFromPath, ZERO_HASHES } from "@zbase-cardano/crypto";
+import { commitment, h1, h2, h3, MerkleTree, nullifierHash, precommitment, rootFromPath, ZERO_HASHES } from "@zx402/crypto";
 import vectors from "../../docs/vectors/poseidon-vectors.json" with { type: "json" };
 import {
   checkWitness,

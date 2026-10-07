@@ -1,5 +1,5 @@
 {
-  "name": "@zbase-cardano/relayer",
+  "name": "@zx402/relayer",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -9,10 +9,10 @@
     "typecheck": "tsc --noEmit -p ."
   },
   "dependencies": {
-    "@zbase-cardano/api": "*",
-    "@zbase-cardano/crypto": "*",
-    "@zbase-cardano/prover": "*",
-    "@zbase-cardano/txlib": "*",
+    "@zx402/api": "*",
+    "@zx402/crypto": "*",
+    "@zx402/prover": "*",
+    "@zx402/txlib": "*",
     "@noble/curves": "2.4.0"
   }
 }

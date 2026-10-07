@@ -1,4 +1,4 @@
-import { R } from '@zbase-cardano/crypto';
+import { R } from '@zx402/crypto';
 import { isAdaAsset, meshAsset } from './asset.js';
 import { complete, newTxBuilder, readConfig, type ChainContext, type DepositUtxo, type Payer } from './context.js';
 import { decodeDepositDatum, encodeDepositDatum, encodeDepositRedeemer } from './codec.js';

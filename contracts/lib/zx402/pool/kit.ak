@@ -8,11 +8,11 @@ use cardano/assets.{PolicyId}
 use cardano/transaction.{
   InlineDatum, Input, Output, OutputReference, Transaction,
 }
-use zbase/constants
-use zbase/groth16
-use zbase/pool/common.{PoolParams}
-use zbase/testkit
-use zbase/types.{AspDatum, AssetClass, ConfigDatum, PoolDatum}
+use zx402/constants
+use zx402/groth16
+use zx402/pool/common.{PoolParams}
+use zx402/testkit
+use zx402/types.{AspDatum, AssetClass, ConfigDatum, PoolDatum}
 
 /// The policy that identifies all three test NFTs.
 pub const nft_policy: PolicyId = testkit.nft_policy

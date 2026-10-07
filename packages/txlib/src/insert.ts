@@ -1,4 +1,4 @@
-import { INSERT_BATCH, R, labelFor, type CardanoProof, type InsertSlot } from '@zbase-cardano/crypto';
+import { INSERT_BATCH, R, labelFor, type CardanoProof, type InsertSlot } from '@zx402/crypto';
 import { addAssetAmount, assetAmount, isAdaAsset, type AssetClass } from './asset.js';
 import { decodeDepositDatum, encodeDepositRedeemer, encodePoolDatum, encodePoolRedeemer, type ConfigDatum } from './codec.js';
 import { complete, newTxBuilder, readConfig, type ChainContext, type DepositUtxo, type Payer, type PoolState } from './context.js';

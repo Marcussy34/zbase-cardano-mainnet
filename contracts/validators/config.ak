@@ -7,9 +7,9 @@ use cardano/assets.{PolicyId}
 use cardano/transaction.{
   DatumHash, InlineDatum, Input, NoDatum, Output, OutputReference, Transaction,
 }
-use zbase/constants
-use zbase/testkit
-use zbase/types.{ConfigDatum}
+use zx402/constants
+use zx402/testkit
+use zx402/types.{ConfigDatum}
 
 validator config(nft_policy: PolicyId) {
   spend(

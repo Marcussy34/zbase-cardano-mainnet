@@ -1,5 +1,5 @@
 import { ConstrPlutusData, deserializePlutusData, PlutusData, PlutusList } from '@meshsdk/core-cst';
-import type { CardanoProof, PayoutAddress, SettleIntent } from '@zbase-cardano/crypto';
+import type { CardanoProof, PayoutAddress, SettleIntent } from '@zx402/crypto';
 import type { UtxoRef } from './types.js';
 
 export interface PoolDatum {

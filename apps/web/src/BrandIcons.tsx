@@ -102,7 +102,7 @@ export function PlayIcon(props: BrandIconProps) {
   return <Utility {...props}><path d="M6 5c0-2 1.5-2.5 3-1.5l11 7c1.5 1 1.5 2 0 3l-11 7c-1.5 1-3 .5-3-1.5Z" fill="currentColor" stroke="none" /></Utility>;
 }
 
-export function ZBaseMark({ size = 32, className = "", ...props }: BrandIconProps) {
+export function Zx402Mark({ size = 32, className = "", ...props }: BrandIconProps) {
   return <svg width={size} height={size} viewBox="0 0 32 32" fill="none" aria-hidden="true" focusable="false" {...props} className={`z-icon z-icon-mark ${className}`}>
     <path d="M6 7h21l-6 6H5V8a1 1 0 0 1 1-1Zm5 12h16v5a1 1 0 0 1-1 1H5Z" fill="currentColor" />
     <path d="m19 13-6 6H5l6-6Z" fill="currentColor" opacity=".45" />

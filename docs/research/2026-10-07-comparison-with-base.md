@@ -1,10 +1,10 @@
-# zBase Cardano: comparison with zBase on Base
+# zx402: comparison with the Base implementation
 
 | Field | Value |
 |---|---|
 | Status | 2026-10-07 |
-| Question | Does the Cardano port keep the safety rules of zBase on Base? |
-| Compared | This repository at main, and `github.com/goheesheng/zBase` (the vendored 0xbow Privacy Pools contracts under `zbase-protocol/pkg/contracts/src/vendor/0xbow/contracts`, and the facilitator and SDK code) |
+| Question | Does the Cardano port keep the safety rules of the Base implementation? |
+| Compared | This repository at main, and the Privacy Pools rail on Base (the vendored 0xbow Privacy Pools contracts of that repository, and the facilitator and SDK code) |
 | Who | The lead of the build, and two independent reviewers that read the code of both repositories. One read the circuits and the validators. One read the payment flow and the privacy |
 
 ## 1. Result
@@ -17,7 +17,7 @@ The readers found weaknesses outside the validators, in the SDK, in the relayer 
 
 ## 2. Rule by rule
 
-`S` is the folder of the vendored Base contracts. `V` is `contracts/lib/zbase`. `C` is `circuits/src`.
+`S` is the folder of the vendored Base contracts. `V` is `contracts/lib/zx402`. `C` is `circuits/src`.
 
 | Rule | Base | Cardano | Result |
 |---|---|---|---|
@@ -29,7 +29,7 @@ The readers found weaknesses outside the validators, in the SDK, in the relayer 
 | Only approved deposits pay in private | Only the latest association root, `S/PrivacyPool.sol:59` | Only the root in the association output that the transaction reads, `V/pool/common.ak:115-129` | Same rule |
 | The depositor can always exit in public | A map from label to depositor, `S/PrivacyPool.sol:132-150` | The label is a hash that includes the refund key, and that key must sign. The proof holds the tree membership, `V/pool/ragequit.ak:23-42` | Same rule, new mechanism |
 | Every public input is below the field modulus | In the generated verifier, `S/verifiers/WithdrawalVerifier.sol` | Before any curve operation, `V/groth16.ak:37-53` | Same rule |
-| Who sees note secrets | The zBase server makes the proof and gets the secrets | The agent makes the proof. The relayer gets the proof and the payouts | Stronger |
+| Who sees note secrets | The Base implementation's server makes the proof and gets the secrets | The agent makes the proof. The relayer gets the proof and the payouts | Stronger |
 | Admin power | The owner can upgrade the entry contract, `S/Entrypoint.sol:308` | No upgrade. The admin can pause deposits and set bounded values, `contracts/validators/config.ak` | Stronger |
 | A second deposit with the same precommitment | Refused on chain, `S/Entrypoint.sol:324-326` | Not refused on chain. The SDK prevents it | Weaker |
 | The start state of the pool | Fixed by the constructor, `S/State.sol:79-94` | Written by the deployer and checked off chain in part | Weaker |
@@ -80,7 +80,7 @@ The one-time key does not hide the pool. The chain shows that the pool funded it
 | Pool actions | Many in one block | About one in each block |
 | Not built here | | MCP server, agent spend limits, sanctions screening, recovery of change notes from the seed, gasless deposit, payment memory per request |
 
-The Base numbers come from the documents of zBase on Base. The Cardano numbers are in [measurements.md](../measurements.md).
+The Base numbers come from the documents of the Base implementation. The Cardano numbers are in [measurements.md](../measurements.md).
 
 ## 6. Limits of this check
 

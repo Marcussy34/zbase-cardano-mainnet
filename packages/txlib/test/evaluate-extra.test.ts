@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { h2 } from '@zbase-cardano/crypto';
+import { h2 } from '@zx402/crypto';
 import { readDeposits } from '../src/context.js';
 import { buildDeposit, buildRefund } from '../src/deposit.js';
 import { enterpriseAddress, keyHash, signTx } from '../src/keys.js';

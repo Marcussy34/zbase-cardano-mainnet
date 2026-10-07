@@ -1,4 +1,4 @@
-import { parseAssetWireUnit, type AssetClass, type Network } from '@zbase-cardano/txlib';
+import { parseAssetWireUnit, type AssetClass, type Network } from '@zx402/txlib';
 
 export interface Settings { network: Network; blockfrostProjectId: string; operatorSeed: Uint8Array; asset: AssetClass }
 

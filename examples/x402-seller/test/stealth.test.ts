@@ -6,12 +6,12 @@ import type { ClientCardanoSigner, FacilitatorCardanoSigner } from '@x402/cardan
 import { ExactCardanoScheme } from '@x402/cardano/exact/client';
 import { decodePaymentResponseHeader } from '@x402/core/http';
 import { wrapFetchWithPaymentFromConfig } from '@x402/fetch';
-import { deriveOneTimeKey } from '@zbase-cardano/crypto';
-import { enterpriseAddress, keyHash } from '@zbase-cardano/txlib/keys';
-import { buildStealthPayment, stealthFee } from '@zbase-cardano/txlib/stealth';
-import { FakeChain } from '@zbase-cardano/txlib/testing/fake-chain';
-import { decodeTx } from '@zbase-cardano/txlib/txview';
-import type { Utxo } from '@zbase-cardano/txlib/types';
+import { deriveOneTimeKey } from '@zx402/crypto';
+import { enterpriseAddress, keyHash } from '@zx402/txlib/keys';
+import { buildStealthPayment, stealthFee } from '@zx402/txlib/stealth';
+import { FakeChain } from '@zx402/txlib/testing/fake-chain';
+import { decodeTx } from '@zx402/txlib/txview';
+import type { Utxo } from '@zx402/txlib/types';
 import { startSeller } from '../src/seller.js';
 
 const payTo = serializeAddress({ pubKeyHash: '42'.repeat(28) }, 0);

@@ -2,7 +2,7 @@
 //// The development key is only for these tests.
 
 use aiken/builtin
-use zbase/groth16.{Proof, VerificationKey, fr_order, in_field, verify}
+use zx402/groth16.{Proof, VerificationKey, fr_order, in_field, verify}
 
 fn vk() -> VerificationKey {
   VerificationKey {

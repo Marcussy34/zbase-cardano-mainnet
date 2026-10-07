@@ -4,8 +4,8 @@ import { fileURLToPath } from 'node:url';
 import {
   MerkleTree, NETWORKS, addressToBech32, contextFor, deriveNoteSecrets, insertWitness,
   precommitment, spendWitness, type SettleIntent,
-} from '@zbase-cardano/crypto';
-import { devKeysPresent, loadDevArtifacts, prove, shutdown } from '@zbase-cardano/prover';
+} from '@zx402/crypto';
+import { devKeysPresent, loadDevArtifacts, prove, shutdown } from '@zx402/prover';
 import * as admin from '../src/admin.js';
 import {
   buildDeposit, buildInsert, buildSettle, decodeTx, enterpriseAddress, keyHash, nullifierInsertion,

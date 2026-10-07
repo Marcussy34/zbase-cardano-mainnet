@@ -1,7 +1,7 @@
 {
   "preamble": {
-    "title": "zbase/contracts",
-    "description": "zBase Cardano M0 pool contracts",
+    "title": "zx402/contracts",
+    "description": "zx402 M0 pool contracts",
     "version": "0.0.0",
     "plutusVersion": "v3",
     "compiler": {
@@ -15,7 +15,7 @@
       "datum": {
         "title": "datum",
         "schema": {
-          "$ref": "#/definitions/zbase~1types~1AspDatum"
+          "$ref": "#/definitions/zx402~1types~1AspDatum"
         }
       },
       "redeemer": {
@@ -56,7 +56,7 @@
       "datum": {
         "title": "datum",
         "schema": {
-          "$ref": "#/definitions/zbase~1types~1ConfigDatum"
+          "$ref": "#/definitions/zx402~1types~1ConfigDatum"
         }
       },
       "redeemer": {
@@ -97,13 +97,13 @@
       "datum": {
         "title": "datum",
         "schema": {
-          "$ref": "#/definitions/zbase~1types~1DepositDatum"
+          "$ref": "#/definitions/zx402~1types~1DepositDatum"
         }
       },
       "redeemer": {
         "title": "redeemer",
         "schema": {
-          "$ref": "#/definitions/zbase~1types~1DepositRedeemer"
+          "$ref": "#/definitions/zx402~1types~1DepositRedeemer"
         }
       },
       "parameters": [
@@ -173,13 +173,13 @@
       "datum": {
         "title": "datum",
         "schema": {
-          "$ref": "#/definitions/zbase~1types~1PoolDatum"
+          "$ref": "#/definitions/zx402~1types~1PoolDatum"
         }
       },
       "redeemer": {
         "title": "redeemer",
         "schema": {
-          "$ref": "#/definitions/zbase~1types~1PoolRedeemer"
+          "$ref": "#/definitions/zx402~1types~1PoolRedeemer"
         }
       },
       "parameters": [
@@ -198,25 +198,25 @@
         {
           "title": "asset",
           "schema": {
-            "$ref": "#/definitions/zbase~1types~1AssetClass"
+            "$ref": "#/definitions/zx402~1types~1AssetClass"
           }
         },
         {
           "title": "vk_spend",
           "schema": {
-            "$ref": "#/definitions/zbase~1groth16~1VerificationKey"
+            "$ref": "#/definitions/zx402~1groth16~1VerificationKey"
           }
         },
         {
           "title": "vk_insert",
           "schema": {
-            "$ref": "#/definitions/zbase~1groth16~1VerificationKey"
+            "$ref": "#/definitions/zx402~1groth16~1VerificationKey"
           }
         },
         {
           "title": "vk_ragequit",
           "schema": {
-            "$ref": "#/definitions/zbase~1groth16~1VerificationKey"
+            "$ref": "#/definitions/zx402~1groth16~1VerificationKey"
           }
         }
       ],
@@ -244,25 +244,25 @@
         {
           "title": "asset",
           "schema": {
-            "$ref": "#/definitions/zbase~1types~1AssetClass"
+            "$ref": "#/definitions/zx402~1types~1AssetClass"
           }
         },
         {
           "title": "vk_spend",
           "schema": {
-            "$ref": "#/definitions/zbase~1groth16~1VerificationKey"
+            "$ref": "#/definitions/zx402~1groth16~1VerificationKey"
           }
         },
         {
           "title": "vk_insert",
           "schema": {
-            "$ref": "#/definitions/zbase~1groth16~1VerificationKey"
+            "$ref": "#/definitions/zx402~1groth16~1VerificationKey"
           }
         },
         {
           "title": "vk_ragequit",
           "schema": {
-            "$ref": "#/definitions/zbase~1groth16~1VerificationKey"
+            "$ref": "#/definitions/zx402~1groth16~1VerificationKey"
           }
         }
       ],
@@ -316,10 +316,10 @@
         "$ref": "#/definitions/aiken~1crypto~1VerificationKeyHash"
       }
     },
-    "List<zbase/types/Payout>": {
+    "List<zx402/types/Payout>": {
       "dataType": "list",
       "items": {
-        "$ref": "#/definitions/zbase~1types~1Payout"
+        "$ref": "#/definitions/zx402~1types~1Payout"
       }
     },
     "Option<ByteArray>": {
@@ -623,7 +623,7 @@
         }
       ]
     },
-    "zbase/groth16/Proof": {
+    "zx402/groth16/Proof": {
       "title": "Proof",
       "anyOf": [
         {
@@ -650,7 +650,7 @@
         }
       ]
     },
-    "zbase/groth16/VerificationKey": {
+    "zx402/groth16/VerificationKey": {
       "title": "VerificationKey",
       "description": "Trusted script parameters, stored as compressed points.",
       "anyOf": [
@@ -683,7 +683,7 @@
         }
       ]
     },
-    "zbase/types/AspDatum": {
+    "zx402/types/AspDatum": {
       "title": "AspDatum",
       "anyOf": [
         {
@@ -711,7 +711,7 @@
         }
       ]
     },
-    "zbase/types/AssetClass": {
+    "zx402/types/AssetClass": {
       "title": "AssetClass",
       "description": "ADA uses an empty policy and an empty name.",
       "anyOf": [
@@ -732,7 +732,7 @@
         }
       ]
     },
-    "zbase/types/ConfigDatum": {
+    "zx402/types/ConfigDatum": {
       "title": "ConfigDatum",
       "anyOf": [
         {
@@ -784,7 +784,7 @@
         }
       ]
     },
-    "zbase/types/DepositDatum": {
+    "zx402/types/DepositDatum": {
       "title": "DepositDatum",
       "anyOf": [
         {
@@ -804,7 +804,7 @@
         }
       ]
     },
-    "zbase/types/DepositRedeemer": {
+    "zx402/types/DepositRedeemer": {
       "title": "DepositRedeemer",
       "anyOf": [
         {
@@ -821,7 +821,7 @@
         }
       ]
     },
-    "zbase/types/Payout": {
+    "zx402/types/Payout": {
       "title": "Payout",
       "anyOf": [
         {
@@ -845,7 +845,7 @@
         }
       ]
     },
-    "zbase/types/PoolDatum": {
+    "zx402/types/PoolDatum": {
       "title": "PoolDatum",
       "anyOf": [
         {
@@ -877,7 +877,7 @@
         }
       ]
     },
-    "zbase/types/PoolRedeemer": {
+    "zx402/types/PoolRedeemer": {
       "title": "PoolRedeemer",
       "anyOf": [
         {
@@ -887,7 +887,7 @@
           "fields": [
             {
               "title": "proof",
-              "$ref": "#/definitions/zbase~1groth16~1Proof"
+              "$ref": "#/definitions/zx402~1groth16~1Proof"
             },
             {
               "title": "flush",
@@ -902,7 +902,7 @@
           "fields": [
             {
               "title": "proof",
-              "$ref": "#/definitions/zbase~1groth16~1Proof"
+              "$ref": "#/definitions/zx402~1groth16~1Proof"
             },
             {
               "title": "nullifier_hash",
@@ -922,7 +922,7 @@
             },
             {
               "title": "intent",
-              "$ref": "#/definitions/zbase~1types~1SettleIntent"
+              "$ref": "#/definitions/zx402~1types~1SettleIntent"
             },
             {
               "title": "nullifier_proof",
@@ -937,7 +937,7 @@
           "fields": [
             {
               "title": "proof",
-              "$ref": "#/definitions/zbase~1groth16~1Proof"
+              "$ref": "#/definitions/zx402~1groth16~1Proof"
             },
             {
               "title": "nullifier_hash",
@@ -978,7 +978,7 @@
         }
       ]
     },
-    "zbase/types/SettleIntent": {
+    "zx402/types/SettleIntent": {
       "title": "SettleIntent",
       "anyOf": [
         {
@@ -992,7 +992,7 @@
             },
             {
               "title": "payouts",
-              "$ref": "#/definitions/List<zbase~1types~1Payout>"
+              "$ref": "#/definitions/List<zx402~1types~1Payout>"
             },
             {
               "title": "relayer",

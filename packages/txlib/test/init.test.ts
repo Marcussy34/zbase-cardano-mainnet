@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { Transaction, TxCBOR, toTxUnspentOutput } from '@meshsdk/core-cst';
-import { R } from '@zbase-cardano/crypto';
+import { R } from '@zx402/crypto';
 import { readAsp, readConfig, readPool, newTxBuilder, vkFromHex, vkToHex } from '../src/context.js';
 import { encodePoolDatum, encodeVoid } from '../src/codec.js';
 import { buildPublishScripts } from '../src/init.js';

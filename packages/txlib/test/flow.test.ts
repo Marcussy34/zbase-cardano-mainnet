@@ -9,8 +9,8 @@ import {
   R, NETWORKS, MerkleTree, commitment, contextFor, deriveNoteSecrets, deriveOneTimeKey, insertWitness,
   labelFor, precommitment, ragequitWitness, spendWitness,
   type Note, type Payout, type SettleIntent,
-} from '@zbase-cardano/crypto';
-import { devKeysPresent, loadDevArtifacts, prove, shutdown } from '@zbase-cardano/prover';
+} from '@zx402/crypto';
+import { devKeysPresent, loadDevArtifacts, prove, shutdown } from '@zx402/prover';
 import { buildAspUpdate } from '../src/admin.js';
 import { decodePoolDatum, decodePoolRedeemer, encodeDepositDatum, encodePoolDatum, encodePoolRedeemer, type ConfigDatum } from '../src/codec.js';
 import { readAsp, readConfig, readDeposits, readPool, type DepositUtxo, type PoolState } from '../src/context.js';

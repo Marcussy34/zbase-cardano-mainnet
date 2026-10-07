@@ -4,8 +4,8 @@ use aiken/merkle_patricia_forestry as mpf
 use aiken/merkle_patricia_forestry.{Leaf}
 use cardano/address.{Address, VerificationKey}
 use cardano/transaction.{OutputReference}
-use zbase/groth16
-use zbase/types.{Payout, SettleIntent}
+use zx402/groth16
+use zx402/types.{Payout, SettleIntent}
 
 pub const gross: Int =
   10000000

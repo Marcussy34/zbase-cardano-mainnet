@@ -1,5 +1,5 @@
 {
-  "name": "@zbase-cardano/txlib",
+  "name": "@zx402/txlib",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -13,7 +13,7 @@
     "typecheck": "tsc --noEmit -p ."
   },
   "dependencies": {
-    "@zbase-cardano/crypto": "*",
+    "@zx402/crypto": "*",
     "@evolution-sdk/evolution": "0.5.17",
     "@meshsdk/core": "1.9.1",
     "@meshsdk/core-cst": "1.9.1",

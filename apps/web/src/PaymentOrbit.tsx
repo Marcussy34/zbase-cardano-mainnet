@@ -8,7 +8,7 @@ import {
   RelayerIcon,
   SellerIcon,
   WalletIcon,
-  ZBaseMark,
+  Zx402Mark,
 } from "./BrandIcons";
 import "./payment-orbit.css";
 
@@ -255,12 +255,12 @@ export default function PaymentOrbit({ paused = false }: { paused?: boolean }) {
               <div className="path-center-flipper">
                 <span className="path-portrait path-center-front" />
                 <span className="path-center-back">
-                  <ZBaseMark />
+                  <Zx402Mark />
                 </span>
               </div>
               <span className="path-agent-label">
                 <span className="path-agent-name">YOUR AGENT</span>
-                <span className="path-pool-name">zBase</span>
+                <span className="path-pool-name">zx402</span>
               </span>
             </div>
             <div className="path-orbit-turntable">

@@ -5,14 +5,14 @@ use aiken/merkle_patricia_forestry as mpf
 use cardano/address
 use cardano/assets
 use cardano/transaction.{Output, OutputReference, Transaction}
-use zbase/constants
-use zbase/fixtures/common
-use zbase/fixtures/ragequit as fixture
-use zbase/groth16.{Proof}
-use zbase/pool
-use zbase/pool/kit
-use zbase/testkit
-use zbase/types.{ConfigDatum, DepositDatum, PoolDatum, Ragequit}
+use zx402/constants
+use zx402/fixtures/common
+use zx402/fixtures/ragequit as fixture
+use zx402/groth16.{Proof}
+use zx402/pool
+use zx402/pool/kit
+use zx402/testkit
+use zx402/types.{ConfigDatum, DepositDatum, PoolDatum, Ragequit}
 
 // A single-constructor record lets each negative case change one rule's input.
 type Exit {
