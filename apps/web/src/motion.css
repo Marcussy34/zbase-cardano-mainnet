@@ -103,28 +103,11 @@
   translate: none;
   transition: none;
 }
-.roadmap-item:nth-child(2) {
-  --reveal-delay: 90ms;
-}
-.roadmap-item:nth-child(3) {
-  --reveal-delay: 180ms;
-}
 .site:is([data-motion="active"], [data-motion="paused"]) [data-parallax] {
   translate: 0 var(--parallax-y, 0px);
   rotate: var(--parallax-rotate, 0deg);
 }
-.site:is([data-motion="active"], [data-motion="paused"]) .network-character {
-  scale: calc(1 + var(--parallax-progress, 0) * 0.12);
-}
-.site:is([data-motion="active"], [data-motion="paused"])
-  .closing-portraits
-  .character {
-  translate: calc((var(--i) - 2) * var(--parallax-progress, 0) * 24px) 0;
-  rotate: calc((var(--i) - 2) * var(--parallax-progress, 0) * 7deg);
-}
-.site:is([data-motion="static"], [data-motion="reduced"]) .orbit-stage,
-.site:is([data-motion="static"], [data-motion="reduced"]) .flow-particle,
-.site:is([data-motion="static"], [data-motion="reduced"]) .terminal-cursor {
+.site:is([data-motion="static"], [data-motion="reduced"]) .orbit-stage {
   animation: none;
 }
 .motion-toggle {
@@ -144,12 +127,6 @@
   display: none;
 }
 @media (hover: hover) and (pointer: fine) {
-  .feature {
-    transition: border-color 0.25s;
-  }
-  .feature:hover {
-    border-color: #48434b;
-  }
   .text-link svg,
   .button svg {
     transition: translate 0.25s;
@@ -221,10 +198,9 @@
     opacity: 1;
   }
   .site .hero-copy,
-  .site .hero-foot,
-  .site [data-parallax],
-  .site .closing-portraits .character,
-  .site [data-reveal] {
+.site .hero-foot,
+.site [data-parallax],
+.site [data-reveal] {
     translate: none;
     rotate: none;
     opacity: 1;

@@ -12,10 +12,6 @@
   --glyph-primary: #44374f;
   --glyph-secondary: #7c6f89;
 }
-.overview-node-sage .z-icon-illustration {
-  --glyph-primary: #355c4e;
-  --glyph-secondary: #6c8b7e;
-}
 .privacy-vault .z-icon-illustration {
   --glyph-primary: #574661;
   --glyph-secondary: #8d7c9b;

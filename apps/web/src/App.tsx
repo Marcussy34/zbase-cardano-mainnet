@@ -26,7 +26,7 @@ import {
   Zx402Mark,
 } from "./BrandIcons";
 
-// The documentation site. The in-app reader at /docs/ keeps the deep documents, but every call to action goes here.
+// Documentation calls to action open the published documentation site.
 const DOCS = "https://docs.zx402.org/";
 const PLAN = "https://docs.zx402.org/reference/plan-m0/";
 const RUNNING = "https://docs.zx402.org/guide/running/";

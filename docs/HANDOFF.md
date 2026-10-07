@@ -5,7 +5,7 @@
 | For | The engineer who builds zx402 |
 | From | Marcus |
 | Date | 2026-10-07 |
-| State of the repo | M0 uses the tUSDM pool on Preprod. The ADA pool from 2026-10-06 is retired. Public landing page and documentation reader are built. Mainnet is not deployed yet |
+| State of the repo | M0 uses the tUSDM pool on Preprod. The ADA pool from 2026-10-06 is retired. The public landing page links to docs.zx402.org. The documentation reader is retired. Mainnet is not deployed yet |
 
 ## 1. What you are building
 
@@ -69,14 +69,14 @@ The three circuits, the validators, the services and the SDK are written and run
 Nobody outside this project has reviewed the design or the code.
 
 The public frontend is in `apps/web`. It explains the design, distinguishes Preprod from mainnet, and marks the project as `In development`.
-Its main action, `Read docs`, opens `/docs/`, which renders the current PRD, SPEC, and M0 plan.
+Its main action, `Read docs`, opens `https://docs.zx402.org/`. Paths starting with `/docs` redirect there without rendering the landing page.
 It uses one nine-cell atlas of stylized anonymous companions across the landing page. Rounded shapes stay approachable, while charcoal and slate clothing, restrained lavender and sage accents, hoods, scarves, visors, concealed lower faces, and subtle eyes give the characters a calm, stealthy appearance. The artwork avoids photorealistic humans and menacing black voids. Existing portrait crops and motion remain. It has scroll-driven character motion, one connected payment overview with animated packets, a visual privacy boundary, a six-node payment path, flat headline lettering with visibly rolling smoke wisps that clear on hover, and a scenic footer. The smoke moves automatically in independently phased loops with gentle opacity changes. It keeps the word readable and respects touch, pause, and reduced motion settings. The footer carries the same discreet companion style into a rounded landscape, with muted lavender and slate tones, a warm twilight glow, subtle parallax, and room for the `Move freely.` invitation.
 The landing page uses a refined custom geometric SVG icon family. Diagram pictograms use flat muted lavender, sage, and charcoal fills, crisp silhouettes, and clear negative space. Icons have no gradients, highlights, drop shadows, faces, or toy-like details. Small controls use clear rounded marks. The zBase and Cardano identities remain recognizable. Decorative icons remain hidden from assistive technology, and controls keep their labels and keyboard behavior.
 The `Your agent` node in How it works uses an existing companion portrait with a clean crop. Its label stays readable, and the other icons keep the flat geometric style.
 The landing page uses short copy, a compact release-status row, three collapsed FAQ answers, and two footer link groups. Detailed explanations stay in the docs.
 A setup section before the FAQ gives one short copyable prompt for a coding agent to clone, install, and test the repository. It forbids deploys.
 The borderless How it works section uses the Soffit gradient in muted mint with soft edges and no bright corner flare. One large connected diagram shows funds moving from the wallet to one shared pool, then through a one-time key to the x402 seller. A separate authorization branch shows the agent keeping its private note and generating a proof locally, sending only proof and intent to the relayer, and the relayer submitting the proof to the pool. Short labels and different line treatments distinguish funds from proof. The whole diagram is visible immediately, with no numbered cards, loading sequence, or scroll interaction. One coordinated decorative packet loop pauses offscreen and follows shared pause and reduced motion settings. The diagram reflows on phones without horizontal overflow. Only the payment orbit stays pinned through its sequence when it fits the viewport. Compact screens retain readable manual orbit controls.
-The centered payment orbit starts as a dotted ring. Scroll reveals each step and moves its detail card, then flips the center into the zBase mark and all outer nodes into portraits at the same time while the outer ring turns. The full sequence reverses on upward scroll. Dimmed node faces stay opaque over the dotted ring.
+The centered payment orbit starts as a dotted ring. Scroll reveals each step and moves its detail card, then flips the center into the `Zx402Mark` and all outer nodes into portraits at the same time while the outer ring turns. The full sequence reverses on upward scroll. Dimmed node faces stay opaque over the dotted ring.
 The pause control and reduced motion setting keep every section readable.
 It has no wallet connection or transaction functions. See SPEC 8.10 and tests FE-01 to FE-18.
 

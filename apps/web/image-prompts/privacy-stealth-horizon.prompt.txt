@@ -1,4 +1,4 @@
-Generated with the built-in image_gen tool. Opaque image. Edit of privacy-companion-horizon.png, with privacy-stealth-agents.png as the character reference.
+Generated with the built-in image_gen tool. Opaque image. Edit of the original companion landscape, with privacy-stealth-agents.png as the character reference.
 
 Use case: precise-object-edit.
 Asset type: panoramic website footer background, preserve the original wide 2.5:1 composition.

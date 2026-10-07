@@ -1,4 +1,4 @@
-Generated with the built-in image_gen tool. Opaque image. Edit of privacy-companions.png.
+Generated with the built-in image_gen tool. Opaque image. Edit of the original companion portrait atlas.
 
 Use case: style-transfer.
 Asset type: a single production-ready square 3 by 3 portrait sprite atlas for the zx402 privacy-payment landing page.
