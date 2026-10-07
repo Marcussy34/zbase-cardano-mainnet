@@ -1,5 +1,7 @@
 # zx402
 
+<a href="https://zx402.org"><img alt="The zx402.org landing page: Private payments. Unknown origins. Private funding for AI agents on Cardano." src="docs/images/landing.png"></a>
+
 zx402 is private payments for AI agents on Cardano. An agent deposits tUSDM into a shared pool once, then pays x402 sellers from the pool with a zero-knowledge proof. The chain shows the pool as the payer, not the agent's wallet, and nothing links a payment to the deposit behind it. The seller runs stock x402 code and sees an ordinary payment. zx402 is live on the Preprod test network.
 
 ## The problem
