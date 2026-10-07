@@ -19,7 +19,7 @@ describe("Documentation reader", () => {
       within(screen.getByRole("complementary")).getByText(/in development/i),
     ).toBeTruthy();
     expect(
-      screen.getByRole("link", { name: /back to zbase/i }).getAttribute("href"),
+      screen.getByRole("link", { name: /back to zx402/i }).getAttribute("href"),
     ).toBe("/");
   });
 
