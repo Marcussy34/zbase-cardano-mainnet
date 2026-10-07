@@ -18,6 +18,8 @@ import { runSetup, setupPaths } from '../src/setup.js';
 const repoRoot = fileURLToPath(new URL('../../', import.meta.url));
 const operatorSeed = new Uint8Array(32).fill(19);
 const network = 'preprod';
+const tokenAsset = { policy: '16a55b2a349361ff88c03788f93e1e966e5d689605d044fef722ddde', name: '0014df10745553444d' };
+const tokenUnit = `${tokenAsset.policy}.${tokenAsset.name}`;
 const operatorAddress = enterpriseAddress(operatorSeed, network);
 const roles: Role[] = ['operator', 'holder', 'admin', 'asp', 'crank', 'relayer', 'user', 'agent', 'seller'];
 const lovelace = (utxos: Utxo[]): bigint => utxos.reduce((sum, u) => sum + u.value.lovelace, 0n);
@@ -154,9 +156,29 @@ test('OPS-03: role derivation separates keys and preserves the operator seed', (
   assert.throws(() => roleSeed(new Uint8Array(31), 'admin'), /32/);
 });
 
-test('OPS-03: settings validate each variable without leaking supplied values', () => {
+test('OPS-03: settings validate each variable without leaking supplied values', async t => {
   const valid = { NETWORK: 'preprod', BLOCKFROST_PROJECT_ID: `preprod${'a'.repeat(32)}`, OPERATOR_SEED_HEX: Buffer.from(operatorSeed).toString('hex') };
-  assert.deepEqual(readSettings(valid), { network, blockfrostProjectId: valid.BLOCKFROST_PROJECT_ID, operatorSeed });
+  const expected = { network, blockfrostProjectId: valid.BLOCKFROST_PROJECT_ID, operatorSeed, asset: { policy: '', name: '' } };
+  await t.test('unset POOL_ASSET defaults to ADA', () => {
+    assert.deepEqual(readSettings(valid), expected);
+  });
+  await t.test('lovelace selects ADA', () => {
+    assert.deepEqual(readSettings({ ...valid, POOL_ASSET: 'lovelace' }), expected);
+  });
+  await t.test('POOL_ASSET selects the token class', () => {
+    assert.deepEqual(readSettings({ ...valid, POOL_ASSET: tokenUnit }), { ...expected, asset: tokenAsset });
+  });
+  await t.test('invalid POOL_ASSET reports its expected form without supplied values', () => {
+    for (const invalid of ['abc', '']) {
+      const env = { ...valid, POOL_ASSET: invalid };
+      assert.throws(() => readSettings(env), error => {
+        assert.ok(error instanceof Error);
+        assert.match(error.message, /POOL_ASSET.*lovelace.*policy\.name/);
+        for (const supplied of Object.values(env)) if (supplied) assert.ok(!error.message.includes(supplied));
+        return true;
+      });
+    }
+  });
   for (const [name, value] of [['NETWORK', 'unknown-network'], ['BLOCKFROST_PROJECT_ID', 'wrong-project-id'], ['OPERATOR_SEED_HEX', 'invalid-seed']]) {
     for (const invalid of [undefined, '', value]) {
       const env = { ...valid, [name!]: invalid };
@@ -168,6 +190,66 @@ test('OPS-03: settings validate each variable without leaking supplied values', 
       });
     }
   }
+});
+
+test('TOKEN-18: deploy a token pool on the fake chain', { timeout: 180_000 }, async () => {
+  const token = await options();
+  const ada = await options();
+  const record = await deploy({ ...token.o, asset: tokenAsset });
+  const adaRecord = await deploy(ada.o);
+  // Asset selection must not change the funding transaction or its NFT seed.
+  assert.equal(token.transactions[0], ada.transactions[0], 'The pool asset must not change the funding transaction');
+  assert.deepEqual(record.asset, tokenAsset);
+  assert.notEqual(record.scripts.pool.hash, adaRecord.scripts.pool.hash);
+  assert.equal(record.poolId, record.scripts.nft.hash);
+  const ctx = { provider: token.chain, deployment: record };
+  const config = (await readConfig(ctx)).datum;
+  assert.equal(config.crankFee, 0n);
+  assert.equal(config.minDeposit, 5_000_000n);
+  assert.equal(config.maxDeposit, 50_000_000n);
+  assert.equal(config.poolCap, 500_000_000n);
+  assert.equal(config.depositFeeBps, 0);
+  assert.equal(config.settleFeeBps, 0);
+  assert.equal((await readPool(ctx)).balance, 0n);
+  assert.equal((await readPool(ctx)).utxo.value.lovelace, 6_000_000n);
+  assert.equal(token.transactions.length, 4);
+});
+
+test('TOKEN-18: the CLI dry run names the token and saves the selected asset on deployment', { timeout: 180_000 }, async () => {
+  const { o, transactions } = await options();
+  const build = join(repoRoot, 'ops/build');
+  await mkdir(build, { recursive: true });
+  const root = await mkdtemp(join(build, 'token-cli-test-'));
+  const logs: string[] = [];
+  const env = { NETWORK: network, BLOCKFROST_PROJECT_ID: `preprod${'b'.repeat(32)}`,
+    OPERATOR_SEED_HEX: Buffer.from(operatorSeed).toString('hex'), POOL_ASSET: tokenUnit };
+  try {
+    const keyDir = join(root, 'deployments/preprod/keys');
+    await mkdir(keyDir, { recursive: true });
+    for (const circuit of ['spend', 'insert', 'ragequit']) {
+      await copyFile(join(repoRoot, 'artifacts/dev', `${circuit}_vkey.json`), join(keyDir, `${circuit}_vkey.json`));
+    }
+    const base = { repoRoot: root, env, provider: o.provider, confirm: o.confirm, log: (line: string) => logs.push(line) };
+    await runDeployCommand({ ...base, argv: ['--dry-run'] });
+    assert.ok(logs.includes(`pool asset: ${tokenUnit}`));
+    assert.ok(logs.includes('fund the user role with the pool token before the demo'));
+    assert.equal(transactions.length, 0);
+    const output = join(root, 'deployments/preprod.json');
+    await assert.rejects(readFile(output), { code: 'ENOENT' });
+    await runDeployCommand({ ...base, argv: [] });
+    const record = JSON.parse(await readFile(output, 'utf8'));
+    assert.deepEqual(record.asset, tokenAsset);
+    assert.equal((await readConfig({ provider: o.provider, deployment: record })).datum.crankFee, 0n);
+    assert.equal(transactions.length, 4);
+    for (const circuit of ['spend', 'insert', 'ragequit']) {
+      assert.equal(await readFile(join(keyDir, `${circuit}_vkey.json`), 'utf8'),
+        await readFile(join(repoRoot, 'artifacts/dev', `${circuit}_vkey.json`), 'utf8'));
+    }
+    for (const line of logs) {
+      assert.ok(!line.includes(env.OPERATOR_SEED_HEX));
+      assert.ok(!line.includes(env.BLOCKFROST_PROJECT_ID));
+    }
+  } finally { await rm(root, { recursive: true, force: true }); }
 });
 
 test('OPS-05: setup stages phase 1, publishes public files, and preserves existing work', async () => {
@@ -252,6 +334,8 @@ test('OPS-01, OPS-02: the CLI dry run writes nothing and deployment records requ
     }
     const base = { repoRoot: root, env, provider: o.provider, confirm: o.confirm, log: (line: string) => logs.push(line) };
     await runDeployCommand({ ...base, argv: ['--dry-run', '--dev-keys'] });
+    assert.ok(logs.includes('pool asset: lovelace'));
+    assert.ok(!logs.includes('fund the user role with the pool token before the demo'));
     assert.equal(transactions.length, 0);
     await assert.rejects(readFile(join(root, 'deployments/preprod.json')), { code: 'ENOENT' });
     for (const role of roles) assert.ok(logs.some(line => line.includes(roleAddress(operatorSeed, role, network))));

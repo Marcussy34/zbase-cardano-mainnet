@@ -5,9 +5,9 @@ import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import { vkToCardano, type SnarkjsVk } from '@zbase-cardano/crypto';
 import {
-  blockfrostProvider, buildInit, buildPublishScripts, buildScripts, complete, decodeTx, genesisPoolDatum,
-  keyHash, newTxBuilder, outputsOf, signTx, vkToHex,
-  type BuiltTx, type ConfigDatum, type Deployment, type Network, type Provider, type Utxo, type UtxoRef,
+  assetWireUnit, blockfrostProvider, buildInit, buildPublishScripts, buildScripts, complete, decodeTx, genesisPoolDatum,
+  isAdaAsset, keyHash, newTxBuilder, outputsOf, signTx, vkToHex,
+  type AssetClass, type BuiltTx, type ConfigDatum, type Deployment, type Network, type Provider, type Utxo, type UtxoRef,
 } from '@zbase-cardano/txlib';
 import { readSettings } from './env.js';
 import { ROLES, roleAddress, roleKeyHash } from './roles.js';
@@ -16,6 +16,7 @@ export interface DeployOptions {
   provider: Provider;
   network: Network;
   operatorSeed: Uint8Array;
+  asset?: AssetClass;
   vkeys: { spend: SnarkjsVk; insert: SnarkjsVk; ragequit: SnarkjsVk };
   config?: Partial<ConfigDatum>;
   funding?: Partial<Record<'asp' | 'crank' | 'relayer' | 'user', bigint>>;
@@ -34,12 +35,14 @@ const spendable = (u: Utxo): boolean => u.scriptRef === null && u.inlineDatum ==
   && Object.keys(u.value.assets).length === 0;
 const ada = (value: bigint): string => `${value / ADA}.${(value % ADA).toString().padStart(6, '0')}`;
 
-function m0Config(o: BuildOptions): ConfigDatum {
+function m0Config(o: BuildOptions, asset: AssetClass): ConfigDatum {
   const config: ConfigDatum = {
     admins: [roleKeyHash(o.operatorSeed, 'admin')], adminThreshold: 1,
     treasury: { payment: { kind: 'key', hash: keyHash(o.operatorSeed) }, stake: null },
+    // With six decimals these unchanged limits are 5, 50, and 500 tokens.
     depositsPaused: false, minDeposit: 5n * ADA, maxDeposit: 50n * ADA, poolCap: 500n * ADA,
-    depositFeeBps: 0, settleFeeBps: 0, crankFee: 300_000n, ...o.config,
+    // The cranker keeps deposit ADA in a token pool, so Insert ignores this fee.
+    depositFeeBps: 0, settleFeeBps: 0, crankFee: isAdaAsset(asset) ? 300_000n : 0n, ...o.config,
   };
   if (!Number.isSafeInteger(config.adminThreshold) || config.adminThreshold < 1 || config.adminThreshold > config.admins.length
     || new Set(config.admins).size !== config.admins.length || config.admins.some(hash => !/^[a-f0-9]{56}$/.test(hash))
@@ -53,6 +56,7 @@ function m0Config(o: BuildOptions): ConfigDatum {
 /** Resume after each confirmation, so every subsequent stage reads confirmed change. */
 async function* transactions(o: BuildOptions): AsyncGenerator<{ stage: Stage; tx: BuiltTx }, Deployment> {
   const { provider, network } = o;
+  const asset = o.asset ?? { policy: '', name: '' };
   const ctx = { provider, network };
   const address = roleAddress(o.operatorSeed, 'operator', network);
   const payer = async () => ({ address, utxos: (await provider.getUtxosAt(address)).filter(spendable) });
@@ -60,7 +64,7 @@ async function* transactions(o: BuildOptions): AsyncGenerator<{ stage: Stage; tx
   for (const role of fundedRoles) {
     if (typeof funding[role] !== 'bigint' || funding[role] < ADA) throw new Error('Role funding must be at least 1 ADA');
   }
-  const config = m0Config(o);
+  const config = m0Config(o, asset);
   const spend = vkToCardano(o.vkeys.spend);
   const insert = vkToCardano(o.vkeys.insert);
   const ragequit = vkToCardano(o.vkeys.ragequit);
@@ -75,7 +79,6 @@ async function* transactions(o: BuildOptions): AsyncGenerator<{ stage: Stage; tx
   const fundingTx = await complete(ctx, builder, { payer: await payer() });
   yield { stage: 'funding', tx: fundingTx };
   const seed = { txId: fundingTx.txId, index: 0 };
-  const asset = { policy: '', name: '' };
   const scripts = buildScripts({ seed, asset, vkSpend: spend, vkInsert: insert, vkRagequit: ragequit }, { network });
   const publicationPayer = await payer();
   // The NFT seed must survive both reference publication transactions.
@@ -206,9 +209,11 @@ export async function runDeployCommand(a: {
   const readKey = async (circuit: string): Promise<SnarkjsVk> => JSON.parse(await readFile(join(keyDir, `${circuit}_vkey.json`), 'utf8'));
   const [spend, insert, ragequit] = await Promise.all(['spend', 'insert', 'ragequit'].map(readKey));
   const provider = a.provider ?? blockfrostProvider(settings.blockfrostProjectId, settings.network);
-  const o: BuildOptions = { provider, network: settings.network, operatorSeed: settings.operatorSeed,
+  const o: BuildOptions = { provider, network: settings.network, operatorSeed: settings.operatorSeed, asset: settings.asset,
     vkeys: { spend: spend!, insert: insert!, ragequit: ragequit! }, log };
   if (values['dry-run']) {
+    log(`pool asset: ${assetWireUnit(settings.asset)}`);
+    if (!isAdaAsset(settings.asset)) log('fund the user role with the pool token before the demo');
     for (const role of ROLES) log(`${role}: ${roleAddress(settings.operatorSeed, role, settings.network)}`);
     const cost = await deployCost(o);
     for (const [name, value] of Object.entries(cost)) log(`${name}: ${ada(value)} ADA`);

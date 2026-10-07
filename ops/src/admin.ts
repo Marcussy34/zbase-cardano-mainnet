@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import { addressToBech32 } from '@zbase-cardano/crypto';
 import {
-  blockfrostProvider, buildCollectFees, buildConfigUpdate, complete, newTxBuilder,
+  assetAmount, assetWireUnit, blockfrostProvider, buildCollectFees, buildConfigUpdate, complete, isAdaAsset, newTxBuilder,
   readConfig, readPool, signTx, utxoToMesh,
   type BuiltTx, type ChainContext, type Deployment, type Utxo,
 } from '@zbase-cardano/txlib';
@@ -43,14 +43,18 @@ async function submit(o: AdminOptions, tx: BuiltTx, seeds: Uint8Array[], action:
 
 /** Public facts only: the pool and config values, and every role address with its balance. Never a seed. */
 export async function status(o: AdminOptions): Promise<string[]> {
-  const { network, poolId } = o.ctx.deployment;
+  const { network, poolId, asset } = o.ctx.deployment;
+  const unit = assetWireUnit(asset);
   const [pool, config] = await Promise.all([readPool(o.ctx), readConfig(o.ctx)]);
   const lines = [
-    `pool: ${json({ poolId, network, address: pool.utxo.address, ref: pool.utxo.ref, balance: pool.balance, ...pool.datum })}`,
+    `pool: ${json({ poolId, network, address: pool.utxo.address, ref: pool.utxo.ref, balance: `${pool.balance} ${unit}`, ...pool.datum })}`,
+    `pool ada: ${pool.utxo.value.lovelace} lovelace`,
     `config: ${json({ address: config.utxo.address, ref: config.utxo.ref, ...config.datum, treasury: addressToBech32(config.datum.treasury, network) })}`,
     ...await Promise.all(ROLES.map(async role => {
       const address = roleAddress(o.operatorSeed, role, network);
-      return `${role}: ${address} balance ${sum(await o.ctx.provider.getUtxosAt(address))} lovelace`;
+      const utxos = await o.ctx.provider.getUtxosAt(address);
+      const tokens = isAdaAsset(asset) ? '' : `, ${utxos.reduce((total, u) => total + assetAmount(u.value, asset), 0n)} ${unit}`;
+      return `${role}: ${address} balance ${sum(utxos)} lovelace${tokens}`;
     })),
   ];
   for (const line of lines) o.log?.(line);
@@ -115,11 +119,11 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
     if (!command || !['status', 'pause', 'unpause', 'collect-fees', 'sweep-references'].includes(command)
       || positionals.length > (command === 'collect-fees' ? 2 : 1)
       || (values.yes && command !== 'sweep-references')) {
-      throw new Error('Usage: admin status | pause | unpause | collect-fees [lovelace] | sweep-references --yes');
+      throw new Error('Usage: admin status | pause | unpause | collect-fees [pool asset units] | sweep-references --yes');
     }
-    if (rawAmount !== undefined && !/^[0-9]+$/.test(rawAmount)) throw new Error('Fee amount must be a positive integer in lovelace');
+    if (rawAmount !== undefined && !/^[0-9]+$/.test(rawAmount)) throw new Error('Fee amount must be a positive integer in pool asset units');
     const amount = rawAmount === undefined ? undefined : BigInt(rawAmount);
-    if (amount !== undefined && amount <= 0n) throw new Error('Fee amount must be positive');
+    if (amount !== undefined && amount <= 0n) throw new Error('Fee amount must be positive in pool asset units');
     const settings = readSettings();
     const deployment = JSON.parse(await readFile(new URL(`../../deployments/${settings.network}.json`, import.meta.url), 'utf8')) as Deployment;
     if (deployment.network !== settings.network) throw new Error('Deployment network does not match NETWORK');
