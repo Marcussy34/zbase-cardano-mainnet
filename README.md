@@ -6,6 +6,7 @@
 |---|---|
 | Website | [zx402.org](https://zx402.org) |
 | Documentation | [docs.zx402.org](https://docs.zx402.org) |
+| Demo video | [zx402 video demo on YouTube](https://www.youtube.com/watch?v=GHoIhnhCIQY) |
 | Pool contract (Preprod) | [addr_test1wpz3...cpd4d](https://preprod.cardanoscan.io/address/addr_test1wpz3ul73ektd57lzg7glcuz8xs3767dyqs2e8duyltf0r6c2cpd4d) |
 | Deposit contract (Preprod) | [addr_test1wzg0...588grk](https://preprod.cardanoscan.io/address/addr_test1wzg094eeszpsn9uwspqg82gz0e3cr0vy23wlm75sggcckwq588grk) |
 | Pool ID (Preprod) | [`60279ebf...f3ed`](https://preprod.cardanoscan.io/tokenPolicy/60279ebfb8db22bbe0cb2a1b7a61702ab36ade074a3866ac836df3ed) |
