@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { randomBytes } from 'node:crypto';
 import { test } from 'node:test';
+import { setInConwayEra } from '@cardano-sdk/core';
 import { Transaction, TxCBOR } from '@meshsdk/core-cst';
 import { addressToBech32, deriveOneTimeKey } from '@zx402/crypto';
 import { enterpriseAddress, keyHash, verifyWitnesses } from '../src/keys.js';
@@ -235,4 +236,14 @@ test('TOKEN-07 token leg 2', async t => {
       await assert.rejects(buildStealthPayment(ctx, { ...args, oneTimeUtxo: { ...oneTimeUtxo, value } }), reason);
     });
   }
+});
+
+test('TX-09: leg 2 inputs carry the Conway set tag even when no transaction builder ran in the process', async t => {
+  // Stock facilitators re-encode leg 2 with the tag before they submit it. Without the tag in the signed body,
+  // that re-encoding changes the body hash and the node rejects the signature.
+  const f = await fixture();
+  t.after(() => f.args.oneTimeSeed.fill(0));
+  setInConwayEra(false);
+  const built = await buildStealthPayment(f.ctx, f.args);
+  assert.ok(built.cbor.startsWith('84a400d9010281'), `inputs must be a tagged set: ${built.cbor.slice(0, 16)}`);
 });

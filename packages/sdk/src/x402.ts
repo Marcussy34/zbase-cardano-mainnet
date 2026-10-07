@@ -65,7 +65,8 @@ export function stealthSigner(h: Hooks): ClientCardanoSigner {
       } catch (error) {
         if (!reserved) throw error;
         // Submission may have succeeded even when its response was lost.
-        throw new Error(`Stealth payment failed for one-time key index ${index}; check for funding and recover funds with that derivation index`, { cause: error });
+        const reason = error instanceof Error ? error.message : String(error);
+        throw new Error(`Stealth payment failed for one-time key index ${index}: ${reason}; check for funding and recover funds with that derivation index`, { cause: error });
       } finally { key.fill(0); }
     }),
   };

@@ -43,7 +43,12 @@ export async function startSeller(o: SellerOptions): Promise<{ url: string; clos
   const facilitator = new x402Facilitator().register(o.network, new CardanoFacilitator(signer));
   const localClient: FacilitatorClient = {
     verify: (payload, requirements) => facilitator.verify(payload, requirements),
-    settle: (payload, requirements) => facilitator.settle(payload, requirements),
+    async settle(payload, requirements) {
+      const result = await facilitator.settle(payload, requirements);
+      // A failed settlement is the one event an operator must see in the seller's log.
+      if (!result.success) console.error(`settle failed: ${result.errorReason ?? 'no reason'}: ${result.errorMessage ?? 'no message'}`);
+      return result;
+    },
     async getSupported() {
       const supported = facilitator.getSupported();
       return { ...supported, kinds: supported.kinds.map(kind => ({ ...kind, network: o.network })) };
