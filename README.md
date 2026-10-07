@@ -13,8 +13,8 @@ An agent deposits tUSDM into a shared pool once. Later it pays x402 sellers from
 ## How it works
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/diagrams/private-payment-dark.png">
-  <img alt="A private payment: the wallet funds the pool in public, the pool pays a one-time address with a proof, the one-time address pays the seller through stock x402" src="docs/diagrams/private-payment.png">
+  <source media="(prefers-color-scheme: dark)" srcset="docs/diagrams/payment-steps-dark.png">
+  <img alt="One payment, step by step: the agent wallet deposits into the zx402 pool in public, the agent proves on its own machine and sends the proof to a relayer, the pool pays a one-time key, and that key pays the x402 seller. The agent's request to the seller is an ordinary web request" src="docs/diagrams/payment-steps.png">
 </picture>
 
 1. **Deposit.** The agent sends tUSDM to the deposit script with a hidden commitment to a secret note.
@@ -23,7 +23,7 @@ An agent deposits tUSDM into a shared pool once. Later it pays x402 sellers from
 4. **Change.** What is left becomes a new note in the pool. One deposit pays many times.
 5. **Exit.** The depositor can always take the rest back in public with a signature. No service can block it.
 
-The validators are written in Aiken. The circuits are Circom with Groth16 on BLS12-381. The off-chain code is TypeScript. The diagram source is `docs/diagrams/private-payment.excalidraw`.
+The validators are written in Aiken. The circuits are Circom with Groth16 on BLS12-381. The off-chain code is TypeScript. The diagram above is the last slide of the pitch deck. A more detailed diagram, with every transaction of the Preprod run, is [docs/diagrams/private-payment.png](docs/diagrams/private-payment.png). Its source is `docs/diagrams/private-payment.excalidraw`.
 
 ## Proof from Preprod
 
