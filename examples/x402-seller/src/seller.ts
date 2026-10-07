@@ -2,6 +2,7 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'node:ht
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { toFacilitatorCardanoSigner, type FacilitatorCardanoSigner } from '@x402/cardano';
+import { assetWireUnit, parseAssetWireUnit } from '@zbase-cardano/txlib';
 import { ExactCardanoScheme as CardanoFacilitator } from '@x402/cardano/exact/facilitator';
 import { ExactCardanoScheme as CardanoServer } from '@x402/cardano/exact/server';
 import { x402Facilitator } from '@x402/core/facilitator';
@@ -14,7 +15,9 @@ export interface SellerOptions {
   port: number;
   network: 'cardano:preprod' | 'cardano:mainnet';
   payTo: string;
-  priceLovelace: bigint;
+  price?: { asset: string; amount: bigint };
+  /** Keep existing ADA callers working while they move to price. */
+  priceLovelace?: bigint;
   blockfrostProjectId: string;
   /** Optional chain adapter for offline tests or another chain provider. */
   facilitatorSigner?: FacilitatorCardanoSigner;
@@ -22,7 +25,10 @@ export interface SellerOptions {
 
 export async function startSeller(o: SellerOptions): Promise<{ url: string; close(): Promise<void> }> {
   if (!Number.isInteger(o.port) || o.port < 0 || o.port > 65535) throw new Error('Invalid seller port');
-  if (o.priceLovelace <= 0n) throw new Error('Price must be positive');
+  const price = o.price ?? { asset: 'lovelace', amount: o.priceLovelace };
+  if (typeof price.amount !== 'bigint' || price.amount <= 0n) throw new Error('Price must be positive');
+  // Normalize accepted hex before advertising the unit expected by the stock client.
+  const asset = assetWireUnit(parseAssetWireUnit(price.asset));
   if (!o.payTo) throw new Error('Seller address is required');
   if (o.network !== 'cardano:preprod' && o.network !== 'cardano:mainnet') throw new Error('Invalid seller network');
   if (!o.facilitatorSigner && !o.blockfrostProjectId) throw new Error('Blockfrost project ID is required');
@@ -47,7 +53,7 @@ export async function startSeller(o: SellerOptions): Promise<{ url: string; clos
   const http = new x402HTTPResourceServer(resource, {
     'GET /weather': {
       accepts: { scheme: 'exact', network: o.network, payTo: o.payTo,
-        price: { asset: 'lovelace', amount: o.priceLovelace.toString() }, maxTimeoutSeconds: 300 },
+        price: { asset, amount: price.amount.toString() }, maxTimeoutSeconds: 300 },
       description: 'Demo weather', mimeType: 'application/json',
     },
   });
@@ -112,9 +118,12 @@ function send(response: ServerResponse, result: HTTPResponseInstructions): void 
 async function main(): Promise<void> {
   const network = process.env.NETWORK ?? 'preprod';
   if (network !== 'preprod' && network !== 'mainnet') throw new Error('Invalid network');
+  const asset = process.env.SELLER_PRICE_ASSET ?? 'lovelace';
+  // The legacy variable names ADA, so it must never set a token price.
+  const amount = process.env.SELLER_PRICE_AMOUNT ?? (asset === 'lovelace' ? process.env.SELLER_PRICE_LOVELACE : undefined) ?? '2000000';
   const server = await startSeller({
     port: Number(process.env.SELLER_PORT ?? '4021'), network: `cardano:${network}`,
-    payTo: process.env.SELLER_ADDRESS ?? '', priceLovelace: BigInt(process.env.SELLER_PRICE_LOVELACE ?? '2000000'),
+    payTo: process.env.SELLER_ADDRESS ?? '', price: { asset, amount: BigInt(amount) },
     blockfrostProjectId: process.env.BLOCKFROST_PROJECT_ID ?? '',
   });
   console.log(`Seller listening at ${server.url}`);

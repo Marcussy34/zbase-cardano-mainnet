@@ -70,15 +70,17 @@ The comparison on 2026-10-07 found five weaknesses outside the validators that c
 | Funds left at a one-time address after a failed second leg are not tracked | Your wallet | `recoverOneTimeFunds` moves them by hand |
 | The default note store is in memory | Your change notes | Pass a file store |
 | An admin who updates the config every block, or a flood of Inserts, can delay an exit or a payment | Your time | Open. It can delay, not take |
+| No rule pins the pool's ADA in a token pool. The crank or the relayer could lower the pool UTXO's 6 ADA to the ledger minimum of about 5.2 ADA | The reserve, not the tokens | Open. A validator change, so a new pool |
+| The relayer attaches 2 ADA to every payout and charges 1 tUSDM per payout. Whether that covers its ADA depends on the price of ADA, and the relayer has no price feed | The relayer's wallet | Open. The fee is a setting; mainnet needs a price |
 
 ## What a user feels
 
 | | Base | Cardano today |
 |---|---|---|
 | Time for one payment | 7 to 15 seconds | About 80 seconds on Preprod |
-| Cost on top of the price | About a cent of gas, paid by zBase | About 1.2 ADA |
-| Smallest payment | 0.001 USDC | About 1 ADA, the minimum output of the ledger |
-| Asset | USDC | ADA |
+| Cost on top of the price | About a cent of gas, paid by zBase | 1 tUSDM per payout, no ADA |
+| Smallest payment | 0.001 USDC | 0.000001 tUSDM in the pool; the seller output still needs about 1.1 ADA, which the relayer attaches |
+| Asset | USDC | tUSDM on Preprod, USDM on mainnet |
 | Pool actions | Many per block | About one per block |
 | Extras | MCP server, agent spend limits, sanctions screening, note recovery from the seed, gasless deposit | Not built |
 
