@@ -173,16 +173,19 @@ export async function runMasumi(o: MasumiOptions): Promise<MasumiResult> {
   const jobId = string(job.job_id, 'job_id');
   const blockchainIdentifier = string(job.blockchainIdentifier, 'blockchainIdentifier');
   step(`Job ${printable(jobId)} started with blockchainIdentifier ${printable(blockchainIdentifier)}`);
-  if (!Array.isArray(job.amounts) || job.amounts.length !== 1) throw new Error('Job amounts do not match the advertised price');
-  const jobAmount = object(job.amounts[0], 'job amount');
-  if (jobAmount.unit !== poolUnit || BigInt(decimal(jobAmount.amount, 'job amount')) !== amount) {
-    throw new Error('Job amounts do not match the advertised price');
+  // Some agents omit the amounts; the node checks the purchase against the registry price anyway.
+  if (job.amounts !== undefined && job.amounts !== null) {
+    if (!Array.isArray(job.amounts) || job.amounts.length !== 1) throw new Error('Job amounts do not match the advertised price');
+    const jobAmount = object(job.amounts[0], 'job amount');
+    if (jobAmount.unit !== poolUnit || BigInt(decimal(jobAmount.amount, 'job amount')) !== amount) {
+      throw new Error('Job amounts do not match the advertised price');
+    }
   }
   // The node infers the contract version (V1 or V2) from the blockchainIdentifier the agent signed.
   const purchase = { blockchainIdentifier, network: 'Preprod',
     inputHash: string(job.input_hash, 'input_hash'), sellerVkey: string(job.sellerVKey ?? job.sellerVkey, 'sellerVkey'),
     agentIdentifier: string(job.agentIdentifier, 'agentIdentifier'),
-    Amounts: [{ amount: decimal(jobAmount.amount, 'job amount'), unit: poolUnit }],
+    Amounts: [{ amount: String(amount), unit: poolUnit }],
     payByTime: decimal(job.payByTime, 'payByTime'), submitResultTime: decimal(job.submitResultTime, 'submitResultTime'),
     unlockTime: decimal(job.unlockTime, 'unlockTime'), externalDisputeUnlockTime: decimal(job.externalDisputeUnlockTime, 'externalDisputeUnlockTime'),
     identifierFromPurchaser };
