@@ -18,6 +18,13 @@ This page follows tUSDM from an agent's wallet to a seller. The transaction hash
 
 ## The whole flow
 
+<figure style={{ margin: '1.5rem 0 2rem' }}>
+  <a href={`${process.env.NEXT_PUBLIC_BASE_PATH ?? ''}/diagrams/private-payment.png`} aria-label="Open the diagram at full size">
+    <img src={`${process.env.NEXT_PUBLIC_BASE_PATH ?? ''}/diagrams/private-payment.png`} alt="A private payment: wallet to pool in public, pool to one-time address with a proof, one-time address to seller through x402" style={{ display: 'block', width: '100%', height: 'auto', borderRadius: 8, background: '#fff' }} />
+  </a>
+  <figcaption style={{ marginTop: 12, fontSize: '0.85rem', lineHeight: 1.5 }}>The three stages of a private payment, with the transactions of the zx402 pool run. Source: docs/diagrams/private-payment.excalidraw.</figcaption>
+</figure>
+
 ```mermaid
 sequenceDiagram
     participant A as Agent (SDK)

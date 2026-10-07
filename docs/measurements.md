@@ -296,6 +296,19 @@ The sizes equal the tUSDM run's, because the renamed strings keep their byte len
 
 Block times: deposit 07:15:15, Settle 07:18:26, seller payment 07:18:48, exit 07:20:32 UTC. The note waited 196 seconds to become spendable because the deposit's block, the Insert and the ASP update landed in three blocks 110 seconds apart, which is the chain, not the code.
 
+### The staged demo: a pool funded earlier, one payment
+
+On 2026-10-07 at 07:54 UTC the demo ran with `--reuse --no-exit` on the zx402 pool: no deposit, one private payment from a note already in the pool, and the change left inside for the next run. This is the shape of the owner's demo. The seller answered HTTP 200 after 96.6 seconds; the whole run took 99.7 seconds. The demo printed the explorer links, which the README repeats with screenshots from cexplorer (`docs/evidence/`).
+
+| Transaction, staged run | CPU steps | Memory units | Size in bytes | Fee in ADA | Transaction hash |
+|---|---|---|---|---|---|
+| Settle, 1 payout of 2 tUSDM plus 2 ADA to a one-time address | see note | see note | 1,830 | 0.74 | `6439e9c5eec05c2692995ab17c7164be38e068003ec832e21c51a1b1e427be6a` |
+| Leg 2, one-time address to the seller, submitted by the stock facilitator | none | none | 240 | 0.17 | `c493eeedb959bc091da233b0971bd1818faed68efca60ad324e263e3b5e57640` |
+
+The sizes and fees are the explorer's rounded figures; the execution units of a Settle are the same as in the runs above, because the validator and the circuit did not change.
+
+Three earlier attempts of the same staged run failed at leg 2 with "Blockfrost submitTx failed" from the seller's facilitator, while every run with a fresh deposit had worked. The cause was in our builder: the Conway set tag on the inputs of leg 2 was written only when a Mesh transaction builder had been constructed earlier in the same process, which a fresh-deposit run does and a `--reuse` run does not. The stock facilitator re-encodes every transaction with the tag before it submits, so the body hash changed and the node rejected the signature. Resubmitting the original bytes went through, which is how the cause was found. The builder now sets the tag itself (regression test TX-09). Those attempts left 2 tUSDM plus 2 ADA at each of three one-time addresses (indexes 1, 2 and 3), recoverable with the SDK's `recoverOneTimeFunds`; the one-time funds of index 3 were spent by the resubmission, which paid the seller once more.
+
 ### A Masumi agent paid from the pool
 
 On 2026-10-07 at 07:22 UTC the pool paid a Masumi agent on Preprod: "Expose: Web Single Answer" (registry asset `7e8bdaf2…dbc77`, API `https://staging.kodosumi.io/sumi/web_single_answer_cc`), priced at 0.01 tUSDM in the pool's unit. Masumi agents are paid through a Masumi payment service node, which locks the price in Masumi's escrow contract from its own purchasing wallet. The command `npm run masumi -w ops` funded that wallet from the pool in private, started the job, created the purchase on a local Masumi node (payment source V1, the version every agent in the Preprod registry uses), and read the answer.

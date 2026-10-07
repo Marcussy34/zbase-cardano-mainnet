@@ -1,7 +1,7 @@
 // Copies the deep documents from docs/ into content/reference/ so the site can render them.
 // The copies are generated and git-ignored. Edit the files under docs/, never the copies.
 // It runs before `next dev` and `next build` through the predev and prebuild scripts.
-import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join, posix, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -61,3 +61,22 @@ for (const [file, slug, title] of pages) {
 const meta = Object.fromEntries(pages.map(([, slug, title]) => [slug, title]));
 writeFileSync(join(outDir, '_meta.js'), `export default ${JSON.stringify(meta, null, 2)};\n`);
 console.log(`synced ${pages.length} reference pages into ${outDir}`);
+
+const diagramSource = join(docsDir, 'diagrams');
+const diagramTarget = join(here, '..', 'public', 'diagrams');
+if (existsSync(diagramSource)) {
+  mkdirSync(diagramTarget, { recursive: true });
+  for (const entry of readdirSync(diagramSource, { withFileTypes: true })) {
+    if (entry.isFile() && entry.name.endsWith('.png')) {
+      copyFileSync(join(diagramSource, entry.name), join(diagramTarget, entry.name));
+    }
+  }
+}
+
+// Generate the standalone mark so public assets need no separate manual copy.
+const imageTarget = join(here, '..', 'public', 'images');
+mkdirSync(imageTarget, { recursive: true });
+writeFileSync(join(imageTarget, 'zx402-mark.svg'), `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none">
+  <path d="M6 7h21l-6 6H5V8a1 1 0 0 1 1-1Zm5 12h16v5a1 1 0 0 1-1 1H5Z" fill="currentColor" />
+  <path d="m19 13-6 6H5l6-6Z" fill="currentColor" opacity=".45" />
+</svg>\n`);

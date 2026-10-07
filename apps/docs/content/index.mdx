@@ -4,60 +4,65 @@ description: zx402 makes x402 payments from AI agents private. This site explain
 ---
 
 import { Cards } from 'nextra/components';
+import { WalletAdd, ShieldTick, Shop, Layer, Routing, Lock, PlayCircle, Warning2, DocumentText, TickCircle, Cpu, ArrowCircleRight } from 'iconsax-react';
+import Hero from '../components/Hero';
 
-# zx402
+export const iconProps = {
+  // React 19 does not apply the icon package's function defaultProps.
+  size: 24, color: 'currentColor', variant: 'TwoTone', 'aria-hidden': true, focusable: false, style: { flexShrink: 0 },
+};
+export const descriptionStyle = { order: 1, padding: '0 1rem 1rem', fontSize: '0.9rem', lineHeight: 1.6 };
 
-zx402 lets an AI agent pay for web requests without leaving a trail. The agent pays through the x402 protocol, the same HTTP 402 flow that stock sellers already accept. The money comes from a shared pool. Anyone can see that the pool paid. Nobody can see which deposit paid.
+<Hero />
 
-## The problem
+<figure style={{ margin: '1.5rem 0 2rem' }}>
+  <a href={`${process.env.NEXT_PUBLIC_BASE_PATH ?? ''}/diagrams/private-payment.png`} aria-label="Open the private payment diagram at full size" className="x:focus-visible:nextra-focus" style={{ display: 'block', borderRadius: 8 }}>
+    <img
+      src={`${process.env.NEXT_PUBLIC_BASE_PATH ?? ''}/diagrams/private-payment.png`}
+      alt="A private payment: wallet to pool in public, pool to one-time address with a proof, one-time address to seller through x402"
+      style={{ display: 'block', width: '100%', height: 'auto', borderRadius: 8, background: '#fff' }}
+    />
+  </a>
+  <figcaption style={{ marginTop: 12, fontSize: '0.85rem', lineHeight: 1.5 }}>
+    The proof hides which deposit funds the payment.
+  </figcaption>
+</figure>
 
-An agent that pays per request pays many times a day. Every payment leaves the same wallet, so a seller, a data broker or anyone who reads the chain can join the payments into a profile. The chain keeps that profile forever.
+## How it works
 
-## The idea
-
-zx402 is a port of the Base implementation, which uses the Privacy Pools design. It works in three steps.
-
-1. The agent deposits tUSDM into the pool on Preprod. The deposit carries a hidden commitment to a secret note.
-2. An approval service checks the deposit and adds it to an approved set. Only approved deposits can pay.
-3. To pay, the agent proves in zero knowledge that it owns an approved deposit, that it has not spent it, and that the amount fits. The chain checks the proof and pays a fresh one-time address. That address pays the seller with a stock x402 payment.
-
-The proof hides which deposit paid. The pool holds every deposit in one place, so the link between a deposit and a payment never appears on chain. A depositor who wants out can always exit in public with a signature.
-
-The pool holds one asset. M0 uses tUSDM on Preprod, the Masumi test USDM with 6 decimals.
-The same validators also support ADA pools. Changing the asset gives a new pool ID, but the circuits and proving keys stay valid.
-Token outputs still need ADA. The depositor funds the deposit's minimum ADA, and the crank keeps it without taking a token crank fee.
-The relayer attaches ADA to each payout and charges its fee in tUSDM.
+<Cards>
+  <Cards.Card icon={<WalletAdd {...iconProps} />} title="Deposit once" href="/guide/pool-model">
+    <span style={descriptionStyle}>The agent puts tUSDM into a shared pool with a hidden commitment.</span>
+  </Cards.Card>
+  <Cards.Card icon={<ShieldTick {...iconProps} />} title="Pay in private" href="/guide/life-of-a-payment">
+    <span style={descriptionStyle}>A zero-knowledge proof lets the pool pay a one-time address without revealing which deposit paid.</span>
+  </Cards.Card>
+  <Cards.Card icon={<Shop {...iconProps} />} title="Settle with any x402 seller" href="/guide/sdk-and-x402">
+    <span style={descriptionStyle}>The one-time address pays through stock x402, so the seller changes nothing.</span>
+  </Cards.Card>
+</Cards>
 
 ## Status
 
-| What | State |
-|---|---|
-| Network | Preprod. M0 uses tUSDM. Six full runs on the retired ADA pool ended with HTTP 200 from the seller |
-| Tests | 1,019 TypeScript tests, 51 frontend tests and 354 contract checks, all run in CI |
-| Time for one private payment | About 80 seconds in the earlier ADA runs, mostly waiting for blocks. Token timings await the live measurements |
-| Cost on top of the price | 1 tUSDM relayer fee per payout. The relayer supplies 2 ADA per payout by default, including the second transaction's fee |
-| Audit | None. The circuits and validators are new code. Read [Trust and limits](/guide/trust-and-limits) before you deposit real money |
-| Mainnet | Not deployed. The mainnet canary waits for a go-ahead |
-
-The ADA pool from 2026-10-06 is retired. Its record moved to `deployments/retired/`.
+<Cards>
+  <Cards.Card icon={<TickCircle {...iconProps} />} title="Live on Preprod" href="/reference/measurements">
+    <span style={descriptionStyle}>tUSDM pool <code title="60279ebfb8db22bbe0cb2a1b7a61702ab36ade074a3866ac836df3ed">60279ebf…</code>. Live demo runs, every one HTTP 200.</span>
+  </Cards.Card>
+  <Cards.Card icon={<Cpu {...iconProps} />} title="Masumi agents" href="/guide/running#paying-a-masumi-agent">
+    <span style={descriptionStyle}>One purchase paid from the pool.</span>
+  </Cards.Card>
+  <Cards.Card icon={<ArrowCircleRight {...iconProps} />} title="Mainnet next" href="/guide/trust-and-limits">
+    <span style={descriptionStyle}>Not live.</span>
+  </Cards.Card>
+</Cards>
 
 ## Where to go
 
-<Cards>
-  <Cards.Card title="The pool model" href="/guide/pool-model" />
-  <Cards.Card title="The life of a payment" href="/guide/life-of-a-payment" />
-  <Cards.Card title="Privacy" href="/guide/privacy" />
-  <Cards.Card title="The three proofs" href="/guide/proofs" />
-  <Cards.Card title="The contracts" href="/guide/contracts" />
-  <Cards.Card title="The services" href="/guide/services" />
-  <Cards.Card title="The agent SDK and x402" href="/guide/sdk-and-x402" />
-  <Cards.Card title="Running it" href="/guide/running" />
-  <Cards.Card title="Trust and limits" href="/guide/trust-and-limits" />
-  <Cards.Card title="Costs and timings" href="/guide/costs-and-timings" />
+<Cards num={2}>
+  <Cards.Card icon={<Layer {...iconProps} />} title="The pool model" href="/guide/pool-model" />
+  <Cards.Card icon={<Routing {...iconProps} />} title="The life of a payment" href="/guide/life-of-a-payment" />
+  <Cards.Card icon={<Lock {...iconProps} />} title="Privacy" href="/guide/privacy" />
+  <Cards.Card icon={<PlayCircle {...iconProps} />} title="Running it" href="/guide/running" />
+  <Cards.Card icon={<Warning2 {...iconProps} />} title="Trust and limits" href="/guide/trust-and-limits" />
+  <Cards.Card icon={<DocumentText {...iconProps} />} title="The Spec" href="/reference/spec" />
 </Cards>
-
-The **How it works** section explains the design in plain words. The **Reference** section holds the full documents from the repository: the specification, the runbooks, the test plan and the measurements. They are copied at build time, so they always match the code on `main`.
-
-## The repository
-
-The code is public at [github.com/Marcussy34/zx402](https://github.com/Marcussy34/zx402) under the MIT license. The on-chain code is written in Aiken. The circuits are written in Circom and proven with Groth16 on BLS12-381. The off-chain code is TypeScript.
