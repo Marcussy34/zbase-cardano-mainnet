@@ -123,7 +123,9 @@ export async function runMasumi(o: MasumiOptions): Promise<MasumiResult> {
   const availability = await request(`${apiBase}/availability`, 'Agent availability');
   if (availability.status !== 'available') throw new Error('Masumi agent is not available');
   const schema = await request(`${apiBase}/input_schema`, 'Agent input schema');
-  if (!Array.isArray(schema.input_data)) throw new Error('Agent input schema must contain input_data');
+  if (!Array.isArray(schema.input_data)) {
+    throw new Error(`Agent input schema must contain input_data, got keys ${printable(Object.keys(schema).join(', ')) || 'none'}`);
+  }
   step('Agent is available and its input schema is loaded');
 
   if (o.storePath) await mkdir(dirname(o.storePath), { recursive: true });
