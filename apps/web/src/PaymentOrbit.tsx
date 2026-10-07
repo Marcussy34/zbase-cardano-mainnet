@@ -1,20 +1,21 @@
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import {
-  ArrowDown,
-  ArrowRight,
-  Fingerprint,
-  KeyRound,
-  Layers3,
-  Radio,
-  ShoppingBag,
-  Wallet,
-} from "lucide-react";
+  ArrowDownIcon,
+  ArrowRightIcon,
+  ProofIcon,
+  KeyIcon,
+  PoolIcon,
+  RelayerIcon,
+  SellerIcon,
+  WalletIcon,
+  ZBaseMark,
+} from "./BrandIcons";
 import "./payment-orbit.css";
 
 const path = [
   {
     name: "Wallet",
-    icon: Wallet,
+    icon: WalletIcon,
     title: "Start with ADA.",
     description:
       "An ordinary deposit creates a private note kept on your device.",
@@ -23,7 +24,7 @@ const path = [
   },
   {
     name: "Shared pool",
-    icon: Layers3,
+    icon: PoolIcon,
     title: "One shared pool.",
     description:
       "Payments prove an approved deposit without revealing which one.",
@@ -32,7 +33,7 @@ const path = [
   },
   {
     name: "Local proof",
-    icon: Fingerprint,
+    icon: ProofIcon,
     title: "Prove it locally.",
     description:
       "Your agent proves locally; note secrets stay on your machine.",
@@ -41,7 +42,7 @@ const path = [
   },
   {
     name: "Relayer",
-    icon: Radio,
+    icon: RelayerIcon,
     title: "Pass the proof.",
     description:
       "The relayer gets proof and intent, never note secrets.",
@@ -50,7 +51,7 @@ const path = [
   },
   {
     name: "One-time key",
-    icon: KeyRound,
+    icon: KeyIcon,
     title: "A fresh key.",
     description:
       "The pool funds your agent’s one-time key with price plus fee.",
@@ -59,7 +60,7 @@ const path = [
   },
   {
     name: "x402 seller",
-    icon: ShoppingBag,
+    icon: SellerIcon,
     title: "Back to work.",
     description:
       "Your one-time key makes a standard x402 payment to the seller.",
@@ -254,10 +255,7 @@ export default function PaymentOrbit({ paused = false }: { paused?: boolean }) {
               <div className="path-center-flipper">
                 <span className="path-portrait path-center-front" />
                 <span className="path-center-back">
-                  <svg viewBox="0 0 32 32" fill="none">
-                    <path d="M5 7h22l-6 6H5V7Zm6 12h16v6H5l6-6Z" fill="currentColor" />
-                    <path d="m19 13-6 6H5l6-6h8Z" fill="currentColor" opacity=".45" />
-                  </svg>
+                  <ZBaseMark />
                 </span>
               </div>
               <span className="path-agent-label">
@@ -289,7 +287,7 @@ export default function PaymentOrbit({ paused = false }: { paused?: boolean }) {
                   <span className="path-node-appearance">
                     <span className="path-node-flipper">
                       <span className="path-node-icon">
-                        <Icon size={24} strokeWidth={1.5} aria-hidden="true" />
+                        <Icon size={42} aria-hidden="true" />
                       </span>
                       <span className="path-node-portrait" aria-hidden="true" />
                     </span>
@@ -316,7 +314,7 @@ export default function PaymentOrbit({ paused = false }: { paused?: boolean }) {
               <p>{active.description}</p>
               <div className="path-card-transfer">
                 <span>{active.signal}</span>
-                <ArrowRight size={13} aria-hidden="true" />
+                <ArrowRightIcon size={13} aria-hidden="true" />
                 <span>{active.destination}</span>
               </div>
             </div>
@@ -333,7 +331,7 @@ export default function PaymentOrbit({ paused = false }: { paused?: boolean }) {
         <div className="path-scroll-guide" aria-hidden="true">
           <span>{phase === "complete" ? "Keep exploring" : "Scroll to explore"}</span>
           <span className="path-scroll-track" />
-          <ArrowDown size={12} />
+          <ArrowDownIcon size={12} />
         </div>
       </div>
     </section>

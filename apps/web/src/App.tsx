@@ -11,16 +11,18 @@ import PaymentOrbit from "./PaymentOrbit";
 import ScrollWalkthrough from "./ScrollWalkthrough";
 import PrivacySection from "./PrivacySection";
 import {
-  ArrowDown,
-  ArrowUpRight,
-  ChevronDown,
-  Fingerprint,
-  Menu,
-  Pause,
-  Play,
-  ShieldCheck,
-  X,
-} from "lucide-react";
+  ArrowDownIcon,
+  ArrowUpRightIcon,
+  ChevronDownIcon,
+  ProofIcon,
+  MenuIcon,
+  PauseIcon,
+  PlayIcon,
+  ShieldIcon,
+  CloseIcon,
+  CardanoIcon,
+  ZBaseMark,
+} from "./BrandIcons";
 
 const DOCS = "/docs/";
 const portraits = [0, 1, 5, 8, 3, 6, 4, 7, 2, 5, 1, 8];
@@ -43,15 +45,6 @@ const introLines = [
   "Your wallet stays yours.",
 ];
 const introWords = introLines.join(" ").split(" ");
-
-function Mark() {
-  return (
-    <svg viewBox="0 0 32 32" fill="none" aria-hidden="true">
-      <path d="M5 7h22l-6 6H5V7Zm6 12h16v6H5l6-6Z" fill="currentColor" />
-      <path d="m19 13-6 6H5l6-6h8Z" fill="currentColor" opacity=".45" />
-    </svg>
-  );
-}
 
 function Portrait({
   index,
@@ -77,7 +70,7 @@ function Portrait({
 function ReadDocs() {
   return (
     <a href={DOCS} className="button button-light">
-      Read docs <ArrowUpRight size={17} aria-hidden="true" />
+      Read docs <ArrowUpRightIcon size={17} aria-hidden="true" />
     </a>
   );
 }
@@ -134,14 +127,14 @@ export default function App() {
       </a>
       <header className="site-header" ref={header}>
         <a className="brand" href="/" aria-label="zBase Cardano home">
-          <Mark />
+          <ZBaseMark aria-hidden="true" />
           <span>
             zBase<span className="brand-network">Cardano</span>
           </span>
         </a>
         <div className="header-actions">
           <a className="header-docs" href={DOCS}>
-            Read docs <ArrowUpRight size={15} aria-hidden="true" />
+            Read docs <ArrowUpRightIcon size={15} aria-hidden="true" />
           </a>
           <button
             ref={menuButton}
@@ -151,7 +144,7 @@ export default function App() {
             aria-controls="site-menu"
             onClick={() => setMenuOpen(!menuOpen)}
           >
-            {menuOpen ? <X size={21} /> : <Menu size={21} />}
+            {menuOpen ? <CloseIcon size={21} /> : <MenuIcon size={21} />}
           </button>
         </div>
         {menuOpen && (
@@ -166,7 +159,7 @@ export default function App() {
             ].map(([label, href]) => (
               <a key={label} href={href} onClick={() => setMenuOpen(false)}>
                 {label}
-                <ArrowUpRight size={17} aria-hidden="true" />
+                <ArrowUpRightIcon size={17} aria-hidden="true" />
               </a>
             ))}
             <span className="menu-status">
@@ -181,7 +174,7 @@ export default function App() {
         aria-pressed={paused}
         onClick={() => setPaused(!paused)}
       >
-        {paused ? <Play size={13} /> : <Pause size={13} />}
+        {paused ? <PlayIcon size={13} /> : <PauseIcon size={13} />}
         <span>{paused ? "Play motion" : "Pause motion"}</span>
       </button>
       <main id="main">
@@ -228,16 +221,14 @@ export default function App() {
             <div className="hero-foot">
               <div className="foundation">
                 <b>
-                  <span className="cardano-glyph" aria-hidden="true">
-                    ⠿
-                  </span>{" "}
+                  <CardanoIcon size={24} aria-hidden="true" />{" "}
                   Cardano
                 </b>
                 <span className="foundation-divider" />
                 <b className="x402-wordmark">x402</b>
                 <span className="foundation-divider" />
                 <b className="zk-wordmark">
-                  <ShieldCheck size={18} aria-hidden="true" /> Zero knowledge
+                  <ShieldIcon size={18} aria-hidden="true" /> Zero knowledge
                 </b>
               </div>
               <a
@@ -245,7 +236,7 @@ export default function App() {
                 href="#idea"
                 aria-label="Discover zBase"
               >
-                <ArrowDown size={17} />
+                <ArrowDownIcon size={17} />
               </a>
             </div>
           </section>
@@ -286,7 +277,7 @@ export default function App() {
             </h2>
             <div className="intro-rule">
               <span />
-              <Fingerprint size={25} aria-hidden="true" />
+              <ProofIcon size={25} aria-hidden="true" />
               <span />
             </div>
           </section>
@@ -305,7 +296,7 @@ export default function App() {
               <h2 id="roadmap-title">Mainnet is next.</h2>
             </div>
             <a className="text-link" href="/docs/?topic=plan">
-              Build plan <ArrowUpRight size={16} aria-hidden="true" />
+              Build plan <ArrowUpRightIcon size={16} aria-hidden="true" />
             </a>
           </div>
         </section>
@@ -317,7 +308,7 @@ export default function App() {
           <div>
             <h2 id="faq-title">Good questions.</h2>
             <a className="text-link" href={DOCS}>
-              More in the docs <ArrowUpRight size={16} aria-hidden="true" />
+              More in the docs <ArrowUpRightIcon size={16} aria-hidden="true" />
             </a>
           </div>
           <div className="faq-list" data-reveal>
@@ -333,7 +324,7 @@ export default function App() {
                     onClick={() => setFaq(faq === i ? null : i)}
                   >
                     {item.question}
-                    <ChevronDown size={18} aria-hidden="true" />
+                    <ChevronDownIcon size={18} aria-hidden="true" />
                   </button>
                 </h3>
                 <div
@@ -355,7 +346,7 @@ export default function App() {
         >
           <div className="footer-landscape" data-parallax aria-hidden="true">
             <img
-              src="/images/privacy-horizon.jpg"
+              src="/images/privacy-companion-horizon.png"
               alt=""
               width="1983"
               height="793"
@@ -373,7 +364,7 @@ export default function App() {
           <div className="footer-top">
             <div className="footer-about">
               <a href="/" className="brand" aria-label="zBase Cardano home">
-                <Mark />
+                <ZBaseMark aria-hidden="true" />
                 <span>
                   zBase<span className="brand-network">Cardano</span>
                 </span>
@@ -394,7 +385,7 @@ export default function App() {
                 target="_blank"
                 rel="noreferrer"
               >
-                GitHub <ArrowUpRight size={13} aria-hidden="true" />
+                GitHub <ArrowUpRightIcon size={13} aria-hidden="true" />
               </a>
             </nav>
           </div>
