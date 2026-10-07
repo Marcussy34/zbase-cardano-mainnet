@@ -10,7 +10,7 @@ const repository = 'https://github.com/Marcussy34/zx402';
 export const metadata = {
   title: { default: 'zx402', template: '%s | zx402' },
   description: 'How zx402 works: private x402 payments for AI agents on Cardano.',
-  icons: { icon: `${process.env.NEXT_PUBLIC_BASE_PATH ?? ''}/images/zx402-mark.svg` },
+  icons: { icon: '/images/zx402-mark.svg' },
 };
 
 const navbar = <Navbar logo={<span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}><Mark /><b>zx402</b></span>} projectLink={repository} />;

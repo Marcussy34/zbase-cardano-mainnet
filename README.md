@@ -251,7 +251,7 @@ Its "Read docs" buttons open the documentation site. The page has no wallet conn
 | [docs/RUNBOOK.md](docs/RUNBOOK.md) | Exact commands for Preprod and the step-by-step mainnet canary |
 | [docs/CEREMONY.md](docs/CEREMONY.md) | The Groth16 setup ceremony |
 | [docs/measurements.md](docs/measurements.md) | Measured costs, and every transaction of the Preprod runs |
-| [docs/research/](docs/research/) | Evidence: measurements, research digests, and three verified spikes |
+| [docs/research/](docs/research/) | Evidence: the raw data behind the first measurements, and three verified spikes |
 | [AGENTS.md](AGENTS.md) | Hard rules for people and AI agents |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Workflow and pull request checklist |
 

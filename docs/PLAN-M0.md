@@ -66,7 +66,7 @@ circuits/
   src/main/insert.circom          component main for insert
   src/main/ragequit.circom        component main for ragequit
   scripts/build.sh                compile all circuits
-  npm run setup:dev              command for development keys, never for real funds
+  scripts/setup-dev.mjs           development keys, never for real funds
   test/*.test.ts                  CIR tests
 
 contracts/
