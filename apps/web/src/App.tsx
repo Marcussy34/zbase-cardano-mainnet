@@ -24,7 +24,9 @@ import {
   Zx402Mark,
 } from "./BrandIcons";
 
-const DOCS = "/docs/";
+// The documentation site. The in-app reader at /docs/ keeps the deep documents, but every call to action goes here.
+const DOCS = "https://marcussy34.github.io/zx402/";
+const PLAN = "https://marcussy34.github.io/zx402/reference/plan-m0/";
 const portraits = [0, 1, 5, 8, 3, 6, 4, 7, 2, 5, 1, 8];
 const scatterPositions = [
   [0, -400],
@@ -295,7 +297,7 @@ export default function App() {
               <span className="roadmap-tag">Tested on Preprod</span>
               <h2 id="roadmap-title">Mainnet is next.</h2>
             </div>
-            <a className="text-link" href="/docs/?topic=plan">
+            <a className="text-link" href={PLAN}>
               Build plan <ArrowUpRightIcon size={16} aria-hidden="true" />
             </a>
           </div>
@@ -379,7 +381,7 @@ export default function App() {
             <nav aria-label="Footer resources">
               <h3>Resources</h3>
               <a href={DOCS}>Read docs</a>
-              <a href="/docs/?topic=plan">Build plan</a>
+              <a href={PLAN}>Build plan</a>
               <a
                 href="https://github.com/Marcussy34/zx402"
                 target="_blank"
