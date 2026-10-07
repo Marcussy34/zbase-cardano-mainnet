@@ -68,12 +68,30 @@ const path = [
   },
 ];
 const clamp = (value: number) => Math.max(0, Math.min(1, value));
+const portraits = [1, 2, 3, 4, 6, 8];
+const phaseAt = (progress: number) => {
+  if (progress < 0.1) return "intro";
+  if (progress < 0.73) return "steps";
+  if (progress < 0.89) return "transform";
+  return "complete";
+};
+const stageAt = (progress: number) =>
+  Math.max(0, Math.min(path.length - 1, Math.floor((progress - 0.1 + 1e-8) / 0.1)));
+const stageKey = (progress: number) => `${phaseAt(progress)}-${stageAt(progress)}`;
+const timelineAt = (progress: number) => ({
+  phase: phaseAt(progress),
+  revealed: path.filter((_, index) => progress + 1e-8 >= 0.1 + index * 0.1).length,
+  portraits: progress >= 0.81 ? path.length : 0,
+  centerFace: progress >= 0.81 ? "logo" : "agent",
+});
 
 export default function PaymentOrbit({ paused = false }: { paused?: boolean }) {
   const section = useRef<HTMLElement>(null);
   const sticky = useRef<HTMLDivElement>(null);
   const [selected, setSelected] = useState(0);
   const [mode, setMode] = useState("static");
+  const [manual, setManual] = useState(false);
+  const [timeline, setTimeline] = useState(() => timelineAt(0));
   const syncScrollStage = useRef<() => void>(() => {});
 
   useEffect(() => {
@@ -83,50 +101,52 @@ export default function PaymentOrbit({ paused = false }: { paused?: boolean }) {
     if (
       typeof preference.addEventListener !== "function" ||
       typeof preference.removeEventListener !== "function"
-    )
-      return;
+    ) return;
     let frame: number | null = null;
-    let lastStage: number | null = null;
+    let lastStage: string | null = null;
     let shouldSelect = true;
     let listening = false;
+    let fits = false;
     let observer: ResizeObserver | null = null;
 
     function measureScene() {
       const height = sticky.current?.getBoundingClientRect().height ?? 0;
-      const fits =
-        window.innerWidth >= 900 &&
-        height > 0 &&
-        height <= window.innerHeight - 104;
-      if (element) {
-        element.dataset.orbitPinned = String(fits);
-        element.style.setProperty("--orbit-scene-height", `${height}px`);
-      }
-      return { height, fits };
+      fits = window.innerWidth >= 900 && height > 0 && height <= window.innerHeight - 104;
+      element!.dataset.orbitPinned = String(fits);
+      element!.style.setProperty("--orbit-scene-height", `${height}px`);
+      return height;
     }
-
     function readProgress() {
-      if (!element) return 0;
-      const scene = measureScene();
-      const rect = element.getBoundingClientRect();
-      const viewport = window.innerHeight;
-      const start = scene.fits ? 80 : viewport * 0.5;
-      const travel = scene.fits
-        ? Math.max(rect.height - scene.height, 1)
-        : Math.max(rect.height * 0.7, 1);
-      return clamp((start - rect.top) / travel);
+      const height = measureScene();
+      const rect = element!.getBoundingClientRect();
+      return clamp((80 - rect.top) / Math.max(rect.height - height, 1));
     }
-    const stageAt = (progress: number) =>
-      Math.min(path.length - 1, Math.floor(progress * path.length));
     syncScrollStage.current = () => {
-      lastStage = stageAt(readProgress());
+      lastStage = stageKey(readProgress());
     };
     function update() {
       frame = null;
-      if (!element) return;
+      if (paused) {
+        measureScene();
+        return;
+      }
       const progress = readProgress();
-      const stage = stageAt(progress);
-      element.style.setProperty("--path-progress", String(progress));
-      if (shouldSelect && stage !== lastStage) setSelected(stage);
+      setMode(fits ? "active" : "static");
+      if (!fits) return;
+      const stage = stageKey(progress);
+      element!.style.setProperty("--path-progress", String(progress));
+      element!.style.setProperty("--transform-progress", String(clamp((progress - 0.73) / 0.16)));
+      element!.style.setProperty("--path-turn", String(clamp((progress - 0.73) / 0.27) * 90));
+      const next = timelineAt(progress);
+      setTimeline((previous) =>
+        previous.phase === next.phase && previous.revealed === next.revealed &&
+        previous.portraits === next.portraits && previous.centerFace === next.centerFace
+          ? previous : next,
+      );
+      if (shouldSelect && stage !== lastStage) {
+        setSelected(stageAt(progress));
+        setManual(false);
+      }
       lastStage = stage;
       shouldSelect = false;
     }
@@ -134,8 +154,11 @@ export default function PaymentOrbit({ paused = false }: { paused?: boolean }) {
       shouldSelect ||= select;
       if (frame === null) frame = window.requestAnimationFrame(update);
     }
-    const onScroll = () => schedule(true);
-    const onResize = () => schedule(false);
+    const onScroll = () => { if (fits) schedule(true); };
+    const onResize = () => {
+      if (paused) measureScene();
+      else schedule(false);
+    };
     function stop() {
       if (listening) {
         window.removeEventListener("scroll", onScroll);
@@ -156,6 +179,13 @@ export default function PaymentOrbit({ paused = false }: { paused?: boolean }) {
       }
       if (paused) {
         setMode("paused");
+        measureScene();
+        window.addEventListener("resize", onResize);
+        if (typeof window.ResizeObserver === "function" && sticky.current) {
+          observer = new ResizeObserver(onResize);
+          observer.observe(sticky.current);
+        }
+        listening = true;
         return;
       }
       if (
@@ -167,7 +197,6 @@ export default function PaymentOrbit({ paused = false }: { paused?: boolean }) {
         setMode("static");
         return;
       }
-      setMode("active");
       lastStage = null;
       window.addEventListener("scroll", onScroll, { passive: true });
       window.addEventListener("resize", onResize);
@@ -188,6 +217,14 @@ export default function PaymentOrbit({ paused = false }: { paused?: boolean }) {
   }, [paused]);
 
   const active = path[selected];
+  const automatic = mode === "active" && !manual;
+  const phase = automatic ? timeline.phase : "steps";
+  const showDetail = phase === "steps";
+  const select = (index: number) => {
+    syncScrollStage.current();
+    setManual(true);
+    setSelected(index);
+  };
   return (
     <section
       ref={section}
@@ -195,74 +232,98 @@ export default function PaymentOrbit({ paused = false }: { paused?: boolean }) {
       className="payment-path"
       aria-labelledby="payment-path-heading"
       data-orbit-mode={mode}
+      data-orbit-phase={phase}
+      data-orbit-manual={manual}
     >
       <div ref={sticky} className="payment-path-sticky section-wrap">
         <header className="payment-path-heading">
-          <span className="eyebrow">Payment path</span>
+          <span className="eyebrow">Payment path · Design preview</span>
           <h2 id="payment-path-heading">From wallet to work.</h2>
         </header>
-        <div className="payment-path-stage">
-          <div
-            id="payment-path-detail"
-            className="payment-path-card"
-            role="region"
-            aria-label="Payment path detail"
-          >
-            <div className="path-card-top">
-              <span>Design preview</span>
-              <span className="path-count">
-                0{selected + 1}
-                <span> / 06</span>
-              </span>
-            </div>
-            <div className="path-card-content" key={selected}>
-              <h3>{active.title}</h3>
-              <p>{active.description}</p>
-              <div className="path-card-transfer">
-                <span>{active.signal}</span>
-                <ArrowRight size={14} aria-hidden="true" />
-                <span>{active.destination}</span>
-              </div>
-            </div>
-          </div>
+        <div
+          className="payment-path-stage"
+          data-card-side={selected < 3 ? "right" : "left"}
+          style={{ "--active-angle": `${selected * 60 - 90}deg` } as CSSProperties}
+        >
           <div
             className="payment-path-orbit"
             role="group"
             aria-label="Explore the six payment steps"
           >
-            <div className="path-orbit-ring" aria-hidden="true" />
-            <div className="path-orbit-center" aria-hidden="true">
-              <span className="path-portrait" />
-              <span className="path-agent-label">YOUR AGENT</span>
+            <div className="path-orbit-center" data-face={automatic ? timeline.centerFace : "agent"} aria-hidden="true">
+              <div className="path-center-flipper">
+                <span className="path-portrait path-center-front" />
+                <span className="path-center-back">
+                  <svg viewBox="0 0 32 32" fill="none">
+                    <path d="M5 7h22l-6 6H5V7Zm6 12h16v6H5l6-6Z" fill="currentColor" />
+                    <path d="m19 13-6 6H5l6-6h8Z" fill="currentColor" opacity=".45" />
+                  </svg>
+                </span>
+              </div>
+              <span className="path-agent-label">
+                <span className="path-agent-name">YOUR AGENT</span>
+                <span className="path-pool-name">zBase</span>
+              </span>
             </div>
-            {path.map(({ name, icon: Icon }, index) => (
-              <button
-                key={name}
-                type="button"
-                className="path-node"
-                aria-label={name}
-                aria-pressed={selected === index}
-                aria-controls="payment-path-detail"
-                onClick={() => {
-                  syncScrollStage.current();
-                  setSelected(index);
-                }}
-                style={
-                  {
+            <div className="path-orbit-turntable">
+              <div className="path-orbit-ring" aria-hidden="true" />
+              {path.map(({ name, icon: Icon }, index) => (
+                <button
+                  key={name}
+                  type="button"
+                  className="path-node"
+                  aria-label={name}
+                  aria-pressed={selected === index}
+                  aria-controls="payment-path-detail"
+                  data-revealed={!automatic || index < timeline.revealed}
+                  data-portrait={automatic && index < timeline.portraits}
+                  onFocus={() => select(index)}
+                  onClick={() => select(index)}
+                  style={{
                     "--node-angle": `${index * 60 - 90}deg`,
                     "--node-index": index,
-                  } as CSSProperties
-                }
-              >
-                <span className="path-node-icon">
-                  <Icon size={23} strokeWidth={1.5} aria-hidden="true" />
-                </span>
-                <span className="path-node-label" aria-hidden="true">
-                  {name}
-                </span>
-              </button>
-            ))}
+                    "--portrait-x": `${(portraits[index] % 3) * 50}%`,
+                    "--portrait-y": `${Math.floor(portraits[index] / 3) * 50}%`,
+                  } as CSSProperties}
+                >
+                  <span className="path-node-appearance">
+                    <span className="path-node-flipper">
+                      <span className="path-node-icon">
+                        <Icon size={24} strokeWidth={1.5} aria-hidden="true" />
+                      </span>
+                      <span className="path-node-portrait" aria-hidden="true" />
+                    </span>
+                    <span className="path-node-label" aria-hidden="true">{name}</span>
+                  </span>
+                </button>
+              ))}
+            </div>
           </div>
+          <div
+            id="payment-path-detail"
+            className="payment-path-card"
+            role="region"
+            aria-label="Payment path detail"
+            aria-hidden={!showDetail}
+            data-visible={showDetail}
+          >
+            <div className="path-card-content" key={selected}>
+              <div className="path-card-top">
+                <span>{active.name}</span>
+                <span className="path-count">0{selected + 1}<span> / 06</span></span>
+              </div>
+              <h3>{active.title}</h3>
+              <p>{active.description}</p>
+              <div className="path-card-transfer">
+                <span>{active.signal}</span>
+                <ArrowRight size={13} aria-hidden="true" />
+                <span>{active.destination}</span>
+              </div>
+            </div>
+          </div>
+          <p className="path-finale" aria-hidden={phase !== "transform" && phase !== "complete"}>
+            One pool. <span>Many private stories.</span>
+          </p>
         </div>
         <p className="path-boundary">
           Amounts, recipients and timing stay public.
@@ -270,7 +331,7 @@ export default function PaymentOrbit({ paused = false }: { paused?: boolean }) {
           deposits and payment patterns.
         </p>
         <div className="path-scroll-guide" aria-hidden="true">
-          <span>Scroll to explore</span>
+          <span>{phase === "complete" ? "Keep exploring" : "Scroll to explore"}</span>
           <span className="path-scroll-track" />
           <ArrowDown size={12} />
         </div>
