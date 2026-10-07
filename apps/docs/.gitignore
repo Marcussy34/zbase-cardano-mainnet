@@ -3,3 +3,5 @@ out/
 _pagefind/
 next-env.d.ts
 content/reference/
+public/diagrams/
+public/images/zx402-mark.svg

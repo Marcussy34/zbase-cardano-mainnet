@@ -1,0 +1,20 @@
+Seller asks 2000000 16a55b2a349361ff88c03788f93e1e966e5d689605d044fef722ddde.0014df10745553444d for the weather
+Note c5 in the pool covers the price plus fees 1000000 16a55b2a349361ff88c03788f93e1e966e5d689605d044fef722ddde.0014df10745553444d; no deposit
+Note c5 spendable: 4000000 16a55b2a349361ff88c03788f93e1e966e5d689605d044fef722ddde.0014df10745553444d in 0.052 seconds
+Private payment 6439e9c5eec05c2692995ab17c7164be38e068003ec832e21c51a1b1e427be6a confirmed in 21.182 seconds
+Seller payment c493eeedb959bc091da233b0971bd1818faed68efca60ad324e263e3b5e57640 returned HTTP 200 in 96.562 seconds
+Change from 6439e9c5eec05c2692995ab17c7164be38e068003ec832e21c51a1b1e427be6a spendable in 3.092 seconds
+Change c6 stays in the pool for the next payment
+Demo complete in 99.706 seconds
+What the chain shows, on the explorer:
+  Pool            https://preprod.cardanoscan.io/address/addr_test1wpz3ul73ektd57lzg7glcuz8xs3767dyqs2e8duyltf0r6c2cpd4d
+  Agent's wallet  https://preprod.cardanoscan.io/address/addr_test1vz8etvadesg5a9stprjnajwqwr3g4u4d4pd0dgx9cslc76ch39334
+                  funded the pool earlier; it does not appear below
+  Private payment https://preprod.cardanoscan.io/transaction/6439e9c5eec05c2692995ab17c7164be38e068003ec832e21c51a1b1e427be6a
+                  the pool pays one-time address addr_test1vqtmda4r0wahacczv389p38xz5337w8uknjc5auxx0m7zjghjvmpl with a proof; no deposit is named
+  One-time addr   https://preprod.cardanoscan.io/address/addr_test1vqtmda4r0wahacczv389p38xz5337w8uknjc5auxx0m7zjghjvmpl
+  Seller payment  https://preprod.cardanoscan.io/transaction/c493eeedb959bc091da233b0971bd1818faed68efca60ad324e263e3b5e57640
+                  the one-time address pays the seller addr_test1vrc63vsk9tuarc0ry4stx6j2k2myl7zqn4lx6x27psl5s7sez46cl through stock x402
+  Seller          https://preprod.cardanoscan.io/address/addr_test1vrc63vsk9tuarc0ry4stx6j2k2myl7zqn4lx6x27psl5s7sez46cl
+Not on the chain: any link from the agent's wallet or its deposit to the one-time address or the seller.
+{"weather":"sunny","temperatureC":28}

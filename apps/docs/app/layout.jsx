@@ -1,6 +1,7 @@
 import { Footer, Layout, Navbar } from 'nextra-theme-docs';
 import { Head } from 'nextra/components';
 import { getPageMap } from 'nextra/page-map';
+import Mark from '../components/Mark';
 import 'nextra-theme-docs/style.css';
 
 const repository = 'https://github.com/Marcussy34/zx402';
@@ -8,9 +9,10 @@ const repository = 'https://github.com/Marcussy34/zx402';
 export const metadata = {
   title: { default: 'zx402', template: '%s | zx402' },
   description: 'How zx402 works: private x402 payments for AI agents on Cardano.',
+  icons: { icon: `${process.env.NEXT_PUBLIC_BASE_PATH ?? ''}/images/zx402-mark.svg` },
 };
 
-const navbar = <Navbar logo={<b>zx402</b>} projectLink={repository} />;
+const navbar = <Navbar logo={<span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}><Mark /><b>zx402</b></span>} projectLink={repository} />;
 const footer = <Footer>MIT 2026 Marcus Tan. Built on Preprod. Not audited.</Footer>;
 
 export default async function RootLayout({ children }) {
