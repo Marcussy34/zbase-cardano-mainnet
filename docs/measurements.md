@@ -256,6 +256,46 @@ Block times: deposit 03:44:53, Insert 03:45:42, ASP update 03:46:44, Settle 03:4
 
 Costs of the tUSDM run for each party: the depositor paid 0.175 ADA of fee plus 1.392 ADA attached to the deposit, which the crank kept; the agent paid 1 tUSDM to the relayer and nothing in ADA for the payment; the relayer spent 0.700 ADA of fee plus the 2 ADA it attached, and earned 1 tUSDM; the seller received 2 tUSDM plus 1.832 ADA; the exit cost the user 0.649 ADA of fee plus 1.056 ADA attached to the exit output, which stays in the user's wallet.
 
+### The zx402 pool
+
+On 2026-10-07 the five protocol byte strings took the name zx402 (Spec 1.0.7). Labels, contexts, note secrets and role keys changed with them, so a new tUSDM pool was deployed at 07:08 UTC from the same proving keys. The tUSDM pool `d433ba1c…` from earlier that day is retired; its record is in `deployments/retired/`.
+
+| Deploy transaction, zx402 pool | Size in bytes | Fee in ADA | Transaction hash |
+|---|---|---|---|
+| Role funding | 571 | 0.180549 | `9ca39e3ac8e4febf71093ec837ba2edec5811f8545e30d2bbc96bf2693d2ace7` |
+| Reference scripts 1 | 12,985 | 0.726765 | `88b2f700b771a61982ecf8fba589efef718d87feb7fd20c711e9e86c32c51121` |
+| Reference scripts 2 | 3,954 | 0.329401 | `9459d503655fe9685bcb13ea2f7f082ea4d949eedb4b9586bdab4f712f32e282` |
+| Pool, config and ASP outputs | 1,435 | 0.227275 | `9f9509ea380c3db56b8c58c3a5e559bed290e717d07dab7e40acf127fe1dce09` |
+
+The pool ID is `60279ebfb8db22bbe0cb2a1b7a61702ab36ade074a3866ac836df3ed`. The deploy cost 245.04 ADA, of which 160 ADA funded the roles.
+
+The demo ran once against the zx402 pool, at 07:15 UTC on 2026-10-07, with the same steps as the tUSDM run: a deposit of 10 tUSDM, a payment of 2 tUSDM to the stock x402 seller, and a public exit of the 7 tUSDM change. It ended with HTTP 200 and the weather body after 350.9 seconds.
+
+| Transaction, zx402 run | CPU steps | Memory units | Size in bytes | Fee in ADA | Transaction hash |
+|---|---|---|---|---|---|
+| Deposit, 10 tUSDM plus the minimum ADA | none | none | 445 | 0.175005 | `9a8e6bbf33926dd61b4e0f569459ebfad084f4fded2255915b5467d9ebadd9dd` |
+| Insert, 1 deposit | 3,113,944,857 | 1,028,131 | 985 | 0.680829 | `5c8c1f60bfdf3decc66172d7fb91bcfbf20511268369d0e9c831b5d53efe977e` |
+| ASP update | 64,242,754 | 182,820 | 599 | 0.215772 | `288f63b6494a82ea3bc63138594a4fccf1d8bd7807b1f8de7d3767bf5cf2e335` |
+| Settle, 1 payout of 2 tUSDM plus 2 ADA to a one-time address | 3,256,221,600 | 998,254 | 1,384 | 0.699149 | `9900d199882d60b84824bc12f422b6939296f5862bcb13e6f62252c46f654536` |
+| Leg 2, one-time address to the seller, submitted by the stock facilitator | none | none | 250 | 0.168073 | `b430fb489db83360df792fa5aebbacf7cde7283608085fc028ff92f71dbffc91` |
+| Insert, 1 change note | 2,897,675,931 | 829,240 | 930 | 0.643570 | `252de278de58ddc0b22dfb64346e4e54e9b40b2b607d7274493986889e926251` |
+| Ragequit, 7 tUSDM | 2,865,145,514 | 703,384 | 1,276 | 0.649187 | `5f383fcb185108118a4b6429e64383081bcafba875b0838fd2c078d03358f655` |
+
+The sizes equal the tUSDM run's, because the renamed strings keep their byte lengths. The execution units differ by less than one percent, which is the usual variation between runs with different inputs.
+
+| Step, in seconds | zx402 run |
+|---|---|
+| Deposit submitted | 3.4 |
+| Note spendable, from the start | 196.3 |
+| First leg confirmed, from the payment request | 32.5 |
+| Seller answered HTTP 200, from the payment request | 70.7 |
+| Change note spendable, after the seller answered | 60.7 |
+| Exit submitted, after the change was spendable | 9.6 |
+| Exit confirmed, after the change was spendable | 23.2 |
+| Whole demo | 350.9 |
+
+Block times: deposit 07:15:15, Settle 07:18:26, seller payment 07:18:48, exit 07:20:32 UTC. The note waited 196 seconds to become spendable because the deposit's block, the Insert and the ASP update landed in three blocks 110 seconds apart, which is the chain, not the code.
+
 ### Admin transactions on Preprod
 
 Run on 2026-10-06 on the rehearsal pool with `ops/src/admin.ts`.

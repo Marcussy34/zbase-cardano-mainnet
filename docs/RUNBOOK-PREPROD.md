@@ -69,8 +69,8 @@ Keep ADA in that wallet too. A token deposit needs about 1.4 ADA for its output 
 The crank keeps the attached ADA and takes no crank fee in tokens. An exit also needs the wallet to supply its output's minimum ADA.
 
 If `deployments/preprod.json` already exists, step 6 stops.
-This repository holds the record of the tUSDM pool from 2026-10-07, pool ID `d433ba1cc677f8771f22b0ecbbbdcda504022b96f34eeaed39fae78c`. To use that pool you need its proving keys, which are not in the repository. To deploy your own pool, move the record away first.
-The ADA pool from 2026-10-06 is retired; its record moved to `deployments/retired/`.
+This repository holds the record of the tUSDM pool from 2026-10-07, pool ID `60279ebfb8db22bbe0cb2a1b7a61702ab36ade074a3866ac836df3ed`. To use that pool you need its proving keys, which are not in the repository. To deploy your own pool, move the record away first.
+The ADA pool from 2026-10-06 and the first tUSDM pool from 2026-10-07, deployed before the protocol strings took the name zx402, are retired; their records moved to `deployments/retired/`.
 Archive a retired pool's record before deploying its replacement. Section 10 explains how the record selects the reference outputs for a sweep.
 
 ## 4. Run the node
