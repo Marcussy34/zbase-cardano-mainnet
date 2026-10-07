@@ -25,6 +25,8 @@ jobs:
       - run: npm test
       - run: npm run check:contracts
       - run: npm run check:budgets
+      # The documentation site must build from the current docs/ files.
+      - run: npm run docs:build
       # The generated proof fixtures must match their scenarios. Cached proofs need no proving key.
       - run: npm run check:fixtures
       # The blueprint in git must match the sources.

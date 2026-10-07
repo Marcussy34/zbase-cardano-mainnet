@@ -12,7 +12,8 @@
     "circuits",
     "ops",
     "examples/*",
-    "apps/web"
+    "apps/web",
+    "apps/docs"
   ],
   "scripts": {
     "test": "npm test --workspaces --if-present",
@@ -29,7 +30,9 @@
     "test:smoke": "node --import tsx --test scripts/smoke.test.ts",
     "dev": "npm run dev --workspace @zbase/web",
     "build": "npm run build --workspace @zbase/web",
-    "preview": "npm run preview --workspace @zbase/web"
+    "preview": "npm run preview --workspace @zbase/web",
+    "docs:dev": "npm run dev --workspace @zbase/docs",
+    "docs:build": "npm run build --workspace @zbase/docs"
   },
   "devDependencies": {
     "@aiken-lang/aiken": "1.1.24",
@@ -51,5 +54,13 @@
     "snarkjs": "0.7.6",
     "tsx": "4.23.15",
     "typescript": "5.9.3"
+  },
+  "overrides": {
+    "nextra": {
+      "zod": "4.3.6"
+    },
+    "nextra-theme-docs": {
+      "zod": "4.3.6"
+    }
   }
 }

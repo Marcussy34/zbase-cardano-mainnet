@@ -1,0 +1,79 @@
+---
+title: The three proofs
+description: The spend, insert and ragequit circuits, what each proves, and how the chain checks them.
+---
+
+# The three proofs
+
+Three zero-knowledge circuits carry the pool. Each one is a Groth16 circuit over the BLS12-381 scalar field, written in Circom, with Poseidon as its only hash. The chain verifies a proof with the Plutus V3 pairing builtins, so a verification costs about 3 billion CPU steps and fits in one transaction.
+
+| Circuit | Who proves | What it proves | Constraints | Setup size | Proving time |
+|---|---|---|---|---|---|
+| `spend` | The agent | It owns an approved, unspent note and withdraws at most its value | 16,828 | 2^15 | 1.5 to 1.9 s |
+| `insert` | The crank | Up to 4 new leaves were appended to the tree correctly | 62,950 | 2^16 | 4.3 to 4.8 s |
+| `ragequit` | The depositor | A note with a public value and label is in the tree | 8,423 | 2^14 | 1.0 s |
+
+The constraint counts are measured after compiling with `--O2`. The proving times are from an Apple M2 Max with snarkjs.
+
+## spend
+
+This is the proof behind every private payment. Its public inputs, in the order the validator reads them:
+
+```text
+[newCommitment, nullifierHash, withdrawnValue, stateRoot, aspRoot, context]
+```
+
+The private inputs are the note itself (`label`, `existingValue`, `existingNullifier`, `existingSecret`), the secrets of the change note (`newNullifier`, `newSecret`), and two Merkle paths of depth 32: one in the state tree, one in the ASP tree.
+
+The circuit enforces ten rules.
+
+1. The commitment is `H3(existingValue, label, H2(existingNullifier, existingSecret))`.
+2. That commitment is a leaf of the state tree under `stateRoot`.
+3. The label is a leaf of the ASP tree under `aspRoot`. This is the approval check.
+4. The label is not zero.
+5. `nullifierHash = H1(existingNullifier)`.
+6. `remaining = existingValue - withdrawnValue`.
+7. `existingValue`, `withdrawnValue` and `remaining` each fit in 64 bits. Without this a negative remainder would wrap around the field and print money.
+8. `newCommitment = H3(remaining, label, H2(newNullifier, newSecret))`. The change keeps the label.
+9. The new nullifier differs from the old one.
+10. `context` is multiplied into the proof, so the proof is tied to one payment.
+
+A full spend still makes a change note of value zero, so a watcher cannot tell a full spend from a partial one.
+
+### The context
+
+The context is what stops a relayer from redirecting a payment. It is a hash of the pool ID, every payout in order, the relayer key and an expiry time. The transaction must expire on or before that time. The agent computes it when it proves. The validator computes it again from the actual outputs of the transaction and feeds it to the verifier. If anyone changes a payout address, an amount, the relayer or the expiry, the proof no longer verifies.
+
+## insert
+
+The insert proof lets the chain accept a new tree root without computing a single Poseidon hash on chain. Anyone can make it. It needs no secret.
+
+Public inputs: `oldRoot`, `newRoot`, `startIndex`, then four slots of `(v, l, x)`. A slot is a deposit when `l` is not zero, a change note when only `x` is set, and empty when all three are zero. Used slots come first.
+
+The circuit walks the four slots. For each used slot it checks that the path at the next free index holds the empty leaf under the running root, computes the leaf (`H3(v, l, x)` for a deposit, `x` for a note), and derives the next running root with the same path. The last running root must equal `newRoot`.
+
+What makes this safe is where the inputs come from. The validator does not take the slots from the redeemer. It derives all 15 public inputs itself: `oldRoot` from the pool datum, `startIndex` from the tree size, the note slots from the pool queue, and the deposit slots from the deposit outputs that the transaction spends, with the label computed on chain from the deposit output and its refund key, and `v` equal to the ADA really paid minus the fees. So a crank cannot invent a deposit, inflate a value or skip a queued change note.
+
+## ragequit
+
+The exit proof is the smallest. Public inputs: `[nullifierHash, stateRoot, value, label]`. It proves that `H3(value, label, H2(nullifier, secret))` is in the tree and that `nullifierHash = H1(nullifier)`.
+
+The value and the label are public, which is the point of ragequit: it is a public exit. The validator then checks that the refund key inside the label signs the transaction, and pays the value to that key. No ASP membership is needed, so an approval service can never trap money.
+
+## The verifier on chain
+
+The verifier lives in `contracts/lib/zbase/groth16.ak`. It uncompresses the three proof points, recompresses them and compares, so a malformed point is refused. It then folds the public inputs into the verification key with scalar multiplications and checks the pairing equation with `bls12_381_miller_loop` and `bls12_381_final_verify`.
+
+Before any curve operation it range-checks every public input: `0 <= x < r`, where `r` is the scalar field modulus. This check is the first hard rule of the repository. Without it a nullifier hash could be presented as `x` and as `x + r`, two different integers that the circuit treats as one, and a note could be spent twice.
+
+Each circuit has its own verification key, baked into the pool script as a parameter. The pool is tied to one set of keys for its whole life. A new circuit means a new setup and a new pool.
+
+## The setup
+
+Groth16 needs a trusted setup per circuit. The keys were made in two phases: a community powers of tau file for phase one, and a phase two contribution made by this project with `snarkjs`. One party made that contribution. If that party kept the toxic waste, it could forge proofs for this pool. The [trust page](/guide/trust-and-limits) explains what that means before mainnet. The ceremony document in the reference section records the exact commands and hashes.
+
+Development keys for the local chain come from `npm run setup:dev`. Network keys for a deployed pool come from `npm run ops:setup` and live in `circuits/build/keys-<network>`. Never delete that folder: no setup can make the same keys twice, and without them the notes in that pool stay locked.
+
+## Why Poseidon over BLS12-381
+
+Most Circom code uses the BN254 curve and `circomlibjs`. Cardano's Plutus builtins only pair over BLS12-381, so this project uses Poseidon constants for the BLS12-381 scalar field from `poseidon-bls12381-circom` and the matching TypeScript library. The two implementations are checked against each other with shared test vectors. The repository rule is simple: never use `circomlibjs` here, because it hashes over another field and every hash would be wrong.

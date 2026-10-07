@@ -11,6 +11,8 @@ Mainnet is not deployed yet. Nobody outside this project has reviewed the design
 
 **New here? Read [docs/HANDOFF.md](docs/HANDOFF.md) first.**
 
+The documentation site at [marcussy34.github.io/zbase-cardano-mainnet](https://marcussy34.github.io/zbase-cardano-mainnet/) explains how it works in plain words and carries every document from `docs/`. Run it locally with `npm run docs:dev`.
+
 ## Try it
 
 1. Install the tools: `npm ci`
@@ -45,6 +47,7 @@ The page has no wallet connection or transaction functions. M0 runs on Preprod; 
 | Folder | What it holds |
 |---|---|
 | `apps/web` | The public landing page and documentation reader |
+| `apps/docs` | The documentation site, built with Nextra and published to GitHub Pages |
 | `circuits/` | The three circom circuits: spend, insert and ragequit |
 | `contracts/` | The Aiken validators: pool, deposit, config, association set, and the token policy |
 | `packages/crypto` | Hashes, notes, trees, encodings and key derivation |

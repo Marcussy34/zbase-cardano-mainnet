@@ -1,0 +1,5 @@
+.next/
+out/
+_pagefind/
+next-env.d.ts
+content/reference/

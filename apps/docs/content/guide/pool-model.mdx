@@ -1,0 +1,78 @@
+---
+title: The pool model
+description: One pool, many deposits, and proofs that spend from it without naming the deposit.
+---
+
+# The pool model
+
+zBase Cardano keeps every deposit in one place: a single pool output on chain, guarded by one validator. Money enters by deposit and leaves by proof. This page explains the parts.
+
+## One UTXO holds the pool
+
+Cardano has no accounts. Every coin sits in an unspent output, a UTXO. The pool is one UTXO at the pool script address. It carries all the deposited ADA, a token that marks it as the real pool, and a datum with the state of the pool.
+
+Every pool action spends this UTXO and creates it again with a new datum. So the pool changes about once per block, and actions queue behind each other. Deposits are different. They sit in their own small UTXOs until the pool absorbs them, so many agents can deposit in the same block.
+
+The pool datum holds five fields.
+
+| Field | What it is |
+|---|---|
+| `roots` | The last 16 roots of the state tree. A proof may use any of them, so a payment is not stale when the tree grows while the agent proves |
+| `size` | How many leaves the state tree holds |
+| `queue` | Up to 8 commitments waiting for the next Insert. Change notes from payments land here |
+| `nullifier_root` | The root of a trie that holds every spent nullifier hash |
+| `fees_accrued` | Protocol fees that an admin can collect |
+
+## Notes
+
+A deposit becomes a note. A note is four numbers: `value`, `label`, `nullifier` and `secret`. The owner keeps the nullifier and the secret. The chain sees only hashes.
+
+```text
+precommitment = H2(nullifier, secret)
+commitment    = H3(value, label, precommitment)
+nullifierHash = H1(nullifier)
+```
+
+`H1`, `H2` and `H3` are Poseidon hashes over the BLS12-381 scalar field. The commitment is the leaf in the state tree. The nullifier hash is published when the note is spent, so a note can be spent once. The label names the deposit the note came from. A change note keeps the label of its parent, so one deposit can pay many times and still has one label.
+
+The chain derives the label itself when it absorbs a deposit. The label is a hash of the pool ID, the deposit transaction, the output index and the depositor's refund key. That last part matters: the depositor can always prove ownership of a label by signing with the refund key, which gives the public exit.
+
+## The state tree
+
+The commitments live in a Merkle tree of depth 32, hashed with Poseidon. The chain never computes Poseidon. It is too expensive in Plutus. Instead a service called the crank computes the new tree off chain and proves the update with the insert circuit. The validator checks the proof, which is cheap, and accepts the new root.
+
+The tree only grows. A spent note stays in the tree. What stops a second spend is the nullifier hash.
+
+## The nullifier trie
+
+Spent nullifier hashes live in a Merkle Patricia trie. The pool datum holds only its root. Every Settle and every Ragequit comes with a proof that the nullifier hash is absent from the trie, and the validator inserts it and computes the new root. The same proof of absence serves as the proof of insertion, which keeps the on-chain work small.
+
+## Approval
+
+A deposit is not spendable in private until an approval service has added it to the approved set. That service, called the ASP, keeps its own Merkle tree of approved labels and publishes its root in a separate output. A private payment proves membership in that tree too, so only approved deposits pay in private. This is the Privacy Pools idea: a pool whose members all passed the same check, so honest money is not mixed with money nobody wants.
+
+The approved set never blocks an exit. Ragequit proves membership in the state tree only, and the refund key signs. A depositor whom the ASP refuses can always take the money back in public.
+
+## Four actions
+
+| Action | Who sends it | What it does |
+|---|---|---|
+| Insert | The crank | Absorbs waiting deposits and queued change notes into the state tree, with an insert proof |
+| Settle | The relayer, for an agent | Spends one note in private. Pays the payouts, keeps the change as a new note, with a spend proof |
+| Ragequit | The depositor | Spends one note in public to the refund key, with a ragequit proof and a signature |
+| CollectFees | An admin | Moves accrued protocol fees to the treasury |
+
+The [contracts page](/guide/contracts) explains the checks of each action.
+
+## Other outputs around the pool
+
+| Output | Purpose |
+|---|---|
+| Deposit outputs | One per deposit, at the deposit script address, with the precommitment and the refund key in the datum. Insert absorbs them. The depositor can refund one that was never absorbed |
+| Config output | Admin keys, limits and fee rates. Read by every action as a reference input |
+| ASP output | The root of the approved set and the operators who may update it |
+| Pool NFT | One token on each of the three state outputs, so a validator can tell the real one from a copy |
+
+## What makes this private
+
+The spend proof reveals the nullifier hash, the new commitment of the change, the withdrawn amount and the roots. It does not reveal which leaf was spent or which label it carried. Everyone who deposited into the pool and was approved is a possible payer. The more deposits the pool holds, the less a payment says. The [privacy page](/guide/privacy) lists what every party can still learn.

@@ -1,0 +1,71 @@
+---
+title: Glossary
+description: One name for each thing, in the order you meet them.
+---
+
+# Glossary
+
+Each thing has one name in this site, in the code and in the documents. This list gives the name and one plain sentence.
+
+| Name | Meaning |
+|---|---|
+| Agent | A program that pays for web requests. It holds a seed and runs the SDK |
+| Seller | An HTTP server that charges per request with x402. It knows nothing about the pool |
+| x402 | A payment protocol over HTTP status 402. The server names a price, the client answers with a signed payment, the server's facilitator submits it |
+| Facilitator | The service that checks and submits x402 payments for a seller |
+| Pool | One UTXO at the pool script address that holds all deposited ADA and the state of the pool |
+| Pool ID | The policy ID of the pool NFT, 28 bytes. It names the pool in every label and context |
+| Pool NFT | Three tokens, `pool`, `config` and `asp`, minted once. Each marks the real state output |
+| Note | Four numbers: value, label, nullifier and secret. The owner keeps the last two |
+| Precommitment | `H2(nullifier, secret)`. The hidden part of a note, published in the deposit datum |
+| Commitment | `H3(value, label, precommitment)`. The leaf of a note in the state tree |
+| Nullifier hash | `H1(nullifier)`. Published when a note is spent, so it can be spent once |
+| Label | A hash of the pool ID, the deposit transaction, the output index and the refund key. It names the deposit a note came from |
+| Refund key | The depositor's key, bound into the label. It signs a refund or a ragequit |
+| State tree | A Poseidon Merkle tree of depth 32 that holds every commitment. It only grows |
+| Root history | The last 16 roots of the state tree. A proof may use any of them |
+| Queue | Up to 8 change commitments waiting in the pool datum for the next Insert |
+| Nullifier trie | A Merkle Patricia trie of spent nullifier hashes. The pool holds only its root |
+| ASP | The association set provider. The service that approves deposits and publishes the root of the approved set |
+| Approved set | A Poseidon Merkle tree of approved labels. A private payment proves membership in it |
+| Deposit | A transaction that sends ADA to the deposit script with a precommitment and a refund key |
+| Insert | The pool action that absorbs deposits and queued notes into the state tree, with an insert proof |
+| Settle | The pool action that spends one note in private and pays the payouts, with a spend proof |
+| Ragequit | The pool action that spends one note in public to the refund key, with a ragequit proof |
+| Refund | Taking a deposit back before the pool absorbed it. Needs only the refund key |
+| CollectFees | The pool action that moves accrued protocol fees to the treasury |
+| Change note | The new note that a Settle makes from what is left of the spent note. It keeps the label |
+| Context | A hash of the pool ID, the payouts, the relayer key and the expiry. It ties a spend proof to one payment |
+| Intent | The payouts, the relayer key and the expiry that a Settle carries in the clear |
+| Payout | One address and one amount that a Settle pays. At most 4 per Settle |
+| One-time address | A fresh address derived from the agent's seed and a counter. The pool pays it, and it pays the seller |
+| Second leg | The plain payment from the one-time address to the seller. A stock x402 payment |
+| Withdrawn amount | The value a Settle takes out of a note: the payouts, the protocol fee and the relayer's share |
+| Crank | The service that makes Insert transactions. It takes 0.3 ADA from each deposit |
+| Crank fee | The part of a deposit that pays the crank. 0.3 ADA on Preprod |
+| Relayer | The service that submits Settle transactions for agents and earns a fee fixed inside the proof |
+| Relayer fee | What is left of the withdrawn amount after the payouts and the protocol fee. 1 ADA in the demo |
+| Protocol fee | A share in basis points of each deposit or settle, kept in the pool for the treasury. 0 on Preprod |
+| Indexer | The service that rebuilds the tree, the labels and the nullifiers from the chain and serves them |
+| Node | One process that runs the indexer, the crank, the ASP service and the relayer |
+| Config | The output that holds the admin keys, the limits, the fee rates and the pause flag |
+| Admin | A key that may change the config, within hard bounds, with a threshold of signatures |
+| Treasury | The address that receives collected protocol fees |
+| Pool cap | The most ADA the pool may hold. 500 ADA on Preprod |
+| Reserve | 6 ADA that stays in the pool UTXO so it always meets the minimum output |
+| Spend circuit | The proof behind a Settle. 16,828 constraints |
+| Insert circuit | The proof behind an Insert. 62,950 constraints |
+| Ragequit circuit | The proof behind a Ragequit. 8,423 constraints |
+| Groth16 | The proof system. One proof is three curve points, and the chain checks a pairing equation |
+| BLS12-381 | The curve. Cardano's Plutus builtins pair over it, so every hash and proof lives in its scalar field |
+| Poseidon | The hash inside the circuits and the trees, with constants for the BLS12-381 scalar field |
+| Verification key | The public part of a circuit's setup. Each pool script holds three as parameters |
+| Proving key | The private part. The agent needs the spend and ragequit keys. The crank needs the insert key |
+| Setup | The ceremony that makes the keys of a circuit. One party made the Preprod keys |
+| Powers of tau | The shared first phase of the setup, one file for all three circuits |
+| Store | The SDK's record of notes, their status, and the counters for secrets and one-time keys |
+| Sync | The SDK step that downloads the leaves, labels, nullifiers and deposits and checks the roots against the chain |
+| Chain provider | The service the SDK and the node read the chain through. Blockfrost on Preprod |
+| Preprod | The Cardano test network where the pool runs today |
+| Mainnet canary | A small pool on mainnet with the team's own funds, capped by the config. Not deployed yet |
+| Anonymity set | The deposits that could have made a given payment: every approved deposit in the pool |

@@ -1,0 +1,95 @@
+---
+title: Trust and limits
+description: What you must trust, how the port compares with zBase on Base, what was fixed, and what is still open.
+---
+
+# Trust and limits
+
+This page is the honest part. Read it before you deposit money you care about.
+
+## Is the port faithful
+
+Yes in design and in code, with four gaps in trust. The pool on Cardano keeps every safety rule of the pool on Base. Where Cardano forced a new mechanism, the new mechanism enforces the same rule. Three readers, the lead of the build and two independent reviewers, compared the code rule by rule against the vendored 0xbow contracts of zBase on Base and found no way to move value without a valid proof.
+
+It is not as trustworthy as Base. Base runs audited 0xbow code with keys from a public ceremony. The Cardano circuits and validators are new code, checked by tests, live runs and three reads, with keys that one party made.
+
+| Rule | Base | Cardano | Result |
+|---|---|---|---|
+| A note is a hash of value, label and a secret part | Hashed by the contract at deposit | Hashed inside the insert proof. The chain checks the value against the real deposit | Same rule |
+| A note is spent once | A list of spent tags in storage | One trie root. Each spend proves that its tag is new | Same rule |
+| Only real deposits enter the tree | The contract updates the tree itself | A proof updates the tree. The chain derives every input of that proof from the deposits and the queue | Same rule |
+| A spend proves ownership, approval and the amount | The 0xbow withdraw circuit | The same checks, with a fixed depth of 32 and 64-bit amounts | Same rule |
+| Nobody can redirect a payment | The proof is tied to the recipient and the fee | The proof is tied to every payout, the relayer and an expiry. The chain checks the outputs | Same, plus expiry |
+| Only approved deposits pay in private | The latest approved set only | The latest approved set only | Same rule |
+| The depositor can always exit in public | A map from label to depositor | The depositor's key is part of the label, and that key must sign | Same rule |
+| Who sees the note secrets | The zBase server makes the proof | The agent makes the proof. The relayer sees the proof and the payouts only | Stronger |
+| What the admin can do | The owner can upgrade the entry contract | No upgrade. The admin can pause deposits and tune bounded settings | Stronger |
+| A second deposit with the same secret | Refused by the contract | Not refused on chain. The SDK prevents it | Weaker |
+| The start state of the pool | Fixed by the constructor | Written by the deployer, checked off chain in part | Weaker |
+| The proving keys | From the 0xbow ceremony with many parties | Made by one party | Weaker |
+| Outside review | Audited by ChainSecurity and Trail of Bits | None | Missing |
+
+## What you trust today
+
+| You trust | For what | If it is dishonest |
+|---|---|---|
+| The party that ran the key setup | Not keeping the randomness of the phase two contribution | It can forge proofs and drain the pool |
+| The deployer | An honest first pool datum, config and ASP datum | It could have planted a second root, a fee balance or a negative fee rate and take deposits later. The validators of this pool check the first state only in part |
+| The ASP operators | Approving your deposit | They can keep you out of private payments. They cannot touch your money, because ragequit needs no approval |
+| The admins | Not pausing deposits forever | They can pause deposits. They cannot stop payments or exits, change a key or move funds except accrued fees to the treasury |
+| Your chain provider | Not watching you | It sees your deposit wallet, your one-time addresses and your seller payments |
+| The relayer and the indexer | Nothing | Every answer is checked against the chain. The worst case is a delay |
+
+The first two rows are the reason this pool must hold only the team's own funds until a public ceremony and an on-chain start state check exist.
+
+## What the comparison found and fixed
+
+The comparison on 2026-10-07 found five weaknesses outside the validators that could cost money. All five are fixed and were proven on Preprod in runs 5 and 6.
+
+| Finding | Needs a dishonest party | Fix |
+|---|---|---|
+| With a lost store and the same seed, the SDK used a note secret again, and the new note was locked for good | No | The SDK syncs before a deposit and skips every secret the pool has seen |
+| A copy of a deposit's precommitment and refund key, absorbed first, took over the SDK's record, and the real note was locked | A third party, at its own cost | The SDK follows the exact output of a deposit it sent itself |
+| After a lost reply the relayer called a settlement failed although it could still land, and the SDK dropped the change note | No | The relayer answers `uncertain`, and the SDK releases a note only on a known refusal |
+| The SDK checked the protocol fee against a rate that the indexer reported, so an operator could take most of a note | Operator | The SDK reads the rate from the config output with its own provider |
+| The SDK accepted any deadline in a quote, so a relayer could keep a note reserved for hours | Operator | A quote must expire within 15 minutes of the chain tip |
+
+## What is still open
+
+| Gap | Who it can hurt | Status |
+|---|---|---|
+| The proving keys come from one party | Every depositor | Open. A ceremony with outside contributors before outside deposits |
+| The start state of the pool is not enforced on chain | Depositors who do not know the deployer | Open. Bind it on chain before outside deposits, which means a new pool |
+| No outside audit of the circuits and validators | Every depositor | Open |
+| A second deposit with the same precommitment is not refused on chain | A depositor whose SDK is bypassed | The SDK prevents it |
+| The agent's chain provider sees the whole path | Your privacy | Open. Run your own node |
+| A public exit reveals the payments of its deposit by subtraction | Your privacy | By design, as on Base. Keep change in the pool |
+| The privacy defaults of the specification are not built: no warning on matching amounts, no waiting rule, no lower limit on the approved set | Your privacy | Open |
+| After a lost store the one-time addresses repeat | Your privacy | Open. It loses nothing |
+| A repeated x402 request after an unclear answer pays twice | Your wallet | Open |
+| Funds left at a one-time address after a failed second leg are not tracked | Your wallet | `recoverOneTimeFunds` moves them by hand |
+| The default note store is in memory | Your change notes | Pass a file store |
+| An admin who updates the config every block, or a flood of Inserts, can delay an exit or a payment | Your time | Open. It can delay, not take |
+
+## What a user feels
+
+| | Base | Cardano today |
+|---|---|---|
+| Time for one payment | 7 to 15 seconds | About 80 seconds on Preprod |
+| Cost on top of the price | About a cent of gas, paid by zBase | About 1.2 ADA |
+| Smallest payment | 0.001 USDC | About 1 ADA, the minimum output of the ledger |
+| Asset | USDC | ADA |
+| Pool actions | Many per block | About one per block |
+| Extras | MCP server, agent spend limits, sanctions screening, note recovery from the seed, gasless deposit | Not built |
+
+The Base numbers come from the documents of zBase on Base. The Cardano numbers are measured on Preprod.
+
+## Before mainnet
+
+The [mainnet canary runbook](/reference/runbook-m0) describes a small pool with the team's own funds, capped by the config. That is the only safe step today. Before anyone outside the team deposits, three things must happen, in this order.
+
+1. A key ceremony with outside contributors, so no single party can forge proofs.
+2. A new pool whose start state is bound on chain, for example with token names that carry the script hashes and a minting policy that checks the first datums.
+3. An outside audit of the circuits, the validators and the SDK.
+
+The [comparison with Base](/reference/comparison-with-base) and the [handoff document](/reference/handoff) carry the full lists with file references.

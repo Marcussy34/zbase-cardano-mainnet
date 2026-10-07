@@ -1,0 +1,55 @@
+name: Docs
+
+# Builds the documentation site and publishes it to GitHub Pages on every push to main.
+on:
+  push:
+    branches: [main]
+    paths:
+      - apps/docs/**
+      - docs/**
+      - .github/workflows/docs.yml
+      - package.json
+      - package-lock.json
+  workflow_dispatch:
+
+# The build only reads the repository. The deploy job holds the Pages permissions.
+permissions:
+  contents: read
+
+# One deploy at a time. A newer push waits for the running one instead of cancelling it.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      # The site lives under the repository name on GitHub Pages.
+      - run: npm run docs:build
+        env:
+          NEXT_PUBLIC_BASE_PATH: /zbase-cardano-mainnet
+      # Pages must serve the _next folder as is. Jekyll would skip it.
+      - run: touch apps/docs/out/.nojekyll
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: apps/docs/out
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

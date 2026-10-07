@@ -1,0 +1,68 @@
+---
+title: Privacy
+description: What the pool hides, what it does not, and what each party can still learn.
+---
+
+# Privacy
+
+The pool hides one thing: which deposit paid. Everything else is visible or can be guessed. This page is blunt about it, because a privacy tool that overstates itself is worse than none.
+
+## What is hidden
+
+A Settle transaction publishes a nullifier hash, a new commitment, the withdrawn amount, the payouts and the roots. None of these points back to a deposit.
+
+- **The nullifier hash** is the hash of a random number that only the owner knows. It is not linked to the commitment in any public data.
+- **The new commitment** hides the change value and keeps the label inside the hash.
+- **The roots** cover every leaf, so a proof against them says only "one of these".
+
+So the set of possible payers is the set of approved deposits. That set is the anonymity set. On a pool with one deposit there is no privacy. On a pool with a thousand active deposits there is a lot.
+
+## What is not hidden
+
+| Visible fact | Why |
+|---|---|
+| That the pool paid | The Settle transaction spends the pool UTXO and pays an address |
+| The amount withdrawn | The validator must check that the pool balance drops by exactly that amount |
+| The one-time address and the seller | The second leg is a plain payment on chain |
+| The time | Every transaction has a slot |
+| The deposit itself | A deposit is a normal transaction from the agent's wallet. The wallet is public |
+
+## The one-time address does not add privacy
+
+A common question: if the pool pays a fresh address and that address pays the seller, why not pay the seller from the pool? The fresh address exists for two other reasons.
+
+1. A stock x402 seller and its facilitator check and submit a plain Cardano payment. They cannot check a pool transaction with a proof in it.
+2. A new address per payment keeps one agent's payments apart from each other on the seller's side.
+
+The chain shows that the pool funded the address. The privacy comes from the pool, not from the address. We call it a one-time address and not a stealth address on purpose.
+
+## What each party learns
+
+| Party | Learns | Does not learn |
+|---|---|---|
+| The seller | A new payer address, the amount, the request, the buyer's IP address, and that the pool funded the address | Which deposit, which agent, any other payment of the agent |
+| The relayer operator | The IP address and the time of each settle request, the proof, the payouts and the amount | The note, the label, the deposit, the change value |
+| The indexer operator | The IP address and the time of each sync | What the agent plans. The SDK always downloads full lists, never a single leaf |
+| Anyone who reads the chain | Deposits, pool payments, seller payments | The link between a deposit and a payment, as long as the pool has many members |
+| The agent's own chain provider | The deposit wallet, every one-time address and every seller payment of the agent | Nothing. It sees the whole path. This is the weakest point |
+| The ASP operator | Every label and the deposit it belongs to | Which payments a label made |
+
+The provider line deserves attention. The SDK reads the chain through a provider such as Blockfrost, with the agent's own project ID. That provider sees every address the SDK asks about. An agent that wants privacy from its provider must run its own node or use a provider it trusts. The demo shares one Blockfrost project between the agent and the node, which is fine for a demo and wrong for real use.
+
+## Known leaks
+
+These are properties of the design, the same as on Base. The SDK does not warn about them yet.
+
+- **A public exit reveals the payments of its deposit.** If a deposit of 9.7 ADA exits with 6.53 ADA, the difference of 3.17 ADA is the sum of its payments, and payments are public. The demo ends with an exit, so the demo has no privacy. A real agent keeps its change in the pool.
+- **Matching amounts link.** A deposit of 10 ADA and a withdrawal of 10 ADA in the same hour stand out. Round amounts and common amounts are safer.
+- **Timing links.** A deposit at 12:00 and a payment at 12:03 look related. Waiting helps. The SDK does not enforce a wait.
+- **Lost store, repeated addresses.** The SDK derives one-time addresses from the seed and a counter. After a lost store file the counter restarts and old addresses come back. That links payments. It loses no money.
+- **A small approved set.** If the ASP approves few deposits, the anonymity set is small. The SDK does not refuse to pay from a small set.
+
+The specification lists these as privacy defaults that a later version should build. The [trust page](/guide/trust-and-limits) lists what else is open.
+
+## Who holds the secrets
+
+The note secrets never leave the agent's machine. The agent makes the proof itself, with the spend circuit and the proving key on its own disk. The relayer gets a proof and an intent. This is stronger than zBase on Base, where a server makes the proof and sees the secrets.
+
+The seed is the root of everything: the note secrets, the refund key and the one-time keys all derive from it. Back it up. With the seed and a sync, the SDK can find every deposit it ever made and exit it in public. It cannot yet recover a change note from the seed alone, because the value and the label of a change note live only in the store file.
