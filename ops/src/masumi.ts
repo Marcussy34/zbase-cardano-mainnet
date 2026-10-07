@@ -176,7 +176,8 @@ export async function runMasumi(o: MasumiOptions): Promise<MasumiResult> {
   if (jobAmount.unit !== poolUnit || BigInt(decimal(jobAmount.amount, 'job amount')) !== amount) {
     throw new Error('Job amounts do not match the advertised price');
   }
-  const purchase = { blockchainIdentifier, network: 'Preprod', paymentSourceType: 'Web3CardanoV2',
+  // The node infers the contract version (V1 or V2) from the blockchainIdentifier the agent signed.
+  const purchase = { blockchainIdentifier, network: 'Preprod',
     inputHash: string(job.input_hash, 'input_hash'), sellerVkey: string(job.sellerVKey ?? job.sellerVkey, 'sellerVkey'),
     agentIdentifier: string(job.agentIdentifier, 'agentIdentifier'),
     Amounts: [{ amount: decimal(jobAmount.amount, 'job amount'), unit: poolUnit }],
@@ -187,9 +188,11 @@ export async function runMasumi(o: MasumiOptions): Promise<MasumiResult> {
   const created = await request(`${nodeUrl}/api/v1/purchase/`, 'Create purchase', {
     method: 'POST', headers: nodeHeaders, body: JSON.stringify(purchase) });
   if (created.status === 'error') throw new Error('Masumi node refused the purchase');
-  step(`Masumi purchase ${printable(blockchainIdentifier)} created`);
-  // Without this filter the node lists V1 purchases, but this command creates V2 purchases.
-  const query = new URLSearchParams({ network: 'Preprod', limit: '50', filterPaymentSourceType: 'Web3CardanoV2' });
+  const source = object(object(created.data, 'Create purchase data').PaymentSource, 'PaymentSource');
+  const sourceType = string(source.paymentSourceType, 'paymentSourceType');
+  step(`Masumi purchase ${printable(blockchainIdentifier)} created on a ${printable(sourceType)} source`);
+  // The list defaults to V1 purchases, so it is filtered by the source type of this purchase.
+  const query = new URLSearchParams({ network: 'Preprod', limit: '50', filterPaymentSourceType: sourceType });
   const lockTx = await poll(async deadline => {
     const response = await request(`${nodeUrl}/api/v1/purchase/?${query}`, 'Purchase list', { headers: nodeHeaders }, deadline);
     const data = response.status === 'success' ? object(response.data, 'Purchase list data') : response;

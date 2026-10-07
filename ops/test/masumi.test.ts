@@ -124,11 +124,12 @@ test('MASUMI-01 the pool funds the purchasing wallet and the job completes', {
     assert.equal(url.pathname, '/api/v1/purchase/');
     if (request.method === 'POST') {
       purchases.push(body);
-      return { status: 'success', data: { id: 'purchase-1', blockchainIdentifier: job.blockchainIdentifier } };
+      return { status: 'success', data: { id: 'purchase-1', blockchainIdentifier: job.blockchainIdentifier,
+        PaymentSource: { paymentSourceType: 'Web3CardanoV1' } } };
     }
     assert.equal(url.searchParams.get('network'), 'Preprod');
     assert.equal(url.searchParams.get('limit'), '50');
-    assert.equal(url.searchParams.get('filterPaymentSourceType'), 'Web3CardanoV2');
+    assert.equal(url.searchParams.get('filterPaymentSourceType'), 'Web3CardanoV1');
     purchasePolls += 1;
     return { status: 'success', data: { Purchases: [
       { blockchainIdentifier: 'another-purchase', onChainState: 'FundsLocked', CurrentTransaction: { txHash: 'wrong' } },
@@ -173,7 +174,7 @@ test('MASUMI-01 the pool funds the purchasing wallet and the job completes', {
   assert.deepEqual(starts[0]!.input_data, input);
   assert.match(String(starts[0]!.identifier_from_purchaser), /^[0-9a-f]{14,26}$/);
   assert.deepEqual(purchases, [{ blockchainIdentifier: job.blockchainIdentifier, network: 'Preprod',
-    paymentSourceType: 'Web3CardanoV2', inputHash: job.input_hash, sellerVkey: job.sellerVKey,
+    inputHash: job.input_hash, sellerVkey: job.sellerVKey,
     agentIdentifier: registryAsset, Amounts: [{ amount: '10000', unit }], payByTime: job.payByTime,
     submitResultTime: job.submitResultTime, unlockTime: job.unlockTime, externalDisputeUnlockTime: job.externalDisputeUnlockTime,
     identifierFromPurchaser: starts[0]!.identifier_from_purchaser }]);
