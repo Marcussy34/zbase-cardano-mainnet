@@ -19,7 +19,8 @@ const footer = <Footer>MIT 2026 Marcus Tan. Built on Preprod. Not audited.</Foot
 export default async function RootLayout({ children }) {
   return (
     <html lang="en" dir="ltr" suppressHydrationWarning>
-      <Head />
+      {/* A neutral primary color: the site is black and white, with gray for links and the active items. */}
+      <Head color={{ hue: 0, saturation: 0, lightness: { light: 35, dark: 80 } }} />
       <body>
         <Layout
           navbar={navbar}
