@@ -28,98 +28,108 @@
   letter-spacing: -0.045em;
 }
 
+/* Flat lettering sits behind a separate veil of smoke. */
 .hero-word-fill {
   display: inline-block;
   position: relative;
-  z-index: 1;
-  text-shadow: 0 0.025em 0.015em #0005;
+  color: #c9b9db;
 }
 
-@supports (background-clip: text) {
-  .hero-word-fill {
-    color: transparent;
-    background: linear-gradient(
-      168deg,
-      #e4dfe8 4%,
-      #c3b8cb 34%,
-      #9989a5 54%,
-      #b3a4c1 68%,
-      #ded5e7 96%
-    );
-    background-clip: text;
-  }
-}
-
-.hero-word-finish {
+.hero-word-smoke {
   position: absolute;
-  inset: 0;
+  z-index: 2;
+  inset: -.08em -.07em -.04em;
   pointer-events: none;
   user-select: none;
+  opacity: .72;
+  transform: translateY(0) scale(1);
+  transition: opacity 900ms ease, transform 1200ms cubic-bezier(.22, 1, .36, 1);
 }
 
-.hero-word-finish::before,
-.hero-word-finish::after {
-  content: attr(data-word);
+.hero-smoke-defs {
+  position: absolute;
+}
+
+.hero-smoke-clouds {
+  display: block;
   position: absolute;
   inset: 0;
 }
 
-.hero-word-finish::before {
-  z-index: 0;
-  color: #19151e;
-  -webkit-text-stroke: 0.006em #796785;
-  transform: translate(0.022em, 0.045em);
-  opacity: 0.65;
-}
-
-.hero-word-finish::after {
-  z-index: 2;
-  color: transparent;
-  background: linear-gradient(
-    110deg,
-    transparent 40%,
-    #f7f1ff0a 44%,
-    #f7f1ff80 49%,
-    #f7f1ff0a 54%,
-    transparent 58%
-  );
-  background-size: 300% 100%;
-  background-position: 150% 50%;
-  background-clip: text;
-  opacity: 0;
-}
-
-@supports not (background-clip: text) {
-  .hero-word-finish::after {
-    display: none;
-  }
-}
-
-:is([data-motion="active"], [data-motion="paused"]) .hero-word-finish::after {
-  animation: hero-light-sweep 9s ease-in-out infinite;
-}
-
-[data-motion="paused"] .hero-word-finish::after {
+.hero-smoke-wisp {
+  display: block;
+  position: absolute;
+  border-radius: 50%;
+  animation: hero-smoke-drift 11s ease-in-out infinite alternate;
   animation-play-state: paused;
 }
 
-@keyframes hero-light-sweep {
-  0%,
-  18% {
-    background-position: 150% 50%;
+.hero-smoke-wisp-one {
+  left: -2%;
+  top: 34%;
+  width: 73%;
+  height: 52%;
+  background:
+    radial-gradient(ellipse at 25% 58%, #111111e8 9%, transparent 58%),
+    radial-gradient(ellipse at 62% 42%, #655b71ba 5%, #29252fc9 35%, transparent 70%);
+}
+
+.hero-smoke-wisp-two {
+  right: -3%;
+  top: 17%;
+  width: 70%;
+  height: 68%;
+  background:
+    radial-gradient(ellipse at 37% 55%, #19161de6 14%, transparent 61%),
+    radial-gradient(ellipse at 67% 38%, #72667f99 3%, #27222ec9 31%, transparent 65%);
+  animation-name: hero-smoke-curl;
+  animation-duration: 13s;
+  animation-delay: -5s;
+}
+
+.hero-smoke-wisp-three {
+  left: 21%;
+  top: 54%;
+  width: 69%;
+  height: 28%;
+  background: radial-gradient(ellipse at 50% 50%, #5c526aab 6%, #17141ee6 40%, transparent 72%);
+  animation-duration: 9s;
+  animation-delay: -3s;
+}
+
+[data-motion="active"] .hero-smoke-wisp {
+  animation-play-state: running;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  [data-motion="active"] .hero-unknown-word:hover .hero-word-smoke {
     opacity: 0;
+    transform: translateY(-.2em) scale(1.16, 1.28);
   }
-  27% {
-    opacity: 1;
+}
+
+@media (hover: none) {
+  .hero-word-smoke {
+    opacity: .5;
   }
-  60% {
-    opacity: 1;
-  }
-  72%,
-  100% {
-    background-position: -50% 50%;
-    opacity: 0;
-  }
+}
+
+[data-motion="paused"] .hero-word-smoke {
+  transition: none;
+}
+
+:is([data-motion="static"], [data-motion="reduced"]) .hero-word-smoke {
+  display: none;
+}
+
+@keyframes hero-smoke-drift {
+  from { transform: translate(-2%, 5%) scale(1, .92) rotate(-3deg); }
+  to { transform: translate(5%, -9%) scale(1.04, 1.08) rotate(3deg); }
+}
+
+@keyframes hero-smoke-curl {
+  from { transform: translate(4%, 8%) scale(.94, 1.05) rotate(4deg); }
+  to { transform: translate(-4%, -7%) scale(1.05, .96) rotate(-4deg); }
 }
 
 @media (max-width: 1000px) {
@@ -152,8 +162,10 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  [data-motion] .hero-word-finish::after {
+  .hero-word-smoke {
+    display: none;
+  }
+  .hero-smoke-wisp {
     animation: none;
-    opacity: 0;
   }
 }

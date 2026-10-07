@@ -99,9 +99,9 @@ it("FE-12 pins a fitting laptop scene and finishes at the actual sticky release 
   });
   expect(scene.dataset.orbitPinned).toBe("true");
   selected("Wallet");
-  advance(600);
+  advance(540);
   selected("Relayer");
-  expect(scene.style.getPropertyValue("--path-progress")).toBe("0.5");
+  expect(scene.style.getPropertyValue("--path-progress")).toBe("0.45");
   advance(1100);
   selected("x402 seller");
   expect(Number(scene.style.getPropertyValue("--path-progress"))).toBeLessThan(
@@ -109,7 +109,7 @@ it("FE-12 pins a fitting laptop scene and finishes at the actual sticky release 
   );
   advance(1200);
   expect(scene.style.getPropertyValue("--path-progress")).toBe("1");
-  advance(400);
+  advance(408);
   selected("Local proof");
 });
 
@@ -124,8 +124,11 @@ it("FE-12 releases pinning when the full scene no longer fits the resized viewpo
   fireEvent.resize(window);
   flush();
   expect(scene.dataset.orbitPinned).toBe("false");
+  expect(scene.dataset.orbitMode).toBe("static");
+  advance(384);
+  selected("Wallet");
   names.forEach((name) =>
-    expect(screen.getByRole("button", { name })).toBeTruthy(),
+    expect(screen.getByRole("button", { name }).dataset.revealed).toBe("true"),
   );
 });
 
@@ -166,7 +169,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-it("FE-12 exposes six keyboard controls and keeps manual selection until scroll progress changes", async () => {
+it("FE-12 exposes six keyboard controls and keeps manual selection until a scroll stage changes", async () => {
   const user = userEvent.setup();
   render(<PaymentOrbit />);
   flush();
@@ -182,10 +185,10 @@ it("FE-12 exposes six keyboard controls and keeps manual selection until scroll 
   fireEvent.scroll(window);
   flush();
   selected("Local proof");
-  advance(620);
+  advance(384);
   selected("x402 seller");
   expect(screen.getByText(/standard x402 payment/)).toBeTruthy();
-  advance(250);
+  advance(204);
   selected("Local proof");
 });
 
@@ -193,15 +196,54 @@ it("FE-12 freezes automatic changes while paused and resumes at the current posi
   const user = userEvent.setup();
   const view = render(<PaymentOrbit />);
   flush();
-  advance(250);
+  advance(204);
   selected("Local proof");
   view.rerender(<PaymentOrbit paused />);
-  advance(620);
+  names.forEach((name) =>
+    expect(screen.getByRole("button", { name }).dataset.revealed).toBe("true"),
+  );
+  advance(384);
   selected("Local proof");
   await user.click(screen.getByRole("button", { name: "Relayer" }));
   selected("Relayer");
   view.rerender(<PaymentOrbit />);
   flush();
+  selected("x402 seller");
+});
+
+it("FE-12 releases a paused scene when resized too short and resumes from the current scroll position", async () => {
+  const user = userEvent.setup();
+  const view = render(<PaymentOrbit />);
+  flush();
+  const scene = screen.getByRole("region", { name: "From wallet to work." });
+  advance(204);
+  selected("Local proof");
+  expect(scene.dataset.orbitPinned).toBe("true");
+  view.rerender(<PaymentOrbit paused />);
+  vi.stubGlobal("innerHeight", 620);
+  fireEvent.resize(window);
+  flush();
+  expect(scene.dataset.orbitPinned).toBe("false");
+  expect(scene.dataset.orbitMode).toBe("paused");
+  names.forEach((name) =>
+    expect(screen.getByRole("button", { name }).dataset.revealed).toBe("true"),
+  );
+  advance(384);
+  selected("Local proof");
+  expect(scene.style.getPropertyValue("--path-progress")).toBe("0.34");
+  await user.click(screen.getByRole("button", { name: "Relayer" }));
+  selected("Relayer");
+  expect(screen.getByText(/gets proof and intent/)).toBeTruthy();
+  vi.stubGlobal("innerHeight", 900);
+  fireEvent.resize(window);
+  flush();
+  expect(scene.dataset.orbitPinned).toBe("true");
+  expect(scene.dataset.orbitMode).toBe("paused");
+  selected("Relayer");
+  view.rerender(<PaymentOrbit />);
+  flush();
+  expect(scene.dataset.orbitMode).toBe("active");
+  expect(scene.style.getPropertyValue("--path-progress")).toBe("0.64");
   selected("x402 seller");
 });
 
@@ -213,9 +255,12 @@ it("FE-12 responds to live reduced motion and keeps manual controls available", 
     reduced = true;
     listeners.forEach((fn) => fn());
   });
-  advance(620);
+  advance(384);
   selected("Wallet");
   expect(frames.size).toBe(0);
+  names.forEach((name) =>
+    expect(screen.getByRole("button", { name }).dataset.revealed).toBe("true"),
+  );
   await user.click(screen.getByRole("button", { name: "One-time key" }));
   selected("One-time key");
   act(() => {
@@ -281,7 +326,7 @@ it("FE-12 stays static without the observer API used by the shared motion contro
   screen.getByRole("button", { name: "Relayer" }).focus();
   await user.keyboard("{Enter}");
   selected("Relayer");
-  advance(620);
+  advance(384);
   selected("Relayer");
 });
 
@@ -297,6 +342,221 @@ it("FE-12 keeps keyboard selection through focus scroll drift until another stag
   selected("Local proof");
   advance(30);
   selected("Local proof");
-  advance(120);
+  advance(140);
   selected("Shared pool");
 });
+
+it("FE-12 starts with an empty ring and reveals each payment step in sequence", () => {
+  render(<PaymentOrbit />);
+  flush();
+  const scene = screen.getByRole("region", { name: "From wallet to work." });
+  expect(scene.dataset.orbitPhase).toBe("intro");
+  selected("Wallet");
+  names.forEach((name) => {
+    const button = screen.getByRole("button", { name });
+    expect(button.dataset.revealed).toBe("false");
+    expect(button.getAttribute("aria-controls")).toBe("payment-path-detail");
+    expect(button.tabIndex).toBe(0);
+  });
+  names.forEach((name, index) => {
+    advance((0.12 + index * 0.1) * 600);
+    expect(scene.dataset.orbitPhase).toBe("steps");
+    selected(name);
+    names.forEach((other, otherIndex) => {
+      const button = screen.getByRole("button", { name: other });
+      expect(button.dataset.revealed).toBe(String(otherIndex <= index));
+      expect(button.getAttribute("aria-pressed")).toBe(
+        String(otherIndex === index),
+      );
+    });
+  });
+  expect(screen.getByText(/standard x402 payment/)).toBeTruthy();
+});
+
+it("FE-12 flips the center and all six portraits together after every payment step and reverses on scroll back", () => {
+  render(<PaymentOrbit />);
+  flush();
+  const scene = screen.getByRole("region", { name: "From wallet to work." });
+  const center = scene.querySelector<HTMLElement>(".path-orbit-center")!;
+  const expectFaces = (portraits: boolean) => {
+    expect(center.dataset.face).toBe(portraits ? "logo" : "agent");
+    names.forEach((name) => {
+      const button = screen.getByRole("button", { name });
+      expect(button.dataset.revealed).toBe("true");
+      expect(button.dataset.portrait).toBe(String(portraits));
+    });
+  };
+
+  advance(0.72 * 600);
+  expect(scene.dataset.orbitPhase).toBe("steps");
+  selected("x402 seller");
+  expectFaces(false);
+  expect(scene.style.getPropertyValue("--transform-progress")).toBe("0");
+
+  advance(0.77 * 600);
+  expect(scene.dataset.orbitPhase).toBe("transform");
+  expectFaces(false);
+  expect(Number(scene.style.getPropertyValue("--transform-progress"))).toBeCloseTo(0.25);
+  advance(0.81 * 600);
+  expect(scene.dataset.orbitPhase).toBe("transform");
+  expectFaces(true);
+  expect(Number(scene.style.getPropertyValue("--transform-progress"))).toBeCloseTo(0.5);
+  advance(0.89 * 600);
+  expect(scene.dataset.orbitPhase).toBe("complete");
+  expectFaces(true);
+  expect(scene.style.getPropertyValue("--transform-progress")).toBe("1");
+  advance(600);
+  expect(scene.dataset.orbitPhase).toBe("complete");
+  expectFaces(true);
+
+  advance(0.81 * 600);
+  expect(scene.dataset.orbitPhase).toBe("transform");
+  expectFaces(true);
+  advance(0.8 * 600);
+  expectFaces(false);
+  expect(Number(scene.style.getPropertyValue("--transform-progress"))).toBeCloseTo(0.4375);
+  advance(0.65 * 600);
+  expect(scene.dataset.orbitPhase).toBe("steps");
+  expectFaces(false);
+  expect(scene.style.getPropertyValue("--transform-progress")).toBe("0");
+  advance(0.32 * 600);
+  selected("Local proof");
+  expect(screen.getByRole("button", { name: "Relayer" }).dataset.revealed).toBe(
+    "false",
+  );
+  advance(0);
+  expect(scene.dataset.orbitPhase).toBe("intro");
+  names.forEach((name) =>
+    expect(screen.getByRole("button", { name }).dataset.revealed).toBe("false"),
+  );
+});
+
+it("FE-12 turns the outer orbit continuously with the finale and unwinds on reverse scroll", () => {
+  render(<PaymentOrbit />);
+  flush();
+  const scene = screen.getByRole("region", { name: "From wallet to work." });
+  const turn = () => Number(scene.style.getPropertyValue("--path-turn"));
+  advance(0.72 * 600);
+  expect(turn()).toBe(0);
+  advance(0.77 * 600);
+  expect(turn()).toBeCloseTo((0.04 / 0.27) * 90);
+  advance(0.81 * 600);
+  const midpointTurn = turn();
+  expect(midpointTurn).toBeCloseTo((0.08 / 0.27) * 90);
+  advance(0.95 * 600);
+  expect(turn()).toBeGreaterThan(midpointTurn);
+  advance(600);
+  expect(turn()).toBe(90);
+  advance(0.81 * 600);
+  expect(turn()).toBeCloseTo(midpointTurn);
+  advance(0.65 * 600);
+  expect(turn()).toBe(0);
+});
+
+it("FE-12 freezes the shared finale while paused and restores readable steps for reduced motion", () => {
+  const view = render(<PaymentOrbit />);
+  flush();
+  const scene = screen.getByRole("region", { name: "From wallet to work." });
+  advance(0.85 * 600);
+  const progress = scene.style.getPropertyValue("--transform-progress");
+  const turn = scene.style.getPropertyValue("--path-turn");
+  expect(Number(progress)).toBeCloseTo(0.75);
+  view.rerender(<PaymentOrbit paused />);
+  advance(600);
+  expect(scene.dataset.orbitMode).toBe("paused");
+  expect(scene.style.getPropertyValue("--transform-progress")).toBe(progress);
+  expect(scene.style.getPropertyValue("--path-turn")).toBe(turn);
+  expect(scene.querySelector<HTMLElement>(".path-orbit-center")!.dataset.face).toBe("agent");
+  names.forEach((name) => {
+    const button = screen.getByRole("button", { name });
+    expect(button.dataset.revealed).toBe("true");
+    expect(button.dataset.portrait).toBe("false");
+  });
+  view.rerender(<PaymentOrbit />);
+  flush();
+  expect(scene.dataset.orbitPhase).toBe("complete");
+  expect(scene.style.getPropertyValue("--transform-progress")).toBe("1");
+  expect(scene.style.getPropertyValue("--path-turn")).toBe("90");
+  act(() => {
+    reduced = true;
+    listeners.forEach((fn) => fn());
+  });
+  advance(0.8 * 600);
+  expect(scene.dataset.orbitMode).toBe("reduced");
+  expect(scene.dataset.orbitPhase).toBe("steps");
+  expect(scene.querySelector<HTMLElement>(".path-orbit-center")!.dataset.face).toBe("agent");
+  names.forEach((name) => {
+    const button = screen.getByRole("button", { name });
+    expect(button.dataset.revealed).toBe("true");
+    expect(button.dataset.portrait).toBe("false");
+  });
+  expect(frames.size).toBe(0);
+  view.unmount();
+  expect(listeners.size).toBe(0);
+  expect(frames.size).toBe(0);
+});
+
+it("FE-12 reveals a focused step during the portrait finale until the next timeline boundary", async () => {
+  const user = userEvent.setup();
+  render(<PaymentOrbit />);
+  flush();
+  const scene = screen.getByRole("region", { name: "From wallet to work." });
+  advance(0.95 * 600);
+  expect(scene.dataset.orbitPhase).toBe("complete");
+  act(() => screen.getByRole("button", { name: "Shared pool" }).focus());
+  selected("Shared pool");
+  expect(scene.dataset.orbitManual).toBe("true");
+  expect(scene.dataset.orbitPhase).toBe("steps");
+  expect(
+    scene.querySelector<HTMLElement>(".path-orbit-center")!.dataset.face,
+  ).toBe("agent");
+  names.forEach((name) => {
+    const button = screen.getByRole("button", { name });
+    expect(button.dataset.revealed).toBe("true");
+    expect(button.dataset.portrait).toBe("false");
+  });
+  await user.keyboard("{Enter}");
+  advance(0.952 * 600);
+  selected("Shared pool");
+  advance(600);
+  expect(scene.dataset.orbitManual).toBe("true");
+  expect(scene.dataset.orbitPhase).toBe("steps");
+  selected("Shared pool");
+  advance(0.85 * 600);
+  expect(scene.dataset.orbitManual).toBe("false");
+  expect(scene.dataset.orbitPhase).toBe("transform");
+  selected("x402 seller");
+});
+
+it("FE-12 uses manual mode on compact screens without advancing hidden stages", async () => {
+  const user = userEvent.setup();
+  vi.stubGlobal("innerWidth", 899);
+  render(<PaymentOrbit />);
+  flush();
+  const scene = screen.getByRole("region", { name: "From wallet to work." });
+  expect(scene.dataset.orbitMode).toBe("static");
+  expect(scene.dataset.orbitPinned).toBe("false");
+  names.forEach((name) =>
+    expect(screen.getByRole("button", { name }).dataset.revealed).toBe("true"),
+  );
+  await user.click(screen.getByRole("button", { name: "Relayer" }));
+  advance(600);
+  selected("Relayer");
+  expect(screen.getByText(/gets proof and intent/)).toBeTruthy();
+});
+
+it.each([
+  { height: 616, pinned: "true", mode: "active" },
+  { height: 617, pinned: "false", mode: "static" },
+])(
+  "FE-12 reserves 80 pixels above and 24 below a $height pixel scene",
+  ({ height, pinned, mode }) => {
+    vi.stubGlobal("innerHeight", 720);
+    sceneHeight = height;
+    render(<PaymentOrbit />);
+    flush();
+    const scene = screen.getByRole("region", { name: "From wallet to work." });
+    expect(scene.dataset.orbitPinned).toBe(pinned);
+    expect(scene.dataset.orbitMode).toBe(mode);
+  },
+);

@@ -291,7 +291,7 @@ export default function App() {
             </div>
           </section>
         </div>
-        <ScrollWalkthrough paused={paused} />
+        <ScrollWalkthrough />
         <PrivacySection />
         <PaymentOrbit paused={paused} />
         <section
